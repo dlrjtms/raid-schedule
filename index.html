@@ -847,7 +847,7 @@ function RaidBoard() {
                   <div style={styles.memberStatRow}>
                     {m.characters.filter(Boolean).map((c) => (
                       <div key={c.id} style={styles.memberStatCol}>
-                        <span className="rb-num" style={{ color: ROLE[c.role].color, fontWeight: 700 }}>
+                        <span className="rb-num" style={{ color: ROLE[c.role].color, fontWeight: 700, fontSize: 11, lineHeight: 1.2 }}>
                           {c.level}
                           {c.raidDone && <span style={styles.raidDoneMark}>✓</span>}
                         </span>
@@ -1261,9 +1261,9 @@ const styles = {
   memberCard: { position: "relative", background: "#171c26", border: "1.5px solid #262d3d", borderRadius: 10, padding: "14px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", textAlign: "center" },
   memberCardName: { fontSize: 12, fontWeight: 700, color: "#f2ede0" },
   memberCardClass: { fontSize: 10, color: "#8b93a7" },
-  memberStatRow: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 8px", marginTop: 4 },
-  memberStatCol: { display: "flex", flexDirection: "column", alignItems: "center", minWidth: 38 },
-  memberPowerSmall: { fontSize: 9, color: "#8b93a7", marginTop: 1 },
+  memberStatRow: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "2px 2px", marginTop: 4, width: "100%" },
+  memberStatCol: { display: "flex", flexDirection: "column", alignItems: "center" },
+  memberPowerSmall: { fontSize: 8, color: "#8b93a7", marginTop: 0, lineHeight: 1.1 },
   memberLevelSep: { color: "#3a4152" },
   raidDoneMark: { color: "#639922", fontSize: 10, marginLeft: 1 },
   requestRow: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginTop: 4, width: "100%" },
