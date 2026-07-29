@@ -237,6 +237,28 @@ function fmt(mins) {
   return `${h}:${m}`;
 }
 
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+
+function splitTime(t) {
+  const [h, m] = (t || "0:00").split(":").map(Number);
+  return { h: h || 0, m: m || 0 };
+}
+
+function dayHoursLabel(s) {
+  if (!s || !s.enabled || s.start === s.end) return null;
+  const [start, end] = toRange(s.start, s.end);
+  const totalMin = end - start;
+  const hrs = totalMin / 60;
+  const label = Number.isInteger(hrs) ? `${hrs}시간` : `${hrs.toFixed(1)}시간`;
+  return label;
+}
+
+const HOUR_OPTIONS_START = Array.from({ length: 24 }, (_, i) => i);
+const HOUR_OPTIONS_END = Array.from({ length: 25 }, (_, i) => i);
+const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
+
 // 가장 최근에 지나간 "화요일 23:00" 시점을 구한다 (0=일, 2=화)
 function lastTuesday11pm(now) {
   const d = new Date(now);
@@ -540,14 +562,6 @@ function RaidBoard() {
         * { box-sizing: border-box; font-family: 'Noto Sans KR', sans-serif; }
         .rb-num { font-family: 'Chakra Petch', 'Noto Sans KR', sans-serif; }
         ::placeholder { color: #5f6577; }
-        input[type="time"] { cursor: pointer; }
-        input[type="time"]::-webkit-calendar-picker-indicator {
-          filter: invert(1);
-          opacity: 0.75;
-          cursor: pointer;
-          padding: 2px;
-        }
-        input[type="time"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
       `}</style>
 
       <div style={styles.hero}>
@@ -787,7 +801,9 @@ function RaidBoard() {
                     DAYS.map((d) => {
                       const s = scheduleDraft[d];
                       const zeroLength = s.enabled && s.start === s.end;
-                      const overnight = s.enabled && s.start > s.end;
+                      const hoursLabel = dayHoursLabel(s);
+                      const st = splitTime(s.start);
+                      const et = splitTime(s.end);
                       return (
                         <div key={d}>
                           <div style={styles.dayRowLine}>
@@ -795,22 +811,58 @@ function RaidBoard() {
                               <input type="checkbox" checked={s.enabled} onChange={(e) => updateDay(d, { enabled: e.target.checked })} />
                               <span style={{ marginLeft: 6 }}>{d}</span>
                             </label>
-                            <input
-                              style={styles.timeInput}
-                              type="time"
-                              value={s.start}
+                            <select
+                              style={styles.timeSelect}
                               disabled={!s.enabled}
-                              onChange={(e) => updateDay(d, { start: e.target.value })}
-                            />
+                              value={st.h}
+                              onChange={(e) => updateDay(d, { start: pad2(Number(e.target.value)) + ":" + pad2(st.m) })}
+                            >
+                              {HOUR_OPTIONS_START.map((h) => (
+                                <option key={h} value={h}>
+                                  {pad2(h)}
+                                </option>
+                              ))}
+                            </select>
+                            <span>:</span>
+                            <select
+                              style={styles.timeSelect}
+                              disabled={!s.enabled}
+                              value={st.m}
+                              onChange={(e) => updateDay(d, { start: pad2(st.h) + ":" + pad2(Number(e.target.value)) })}
+                            >
+                              {MINUTE_OPTIONS.map((m) => (
+                                <option key={m} value={m}>
+                                  {pad2(m)}
+                                </option>
+                              ))}
+                            </select>
                             <span style={{ color: "#5f6577" }}>~</span>
-                            <input
-                              style={styles.timeInput}
-                              type="time"
-                              value={s.end}
+                            <select
+                              style={styles.timeSelect}
                               disabled={!s.enabled}
-                              onChange={(e) => updateDay(d, { end: e.target.value })}
-                            />
-                            {overnight && <span style={styles.overnightHint}>다음날 새벽까지</span>}
+                              value={et.h}
+                              onChange={(e) => updateDay(d, { end: pad2(Number(e.target.value)) + ":" + pad2(et.m) })}
+                            >
+                              {HOUR_OPTIONS_END.map((h) => (
+                                <option key={h} value={h}>
+                                  {pad2(h)}
+                                </option>
+                              ))}
+                            </select>
+                            <span>:</span>
+                            <select
+                              style={styles.timeSelect}
+                              disabled={!s.enabled}
+                              value={et.m}
+                              onChange={(e) => updateDay(d, { end: pad2(et.h) + ":" + pad2(Number(e.target.value)) })}
+                            >
+                              {MINUTE_OPTIONS.map((m) => (
+                                <option key={m} value={m}>
+                                  {pad2(m)}
+                                </option>
+                              ))}
+                            </select>
+                            {hoursLabel && <span style={styles.hoursLabel}>{hoursLabel}</span>}
                           </div>
                           {zeroLength && (
                             <div style={styles.errorText}>시작 시간과 종료 시간이 같습니다. 시간을 다시 설정해주세요.</div>
@@ -921,7 +973,6 @@ const styles = {
   dangerBtn: { background: "transparent", color: "#e2593f", border: "1px solid #e2593f", borderRadius: 8, padding: "10px 16px", fontSize: 14, cursor: "pointer" },
   ghostBtn: { background: "transparent", color: "#8b93a7", border: "1px solid #2a3040", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" },
   errorText: { color: "#e2593f", fontSize: 12, margin: "6px 0" },
-  overnightHint: { fontSize: 11, color: "#4fb8b0" },
   loggedInBar: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#171c26", border: "1px solid #262d3d", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, color: "#c8cddb" },
   grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 },
   panel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 14, padding: 20, marginBottom: 16 },
@@ -938,7 +989,8 @@ const styles = {
   roleToggle: { flex: 1, border: "1.5px solid", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 600, cursor: "pointer", background: "transparent" },
   dayRowLine: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #1e2430" },
   dayCheckLabel: { display: "flex", alignItems: "center", width: 46, fontSize: 13, color: "#c8cddb" },
-  timeInput: { background: "#0f1219", border: "1px solid #2a3040", borderRadius: 6, padding: "6px 8px", color: "#e8ebf0", fontSize: 12, cursor: "pointer" },
+  timeSelect: { background: "#0f1219", border: "1px solid #2a3040", borderRadius: 6, padding: "5px 4px", color: "#e8ebf0", fontSize: 12, cursor: "pointer" },
+  hoursLabel: { fontSize: 11, color: "#d9a94e", marginLeft: "auto", fontWeight: 700 },
   emptyHint: { fontSize: 12, color: "#5f6577", textAlign: "center", padding: "10px 0" },
   savedHint: { fontSize: 12, color: "#639922" },
   dayScheduleBlock: { marginBottom: 14 },
