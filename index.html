@@ -969,6 +969,7 @@ function RaidBoard() {
   const detailEngravingList = useMemo(() => {
     const en = detailData && detailData.engravings;
     if (!en) return [];
+    if (Array.isArray(en.ArkPassiveEffects)) return en.ArkPassiveEffects;
     if (Array.isArray(en.Effects)) return en.Effects;
     if (en.ArmoryEngraving && Array.isArray(en.ArmoryEngraving.Effects)) return en.ArmoryEngraving.Effects;
     if (Array.isArray(en)) return en;
