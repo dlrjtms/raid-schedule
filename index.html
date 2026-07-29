@@ -844,27 +844,21 @@ function RaidBoard() {
                     {main.name}
                   </div>
                   <div style={styles.memberCardClass}>{main.className}</div>
-                  <div style={styles.memberLevels}>
-                    {m.characters.filter(Boolean).map((c, i) => (
-                      <span key={c.id}>
-                        {i > 0 && <span style={styles.memberLevelSep}> · </span>}
-                        <span className="rb-num" style={{ color: ROLE[c.role].color }}>
+                  <div style={styles.memberStatRow}>
+                    {m.characters.filter(Boolean).map((c) => (
+                      <div key={c.id} style={styles.memberStatCol}>
+                        <span className="rb-num" style={{ color: ROLE[c.role].color, fontWeight: 700 }}>
                           {c.level}
+                          {c.raidDone && <span style={styles.raidDoneMark}>✓</span>}
                         </span>
-                        {c.raidDone && <span style={styles.raidDoneMark}>✓</span>}
-                      </span>
+                        {c.combatPower ? (
+                          <span className="rb-num" style={styles.memberPowerSmall}>
+                            {Math.round(c.combatPower).toLocaleString("ko-KR")}
+                          </span>
+                        ) : null}
+                      </div>
                     ))}
                   </div>
-                  {m.characters.some((c) => c && c.combatPower) && (
-                    <div style={styles.memberPowers}>
-                      {m.characters.filter(Boolean).map((c, i) => (
-                        <span key={c.id}>
-                          {i > 0 && <span style={styles.memberLevelSep}> · </span>}
-                          <span className="rb-num">{c.combatPower ? Math.round(c.combatPower).toLocaleString("ko-KR") : "-"}</span>
-                        </span>
-                      ))}
-                    </div>
-                  )}
                   {m.request && (
                     <div style={styles.requestRow}>
                       <div style={styles.requestText} title={m.request}>
@@ -1267,8 +1261,9 @@ const styles = {
   memberCard: { position: "relative", background: "#171c26", border: "1.5px solid #262d3d", borderRadius: 10, padding: "14px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", textAlign: "center" },
   memberCardName: { fontSize: 12, fontWeight: 700, color: "#f2ede0" },
   memberCardClass: { fontSize: 10, color: "#8b93a7" },
-  memberLevels: { fontSize: 11, fontWeight: 700, marginTop: 2 },
-  memberPowers: { fontSize: 10, color: "#8b93a7", marginTop: 1 },
+  memberStatRow: { display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "4px 8px", marginTop: 4 },
+  memberStatCol: { display: "flex", flexDirection: "column", alignItems: "center", minWidth: 38 },
+  memberPowerSmall: { fontSize: 9, color: "#8b93a7", marginTop: 1 },
   memberLevelSep: { color: "#3a4152" },
   raidDoneMark: { color: "#639922", fontSize: 10, marginLeft: 1 },
   requestRow: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginTop: 4, width: "100%" },
