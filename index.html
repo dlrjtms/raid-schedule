@@ -1792,7 +1792,7 @@ function RaidBoard() {
                     <div style={styles.modalSectionTitle}>장비</div>
                     {detailEquipList.map((eq, i) => {
                       const isAccessory = ["목걸이", "귀걸이", "반지", "팔찌", "어빌리티 스톤"].includes(eq.Type);
-                      const parsed = isAccessory ? extractTooltipOptionLines(eq.Tooltip) : { lines: [], raw: "" };
+                      const parsed = isAccessory ? extractTooltipOptionLines(eq.Tooltip) : { lines: [], items: [], raw: "" };
                       return (
                         <div key={i} style={styles.modalEquipBlock}>
                           <div style={styles.modalListRow}>
