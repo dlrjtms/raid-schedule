@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>레이드 시간표</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-app-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-firestore-compat.js"></script>
+</head>
+<body style="margin:0;background:#0f1219;">
+<div id="root"></div>
+
+<script>
+  // ====================================================================
+  // Firebase 설정 — Firebase 콘솔의 프로젝트 설정에서 복사해 여기에 붙여넣으세요.
+  // (프로젝트 설정 > 일반 > 내 앱 > SDK 설정 및 구성 > 구성)
+  // ====================================================================
+  const firebaseConfig = {
+    apiKey: "AIzaSyA1_AZcZQnh3UpdP3WJxOzc5YUC8XtUVkc",
+    authDomain: "raid-dda42.firebaseapp.com",
+    projectId: "raid-dda42",
+    storageBucket: "raid-dda42.firebasestorage.app",
+    messagingSenderId: "775623601647",
+    appId: "1:775623601647:web:c23f8fdfa9685758035a1a"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const COLLECTION = "raid_storage";
+
+  // Claude 아티팩트의 window.storage API와 동일한 모양으로 만든 Firestore 어댑터.
+  // 덕분에 아래 앱 코드는 거의 손대지 않고 그대로 재사용할 수 있습니다.
+  window.storage = {
+    get: async (key) => {
+      const doc = await db.collection(COLLECTION).doc(key).get();
+      if (!doc.exists) throw new Error("not found: " + key);
+      return { key, value: doc.data().value, shared: true };
+    },
+    set: async (key, value) => {
+      await db.collection(COLLECTION).doc(key).set({ value });
+      return { key, value, shared: true };
+    },
+    list: async (prefix) => {
+      const snap = await db.collection(COLLECTION).get();
+      const keys = [];
+      snap.forEach((d) => {
+        if (!prefix || d.id.startsWith(prefix)) keys.push(d.id);
+      });
+      return { keys, prefix, shared: true };
+    },
+    delete: async (key) => {
+      await db.collection(COLLECTION).doc(key).delete();
+      return { key, deleted: true, shared: true };
+    },
+  };
+</script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useCallback, useMemo } = React;
+
+const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+const ROLE = {
+  딜러: { color: "#e2593f", bg: "#2a1a15", label: "딜러" },
+  서포터: { color: "#4fb8b0", bg: "#122624", label: "서포터" },
+};
+const MAX_SLOTS = 6;
+const SUPPORT_CLASSES = ["도화가", "바드", "발키리", "홀리나이트"];
+const roleOf = (className) => (SUPPORT_CLASSES.includes(className) ? "서포터" : "딜러");
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+const ICON_PATHS = {
+  star: "M12 2 L15 8 L21 8 L16.5 12 L18.5 19 L12 15 L5.5 19 L7.5 12 L3 8 L9 8 Z",
+  diamond: "M12 2 L20 12 L12 22 L4 12 Z",
+  blade: "M12 1 L13.6 6 L12 19 L10.4 6 Z M7 13 H17",
+  bow: "M7 4 C11 12 11 12 7 20 M7 4 L7 20",
+  flame: "M12 2 C8 8 6 12 8 16 C9 19 15 19 16 16 C18 12 16 8 12 2 Z",
+  leaf: "M4 20 C4 10 10 4 20 4 C20 14 14 20 4 20 Z M6 18 L18 6",
+  crescent: "M15 3 A9 9 0 1 0 15 21 A7 7 0 1 1 15 3 Z",
+  wave: "M2 9 C5 5 7 13 10 9 C13 5 15 13 18 9 C20.5 5.8 22 8 22 9",
+  cross: "M12 2 V22 M2 12 H22",
+  spiral: "M12 4 A8 8 0 1 1 4.5 15 M12 8 A4 4 0 1 0 8.5 13",
+  shield: "M12 2 L20 5 V11 C20 17 16 20 12 22 C8 20 4 17 4 11 V5 Z",
+  drop: "M12 2 C16 9 19 13 19 16 A7 7 0 1 1 5 16 C5 13 8 9 12 2 Z",
+  wing: "M2 12 C6 4 10 4 12 8 C14 4 18 4 22 12 C18 10 14 12 12 16 C10 12 6 10 2 12 Z",
+};
+
+const CLASS_ICON_MAP = {
+  버서커: { shape: "blade", color: "#e2593f" },
+  데빌헌터: { shape: "bow", color: "#7f77dd" },
+  데모닉: { shape: "flame", color: "#d4537e" },
+  브레이커: { shape: "cross", color: "#ba7517" },
+  환수사: { shape: "leaf", color: "#639922" },
+  슬레이어: { shape: "blade", color: "#a32d2d" },
+  인파이터: { shape: "cross", color: "#e2593f" },
+  워로드: { shape: "shield", color: "#8b93a7" },
+  호크아이: { shape: "bow", color: "#1d9e75" },
+  차원술사: { shape: "spiral", color: "#7f77dd" },
+  도화가: { shape: "orb", color: "#d4537e" },
+  블레이드: { shape: "blade", color: "#993556" },
+  건슬링어: { shape: "bow", color: "#5f6577" },
+  발키리: { shape: "wing", color: "#378ade" },
+  창술사: { shape: "diamond", color: "#1d9e75" },
+  스카우터: { shape: "bow", color: "#639922" },
+  기상술사: { shape: "wave", color: "#378ade" },
+  서머너: { shape: "star", color: "#534ab7" },
+  바드: { shape: "crescent", color: "#d9a94e" },
+  홀리나이트: { shape: "shield", color: "#d9a94e" },
+  기공사: { shape: "spiral", color: "#1d9e75" },
+  아르카나: { shape: "diamond", color: "#7f77dd" },
+  스트라이커: { shape: "cross", color: "#d85a30" },
+  소울이터: { shape: "drop", color: "#3c3489" },
+  가디언나이트: { shape: "shield", color: "#378ade" },
+  리퍼: { shape: "crescent", color: "#085041" },
+};
+
+const FALLBACK_PALETTE = ["#e2593f", "#7f77dd", "#d4537e", "#ba7517", "#639922", "#1d9e75", "#378ade", "#d9a94e", "#993556", "#5f6577"];
+const FALLBACK_SHAPES = Object.keys(ICON_PATHS).concat("orb");
+
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+function iconFor(className) {
+  if (CLASS_ICON_MAP[className]) return CLASS_ICON_MAP[className];
+  const h = hashStr(className || "");
+  return { shape: FALLBACK_SHAPES[h % FALLBACK_SHAPES.length], color: FALLBACK_PALETTE[h % FALLBACK_PALETTE.length] };
+}
+
+function ClassEmblem({ className, size = 30 }) {
+  const info = iconFor(className);
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={info.color} strokeWidth="1.4">
+      {info.shape === "orb" ? (
+        <>
+          <circle cx="12" cy="12" r="7" />
+          <circle cx="12" cy="12" r="2" fill={info.color} stroke="none" />
+        </>
+      ) : (
+        <path d={ICON_PATHS[info.shape]} />
+      )}
+    </svg>
+  );
+}
+
+function emptySchedule() {
+  const s = {};
+  DAYS.forEach((d) => (s[d] = { enabled: false, start: "20:00", end: "23:00" }));
+  return s;
+}
+
+function makeCharacters(list) {
+  return list.map(([name, className, level]) => ({
+    id: uid(),
+    name,
+    className,
+    role: roleOf(className),
+    level,
+  }));
+}
+
+const DEFAULT_MEMBERS = [
+  ["m01", [["이거손의문사를피하는무빙", "버서커", 1781.67], ["이거손건카타마스터의무빙", "데빌헌터", 1752.5], ["이거손손롤으로할퀴는무빙", "데모닉", 1748.33], ["이거손아산백호의무빙이여", "브레이커", 1730.0], ["이거손우당탕탕대난투", "환수사", 1722.5], ["이거손버서커에겐없는무빙", "슬레이어", 1722.0]]],
+  ["m02", [["백묘요란", "데모닉", 1800.0], ["팔이짧아슬픈동물", "인파이터", 1770.0], ["소짖남", "워로드", 1754.17], ["아프리카대머리황새", "호크아이", 1751.67], ["자몽이돌격대", "차원술사", 1750.0], ["도로로퉁스", "도화가", 1750.0]]],
+  ["m03", [["시루맨", "블레이드", 1795.0], ["씨루맨", "블레이드", 1771.67], ["띠루맨", "블레이드", 1751.67], ["시루총총", "건슬링어", 1732.5], ["블레깎", "블레이드", 1720.0], ["씨룽", "발키리", 1711.67]]],
+  ["m04", [["대장김창순", "창술사", 1795.0], ["히메창순", "창술사", 1765.83], ["자비스의유산", "스카우터", 1751.67], ["공이속치적실드다있습니다", "기상술사", 1750.83], ["필요할땐결국벌레의험인가", "데모닉", 1750.0], ["먹물쟁이꼬마", "도화가", 1750.0]]],
+  ["m05", [["노나니", "도화가", 1788.33], ["해룰이", "발키리", 1755.0], ["또를이", "환수사", 1750.83], ["니난냐", "서머너", 1750.0], ["도나니", "바드", 1750.0], ["차를이", "차원술사", 1750.0]]],
+  ["m06", [["축석", "호크아이", 1784.17], ["홍문별", "건슬링어", 1736.67], ["홍다루", "바드", 1730.0], ["홍신성", "홀리나이트", 1729.17], ["홍소금", "리퍼", 1726.67], ["홍근우", "스카우터", 1716.0]]],
+  ["m07", [["야기봉", "스트라이커", 1782.5], ["기요밍", "홀리나이트", 1771.67], ["야기공", "기공사", 1727.5], ["3514", "데빌헌터", 1726.67], ["지능개박살", "브레이커", 1720.0], ["차원개박살", "차원술사", 1710.33]]],
+  ["m08", [["써머밍", "서머너", 1780.0], ["공규밍", "기공사", 1758.33], ["호웅밍", "환수사", 1752.5], ["히퓨밍", "바드", 1752.5], ["타짜밍", "아르카나", 1750.0], ["요마밍", "데모닉", 1750.0]]],
+  ["m09", [["Rarecake", "도화가", 1780.0], ["음치박치레케", "바드", 1740.0], ["나도물약먹으니까너도", "발키리", 1730.83], ["집이지만집에가고싶은레케", "환수사", 1720.83], ["칼퇴희망레케", "기상술사", 1720.0], ["차레케", "차원술사", 1705.0]]],
+  ["m10", [["민도릿", "소울이터", 1780.0], ["민서깃", "소울이터", 1752.5], ["민또릿", "블레이드", 1723.17], ["닥터잼민레인지", "차원술사", 1715.0], ["밋궁", "리퍼", 1710.0], ["민키릿", "발키리", 1710.0]]],
+  ["m11", [["김호퉁", "호크아이", 1771.67], ["김사형", "소울이터", 1735.0], ["김끝밤", "건슬링어", 1730.0], ["김사기", "가디언나이트", 1720.0], ["김승가", "슬레이어", 1718.17], ["김밥릭", "스트라이커", 1714.17]]],
+  ["m12", [["신라꽃", "데빌헌터", 1770.0], ["아크라시아의대표총잡이", "데빌헌터", 1750.0], ["세이크리아대표칼잡이", "발키리", 1730.0], ["아크라시아의대표물주먹", "브레이커", 1721.67], ["세이크리아의대표칼잡이", "블레이드", 1715.67], ["백제꽃", "리퍼", 1710.0]]],
+  ["m13", [["레전드리퍼등장", "리퍼", 1764.17], ["레전드리퍼퇴장", "리퍼", 1730.83], ["레전드리퍼또퇴장", "리퍼", 1716.83], ["레전드차원술사등장", "차원술사", 1701.67], ["레전드리퍼또등장", "리퍼", 1645.83], ["레전드데빌헌터등장", "데빌헌터", 1642.5]]],
+];
+
+function toMinutes(t) {
+  const [h, m] = t.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// returns [start, end] in minutes; if end <= start, treat the range as crossing midnight
+function toRange(start, end) {
+  const s = toMinutes(start);
+  let e = toMinutes(end);
+  if (e <= s) e += 24 * 60;
+  return [s, e];
+}
+
+function daySegments(members, day) {
+  const intervals = [];
+  members.forEach((m) => {
+    const s = m.schedule && m.schedule[day];
+    if (s && s.enabled && s.start !== s.end) {
+      const [start, end] = toRange(s.start, s.end);
+      intervals.push({ id: m.id, start, end });
+    }
+  });
+  if (intervals.length === 0) return [];
+  const points = Array.from(new Set(intervals.flatMap((iv) => [iv.start, iv.end]))).sort((a, b) => a - b);
+  const segments = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const t = points[i];
+    const active = intervals.filter((iv) => iv.start <= t && iv.end > t).map((iv) => iv.id);
+    if (active.length >= 1) segments.push({ start: t, end: points[i + 1], ids: active });
+  }
+  const blocks = [];
+  segments.forEach((seg) => {
+    const prev = blocks[blocks.length - 1];
+    const sameSet = prev && prev.end === seg.start && prev.ids.length === seg.ids.length && prev.ids.every((id) => seg.ids.includes(id));
+    if (sameSet) {
+      prev.end = seg.end;
+    } else {
+      blocks.push({ ...seg });
+    }
+  });
+  return blocks.sort((a, b) => a.start - b.start);
+}
+
+function fmt(mins) {
+  const wrapped = ((mins % 1440) + 1440) % 1440;
+  const h = String(Math.floor(wrapped / 60)).padStart(2, "0");
+  const m = String(wrapped % 60).padStart(2, "0");
+  return `${h}:${m}`;
+}
+
+function RaidBoard() {
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedId, setSelectedId] = useState(null);
+  const [password, setPassword] = useState("");
+  const [claimPw, setClaimPw] = useState("");
+  const [claimPw2, setClaimPw2] = useState("");
+  const [loggedInId, setLoggedInId] = useState(null);
+  const [regName, setRegName] = useState("");
+  const [regClass, setRegClass] = useState("");
+  const [regPw, setRegPw] = useState("");
+  const [regPw2, setRegPw2] = useState("");
+  const [editSlot, setEditSlot] = useState(null);
+  const [slotDraft, setSlotDraft] = useState({ name: "", className: "", role: "딜러", level: "" });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [scheduleDraft, setScheduleDraft] = useState(null);
+  const [scheduleSaved, setScheduleSaved] = useState(false);
+
+  const loadMembers = useCallback(async () => {
+    try {
+      const listed = await window.storage.list("member:", true);
+      const keys = listed && listed.keys ? listed.keys : [];
+      const results = [];
+      for (const k of keys) {
+        try {
+          const r = await window.storage.get(k, true);
+          if (r && r.value) results.push(JSON.parse(r.value));
+        } catch (e) {}
+      }
+      results.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+      setMembers(results);
+      return results;
+    } catch (e) {
+      setError("길드원 정보를 불러오지 못했습니다.");
+      return [];
+    }
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        for (let i = 0; i < DEFAULT_MEMBERS.length; i++) {
+          const [id, chars] = DEFAULT_MEMBERS[i];
+          let exists = true;
+          try {
+            const r = await window.storage.get("member:" + id, true);
+            if (!r || !r.value) exists = false;
+          } catch (e) {
+            exists = false;
+          }
+          if (!exists) {
+            const fresh = {
+              id,
+              password: null,
+              createdAt: i,
+              characters: makeCharacters(chars),
+              schedule: emptySchedule(),
+            };
+            try {
+              await window.storage.set("member:" + id, JSON.stringify(fresh), true);
+            } catch (e) {}
+          }
+        }
+        await loadMembers();
+      } catch (e) {
+        setError("초기 데이터를 불러오지 못했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  async function saveMember(updated) {
+    setMembers((prev) => {
+      const exists = prev.some((m) => m.id === updated.id);
+      return exists ? prev.map((m) => (m.id === updated.id ? updated : m)) : [...prev, updated];
+    });
+    try {
+      await window.storage.set("member:" + updated.id, JSON.stringify(updated), true);
+    } catch (e) {
+      setError("저장에 실패했습니다.");
+    }
+  }
+
+  const loggedIn = members.find((m) => m.id === loggedInId) || null;
+
+  useEffect(() => {
+    if (loggedIn) {
+      setScheduleDraft(loggedIn.schedule);
+      setScheduleSaved(false);
+    } else {
+      setScheduleDraft(null);
+    }
+  }, [loggedInId]);
+
+  function pickCard(id) {
+    setSelectedId(id);
+    setPassword("");
+    setClaimPw("");
+    setClaimPw2("");
+    setError("");
+  }
+
+  function attemptLogin() {
+    const m = members.find((x) => x.id === selectedId);
+    if (!m) return;
+    if (m.password === password) {
+      setLoggedInId(m.id);
+      setError("");
+    } else {
+      setError("비밀번호가 일치하지 않습니다.");
+    }
+  }
+
+  async function claimPassword() {
+    const m = members.find((x) => x.id === selectedId);
+    if (!m) return;
+    if (!claimPw) {
+      setError("비밀번호를 입력해주세요.");
+      return;
+    }
+    if (claimPw !== claimPw2) {
+      setError("비밀번호가 서로 다릅니다.");
+      return;
+    }
+    await saveMember({ ...m, password: claimPw });
+    setLoggedInId(m.id);
+    setError("");
+  }
+
+  async function registerMember() {
+    if (!regName.trim() || !regClass.trim() || !regPw) {
+      setError("대표 캐릭터 이름, 직업, 비밀번호를 모두 입력해주세요.");
+      return;
+    }
+    if (regPw !== regPw2) {
+      setError("비밀번호가 서로 다릅니다.");
+      return;
+    }
+    const fresh = {
+      id: uid(),
+      password: regPw,
+      createdAt: Date.now(),
+      characters: [{ id: uid(), name: regName.trim(), className: regClass.trim(), role: roleOf(regClass.trim()), level: 1 }],
+      schedule: emptySchedule(),
+    };
+    await saveMember(fresh);
+    setLoggedInId(fresh.id);
+    setSelectedId(fresh.id);
+    setRegName("");
+    setRegClass("");
+    setRegPw("");
+    setRegPw2("");
+    setError("");
+  }
+
+  function logout() {
+    setLoggedInId(null);
+    setSelectedId(null);
+    setPassword("");
+    setConfirmDelete(false);
+  }
+
+  async function deleteMyAccount() {
+    if (!loggedIn) return;
+    const id = loggedIn.id;
+    try {
+      await window.storage.delete("member:" + id, true);
+    } catch (e) {
+      setError("삭제에 실패했습니다.");
+      return;
+    }
+    setMembers((prev) => prev.filter((m) => m.id !== id));
+    setConfirmDelete(false);
+    logout();
+  }
+
+  function openSlotEditor(idx) {
+    const existing = loggedIn.characters[idx];
+    setSlotDraft(existing ? { ...existing } : { name: "", className: "", role: "딜러", level: "" });
+    setEditSlot(idx);
+  }
+
+  async function saveSlot() {
+    if (!slotDraft.name.trim()) return;
+    const chars = [...loggedIn.characters];
+    while (chars.length <= editSlot) chars.push(null);
+    chars[editSlot] = {
+      id: chars[editSlot] && chars[editSlot].id ? chars[editSlot].id : uid(),
+      name: slotDraft.name.trim(),
+      className: slotDraft.className.trim(),
+      role: slotDraft.role,
+      level: Number(slotDraft.level) || 0,
+    };
+    await saveMember({ ...loggedIn, characters: chars });
+    setEditSlot(null);
+  }
+
+  async function deleteSlot(idx) {
+    if (idx === 0) return;
+    const chars = [...loggedIn.characters];
+    chars[idx] = null;
+    await saveMember({ ...loggedIn, characters: chars.filter((c, i) => i < MAX_SLOTS) });
+    setEditSlot(null);
+  }
+
+  function updateDay(day, patch) {
+    setScheduleDraft((prev) => ({ ...prev, [day]: { ...prev[day], ...patch } }));
+    setScheduleSaved(false);
+  }
+
+  async function saveSchedule() {
+    await saveMember({ ...loggedIn, schedule: scheduleDraft });
+    setScheduleSaved(true);
+  }
+
+  const daySchedule = useMemo(() => {
+    return DAYS.map((d) => ({ day: d, segments: daySegments(members, d) })).filter((x) => x.segments.length > 0);
+  }, [members]);
+
+  const memberById = (id) => members.find((m) => m.id === id);
+  const selectedMember = selectedId && selectedId !== "new" ? memberById(selectedId) : null;
+
+  return (
+    <div style={styles.page}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=Chakra+Petch:wght@500;600;700&display=swap');
+        * { box-sizing: border-box; font-family: 'Noto Sans KR', sans-serif; }
+        .rb-num { font-family: 'Chakra Petch', 'Noto Sans KR', sans-serif; }
+        ::placeholder { color: #5f6577; }
+        input[type="time"] { cursor: pointer; }
+        input[type="time"]::-webkit-calendar-picker-indicator {
+          filter: invert(1);
+          opacity: 0.75;
+          cursor: pointer;
+          padding: 2px;
+        }
+        input[type="time"]::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+      `}</style>
+
+      <div style={styles.hero}>
+        <div style={styles.heroEyebrow}>GUILD BOARD</div>
+        <h1 style={styles.heroTitle}>레이드 시간표</h1>
+      </div>
+
+      {loading ? (
+        <div style={styles.loadingBox}>불러오는 중...</div>
+      ) : (
+        <>
+          <div style={styles.sectionTitle}>캐릭터를 선택하세요</div>
+          <div style={styles.cardGrid}>
+            {[...members]
+              .sort((a, b) => ((b.characters[0] && b.characters[0].level) || 0) - ((a.characters[0] && a.characters[0].level) || 0))
+              .map((m) => {
+              const main = m.characters[0] || {};
+              const isSel = selectedId === m.id;
+              return (
+                <div
+                  key={m.id}
+                  style={{ ...styles.memberCard, borderColor: isSel ? "#3b82f6" : "#262d3d" }}
+                  onClick={() => pickCard(m.id)}
+                >
+                  <div style={styles.memberCardName}>{main.name}</div>
+                  <div style={styles.memberCardClass}>{main.className}</div>
+                  <div style={styles.memberLevels}>
+                    {m.characters.filter(Boolean).map((c, i) => (
+                      <span key={c.id}>
+                        {i > 0 && <span style={styles.memberLevelSep}> · </span>}
+                        <span className="rb-num" style={{ color: ROLE[c.role].color }}>
+                          {c.level}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            <div
+              style={{ ...styles.memberCard, borderStyle: "dashed", borderColor: selectedId === "new" ? "#3b82f6" : "#2a3040" }}
+              onClick={() => pickCard("new")}
+            >
+              <div style={styles.plusIcon}>+</div>
+              <div style={styles.memberCardClass}>새 캐릭터 등록</div>
+            </div>
+          </div>
+
+          {selectedId === "new" && !loggedIn && (
+            <div style={styles.authPanel}>
+              <div style={styles.authTitle}>새 대표 캐릭터 등록</div>
+              <div style={styles.authRow}>
+                <input style={styles.input} placeholder="대표 캐릭터 이름" value={regName} onChange={(e) => setRegName(e.target.value)} />
+                <input style={styles.input} placeholder="직업 (예: 데모닉)" value={regClass} onChange={(e) => setRegClass(e.target.value)} />
+              </div>
+              <div style={styles.authRow}>
+                <input style={styles.input} type="password" placeholder="비밀번호" value={regPw} onChange={(e) => setRegPw(e.target.value)} />
+                <input style={styles.input} type="password" placeholder="비밀번호 확인" value={regPw2} onChange={(e) => setRegPw2(e.target.value)} />
+              </div>
+              {error && <div style={styles.errorText}>{error}</div>}
+              <button style={styles.primaryBtn} onClick={registerMember}>
+                등록하고 로그인
+              </button>
+            </div>
+          )}
+
+          {selectedMember && !loggedIn && !selectedMember.password && (
+            <div style={styles.authPanel}>
+              <div style={styles.authTitle}>
+                {(selectedMember.characters[0] || {}).name} - 아직 비밀번호가 설정되지 않았습니다. 내 캐릭터라면 비밀번호를 설정하세요.
+              </div>
+              <div style={styles.authRow}>
+                <input style={styles.input} type="password" placeholder="비밀번호 설정" value={claimPw} onChange={(e) => setClaimPw(e.target.value)} />
+                <input style={styles.input} type="password" placeholder="비밀번호 확인" value={claimPw2} onChange={(e) => setClaimPw2(e.target.value)} />
+              </div>
+              {error && <div style={styles.errorText}>{error}</div>}
+              <button style={styles.primaryBtn} onClick={claimPassword}>
+                비밀번호 설정하고 로그인
+              </button>
+            </div>
+          )}
+
+          {selectedMember && !loggedIn && selectedMember.password && (
+            <div style={styles.authPanel}>
+              <div style={styles.authTitle}>
+                {(selectedMember.characters[0] || {}).name} - 비밀번호를 입력해 로그인하세요.
+              </div>
+              <input
+                style={styles.input}
+                type="password"
+                placeholder="비밀번호"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && attemptLogin()}
+              />
+              {error && <div style={styles.errorText}>{error}</div>}
+              <button style={{ ...styles.primaryBtn, marginTop: 10 }} onClick={attemptLogin}>
+                로그인
+              </button>
+            </div>
+          )}
+
+          {loggedIn && (
+            <>
+              <div style={styles.loggedInBar}>
+                <span>
+                  <strong>{loggedIn.characters[0].name}</strong>님으로 로그인됨
+                </span>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {confirmDelete ? (
+                    <>
+                      <span style={styles.errorText}>정말 삭제할까요? 내 캐릭터/일정이 모두 사라집니다.</span>
+                      <button style={styles.dangerBtn} onClick={deleteMyAccount}>
+                        삭제 확정
+                      </button>
+                      <button style={styles.ghostBtn} onClick={() => setConfirmDelete(false)}>
+                        취소
+                      </button>
+                    </>
+                  ) : (
+                    <button style={styles.dangerBtn} onClick={() => setConfirmDelete(true)}>
+                      내 정보 삭제
+                    </button>
+                  )}
+                  <button style={styles.ghostBtn} onClick={logout}>
+                    로그아웃
+                  </button>
+                </div>
+              </div>
+
+              <div style={styles.grid}>
+                <div style={styles.panel}>
+                  <div style={styles.panelTitle}>내 캐릭터 슬롯 (딜러/서포터 · 레벨)</div>
+                  <div style={styles.slotGrid}>
+                    {Array.from({ length: MAX_SLOTS }).map((_, idx) => {
+                      const c = loggedIn.characters[idx];
+                      const roleInfo = c ? ROLE[c.role] : null;
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            ...styles.slot,
+                            borderColor: c ? roleInfo.color : "#262d3d",
+                            background: c ? roleInfo.bg : "transparent",
+                          }}
+                          onClick={() => openSlotEditor(idx)}
+                        >
+                          {c ? (
+                            <>
+                              <div style={{ ...styles.slotRole, color: roleInfo.color }}>{roleInfo.label}</div>
+                              <div style={styles.slotName}>{c.name}</div>
+                              <div style={styles.slotClass}>{c.className}</div>
+                              <div className="rb-num" style={{ ...styles.slotLevel, color: roleInfo.color }}>
+                                Lv.{c.level}
+                              </div>
+                            </>
+                          ) : (
+                            <div style={styles.slotEmpty}>+</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {editSlot !== null && (
+                    <div style={styles.editorBox}>
+                      <input
+                        style={styles.input}
+                        placeholder="캐릭터 이름"
+                        value={slotDraft.name}
+                        onChange={(e) => setSlotDraft({ ...slotDraft, name: e.target.value })}
+                      />
+                      <input
+                        style={{ ...styles.input, marginTop: 8 }}
+                        placeholder="직업"
+                        value={slotDraft.className}
+                        onChange={(e) => setSlotDraft({ ...slotDraft, className: e.target.value })}
+                      />
+                      <div style={{ display: "flex", gap: 8, margin: "10px 0" }}>
+                        {["딜러", "서포터"].map((r) => (
+                          <button
+                            key={r}
+                            onClick={() => setSlotDraft({ ...slotDraft, role: r })}
+                            style={{
+                              ...styles.roleToggle,
+                              borderColor: ROLE[r].color,
+                              background: slotDraft.role === r ? ROLE[r].bg : "transparent",
+                              color: ROLE[r].color,
+                            }}
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        style={styles.input}
+                        placeholder="레벨"
+                        type="number"
+                        value={slotDraft.level}
+                        onChange={(e) => setSlotDraft({ ...slotDraft, level: e.target.value })}
+                      />
+                      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                        <button style={styles.primaryBtn} onClick={saveSlot}>
+                          저장
+                        </button>
+                        {editSlot !== 0 && loggedIn.characters[editSlot] && (
+                          <button style={styles.dangerBtn} onClick={() => deleteSlot(editSlot)}>
+                            삭제
+                          </button>
+                        )}
+                        <button style={styles.ghostBtn} onClick={() => setEditSlot(null)}>
+                          취소
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div style={styles.panel}>
+                  <div style={styles.panelTitle}>요일별 게임 가능 시간</div>
+                  {scheduleDraft &&
+                    DAYS.map((d) => {
+                      const s = scheduleDraft[d];
+                      const zeroLength = s.enabled && s.start === s.end;
+                      const overnight = s.enabled && s.start > s.end;
+                      return (
+                        <div key={d}>
+                          <div style={styles.dayRowLine}>
+                            <label style={styles.dayCheckLabel}>
+                              <input type="checkbox" checked={s.enabled} onChange={(e) => updateDay(d, { enabled: e.target.checked })} />
+                              <span style={{ marginLeft: 6 }}>{d}</span>
+                            </label>
+                            <input
+                              style={styles.timeInput}
+                              type="time"
+                              value={s.start}
+                              disabled={!s.enabled}
+                              onChange={(e) => updateDay(d, { start: e.target.value })}
+                            />
+                            <span style={{ color: "#5f6577" }}>~</span>
+                            <input
+                              style={styles.timeInput}
+                              type="time"
+                              value={s.end}
+                              disabled={!s.enabled}
+                              onChange={(e) => updateDay(d, { end: e.target.value })}
+                            />
+                            {overnight && <span style={styles.overnightHint}>다음날 새벽까지</span>}
+                          </div>
+                          {zeroLength && (
+                            <div style={styles.errorText}>시작 시간과 종료 시간이 같습니다. 시간을 다시 설정해주세요.</div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
+                    <button style={styles.primaryBtn} onClick={saveSchedule}>
+                      저장
+                    </button>
+                    {scheduleSaved && <span style={styles.savedHint}>저장됨 · 겹치는 시간에 반영됐어요</span>}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          <div style={styles.panel}>
+            <div style={styles.panelTitle}>요일별 시간표</div>
+            {daySchedule.length === 0 ? (
+              <div style={styles.emptyHint}>아직 등록된 게임 시간이 없습니다.</div>
+            ) : (
+              daySchedule.map(({ day, segments }) => (
+                <div key={day} style={styles.dayScheduleBlock}>
+                  <div style={styles.overlapDay}>{day}요일</div>
+                  {segments.map((seg) => {
+                    const overlapCount = seg.ids.length;
+                    const names = seg.ids
+                      .slice(0, 8)
+                      .map((id) => {
+                        const m = memberById(id);
+                        return m && m.characters[0] ? m.characters[0].name : null;
+                      })
+                      .filter(Boolean);
+                    const extra = overlapCount - names.length;
+                    return (
+                      <div
+                        key={day + seg.start + "-" + seg.end}
+                        style={{
+                          ...styles.segmentRow,
+                          borderColor: overlapCount >= 2 ? "#d9a94e" : "#262d3d",
+                          background: overlapCount >= 2 ? "#2a2210" : "#0f1219",
+                        }}
+                      >
+                        <span className="rb-num" style={styles.segmentTime}>
+                          {fmt(seg.start)} ~ {fmt(seg.end)}
+                        </span>
+                        <span style={styles.segmentNames}>
+                          {names.join(", ")}
+                          {extra > 0 ? ` 외 ${extra}명` : ""}
+                        </span>
+                        {overlapCount >= 2 && <span style={styles.overlapCount}>{overlapCount}명 겹침</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const styles = {
+  page: { background: "#0f1219", color: "#e8ebf0", minHeight: "100vh", padding: "28px 20px 60px", maxWidth: 980, margin: "0 auto" },
+  hero: { textAlign: "center", padding: "10px 0 24px" },
+  heroEyebrow: { fontFamily: "'Chakra Petch', sans-serif", letterSpacing: 4, fontSize: 12, color: "#d9a94e", marginBottom: 8 },
+  heroTitle: { fontFamily: "'Black Han Sans', sans-serif", fontSize: 32, margin: 0, color: "#f2ede0" },
+  loadingBox: { textAlign: "center", color: "#8b93a7", padding: 40 },
+  sectionTitle: { fontSize: 15, fontWeight: 700, color: "#c8cddb", marginBottom: 12 },
+  cardGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 10, marginBottom: 18 },
+  memberCard: { position: "relative", background: "#171c26", border: "1.5px solid #262d3d", borderRadius: 10, padding: "14px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", textAlign: "center" },
+  memberCardName: { fontSize: 12, fontWeight: 700, color: "#f2ede0" },
+  memberCardClass: { fontSize: 10, color: "#8b93a7" },
+  memberLevels: { fontSize: 11, fontWeight: 700, marginTop: 2 },
+  memberLevelSep: { color: "#3a4152" },
+  plusIcon: { fontSize: 26, color: "#3a4152" },
+  authPanel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 12, padding: 18, marginBottom: 18, maxWidth: 480 },
+  authTitle: { fontSize: 13, color: "#c8cddb", marginBottom: 10 },
+  authRow: { display: "flex", gap: 8, marginBottom: 8 },
+  input: { background: "#0f1219", border: "1px solid #2a3040", borderRadius: 8, padding: "10px 12px", color: "#e8ebf0", fontSize: 14, outline: "none", width: "100%" },
+  primaryBtn: { background: "#d9a94e", color: "#241a08", border: "none", borderRadius: 8, padding: "10px 18px", fontWeight: 700, fontSize: 14, cursor: "pointer" },
+  dangerBtn: { background: "transparent", color: "#e2593f", border: "1px solid #e2593f", borderRadius: 8, padding: "10px 16px", fontSize: 14, cursor: "pointer" },
+  ghostBtn: { background: "transparent", color: "#8b93a7", border: "1px solid #2a3040", borderRadius: 8, padding: "8px 14px", fontSize: 13, cursor: "pointer" },
+  errorText: { color: "#e2593f", fontSize: 12, margin: "6px 0" },
+  overnightHint: { fontSize: 11, color: "#4fb8b0" },
+  loggedInBar: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#171c26", border: "1px solid #262d3d", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, color: "#c8cddb" },
+  grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 },
+  panel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 14, padding: 20, marginBottom: 16 },
+  panelTitle: { fontSize: 14, fontWeight: 700, color: "#c8cddb", marginBottom: 14, letterSpacing: 0.5 },
+  slotGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 },
+  slot: { border: "1.5px solid #262d3d", borderRadius: 10, aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 6, textAlign: "center" },
+  slotRole: { fontSize: 10, fontWeight: 700, marginBottom: 2 },
+  slotName: { fontSize: 12, color: "#e8ebf0", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" },
+  slotClass: { fontSize: 9, color: "#8b93a7" },
+  slotLevel: { fontSize: 13, fontWeight: 700, marginTop: 2 },
+  slotEmpty: { fontSize: 28, color: "#3a4152" },
+  editorBox: { marginTop: 16, borderTop: "1px solid #262d3d", paddingTop: 16 },
+  roleToggle: { flex: 1, border: "1.5px solid", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 600, cursor: "pointer", background: "transparent" },
+  dayRowLine: { display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: "1px solid #1e2430" },
+  dayCheckLabel: { display: "flex", alignItems: "center", width: 46, fontSize: 13, color: "#c8cddb" },
+  timeInput: { background: "#0f1219", border: "1px solid #2a3040", borderRadius: 6, padding: "6px 8px", color: "#e8ebf0", fontSize: 12, cursor: "pointer" },
+  emptyHint: { fontSize: 12, color: "#5f6577", textAlign: "center", padding: "10px 0" },
+  savedHint: { fontSize: 12, color: "#639922" },
+  dayScheduleBlock: { marginBottom: 14 },
+  overlapDay: { fontSize: 13, fontWeight: 700, color: "#d9a94e", marginBottom: 6 },
+  segmentRow: { display: "flex", alignItems: "center", gap: 10, border: "1px solid #262d3d", borderRadius: 8, padding: "6px 10px", marginBottom: 6, flexWrap: "wrap" },
+  segmentTime: { fontSize: 12, color: "#c8cddb", minWidth: 108 },
+  segmentNames: { fontSize: 12, color: "#e8ebf0", flex: 1 },
+  overlapCount: { fontSize: 11, color: "#d9a94e", fontWeight: 700 },
+};
+
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<RaidBoard />);
+</script>
+</body>
+</html>
