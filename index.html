@@ -176,7 +176,7 @@ const DEFAULT_MEMBERS = [
   ["m02", [["백묘요란", "데모닉", 1800.0], ["팔이짧아슬픈동물", "인파이터", 1770.0], ["소짖남", "워로드", 1754.17], ["아프리카대머리황새", "호크아이", 1751.67], ["자몽이돌격대", "차원술사", 1750.0], ["도로로퉁스", "도화가", 1750.0]]],
   ["m03", [["시루맨", "블레이드", 1795.0], ["씨루맨", "블레이드", 1771.67], ["띠루맨", "블레이드", 1751.67], ["시루총총", "건슬링어", 1732.5], ["블레깎", "블레이드", 1720.0], ["씨룽", "발키리", 1711.67]]],
   ["m04", [["대장김창순", "창술사", 1795.0], ["히메창순", "창술사", 1765.83], ["자비스의유산", "스카우터", 1751.67], ["공이속치적실드다있습니다", "기상술사", 1750.83], ["필요할땐결국벌레의험인가", "데모닉", 1750.0], ["먹물쟁이꼬마", "도화가", 1750.0]]],
-  ["m05", [["노나니", "도화가", 1788.33], ["해룰이", "발키리", 1755.0], ["또를이", "환수사", 1750.83], ["니난냐", "서머너", 1750.0], ["도나니", "바드", 1750.0], ["차를이", "차원술사", 1750.0]]],
+  ["m05", [["노냐니", "도화가", 1788.33], ["해룰이", "발키리", 1755.0], ["또를이", "환수사", 1750.83], ["니난냐", "서머너", 1750.0], ["도나니", "바드", 1750.0], ["차를이", "차원술사", 1750.0]]],
   ["m06", [["축석", "호크아이", 1784.17], ["홍문별", "건슬링어", 1736.67], ["홍다루", "바드", 1730.0], ["홍신성", "홀리나이트", 1729.17], ["홍소금", "리퍼", 1726.67], ["홍근우", "스카우터", 1716.0]]],
   ["m07", [["야기봉", "스트라이커", 1782.5], ["기요밍", "홀리나이트", 1771.67], ["야기공", "기공사", 1727.5], ["3514", "데빌헌터", 1726.67], ["지능개박살", "브레이커", 1720.0], ["차원개박살", "차원술사", 1710.33]]],
   ["m08", [["써머밍", "서머너", 1780.0], ["공규밍", "기공사", 1758.33], ["호웅밍", "환수사", 1752.5], ["히퓨밍", "바드", 1752.5], ["타짜밍", "아르카나", 1750.0], ["요마밍", "데모닉", 1750.0]]],
@@ -272,6 +272,8 @@ function lastTuesday11pm(now) {
   return d;
 }
 
+const LOSTARK_PROXY_URL = "https://raid-sch.mr88sws.workers.dev/";
+
 function RaidBoard() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -286,6 +288,8 @@ function RaidBoard() {
   const [regPw, setRegPw] = useState("");
   const [regPw2, setRegPw2] = useState("");
   const [editSlot, setEditSlot] = useState(null);
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState("");
   const [slotDraft, setSlotDraft] = useState({ name: "", className: "", role: "딜러", level: "" });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [scheduleDraft, setScheduleDraft] = useState(null);
@@ -587,6 +591,49 @@ function RaidBoard() {
     await saveMember({ ...loggedIn, characters: chars });
   }
 
+  async function importFromLostArk() {
+    if (!loggedIn || !loggedIn.characters[0]) return;
+    const repName = loggedIn.characters[0].name;
+    setImportLoading(true);
+    setImportError("");
+    try {
+      const res = await fetch(LOSTARK_PROXY_URL + "?name=" + encodeURIComponent(repName));
+      if (!res.ok) throw new Error("API 오류 (" + res.status + ")");
+      const list = await res.json();
+      if (!Array.isArray(list) || list.length === 0) {
+        throw new Error("캐릭터를 찾을 수 없습니다: " + repName);
+      }
+      const parsed = list
+        .map((c) => ({
+          name: c.CharacterName,
+          className: c.CharacterClassName,
+          level: parseFloat(String(c.ItemAvgLevel).replace(/,/g, "")) || 0,
+        }))
+        .sort((a, b) => b.level - a.level)
+        .slice(0, MAX_SLOTS);
+
+      const oldByName = {};
+      loggedIn.characters.forEach((c) => {
+        if (c) oldByName[c.name] = c;
+      });
+
+      const newChars = parsed.map((c) => ({
+        id: oldByName[c.name] ? oldByName[c.name].id : uid(),
+        name: c.name,
+        className: c.className,
+        role: roleOf(c.className),
+        level: c.level,
+        raidDone: oldByName[c.name] ? !!oldByName[c.name].raidDone : false,
+      }));
+
+      await saveMember({ ...loggedIn, characters: newChars });
+    } catch (e) {
+      setImportError(e.message || "불러오기에 실패했습니다.");
+    } finally {
+      setImportLoading(false);
+    }
+  }
+
   async function deleteSlot(idx) {
     if (idx === 0) return;
     const chars = [...loggedIn.characters];
@@ -809,7 +856,13 @@ function RaidBoard() {
 
               <div style={styles.grid}>
                 <div style={styles.panel}>
-                  <div style={styles.panelTitle}>내 캐릭터 슬롯 (딜러/서포터 · 레벨)</div>
+                  <div style={styles.panelTitleRow}>
+                    <div style={styles.panelTitle}>내 캐릭터 슬롯 (딜러/서포터 · 레벨)</div>
+                    <button style={styles.importBtn} onClick={importFromLostArk} disabled={importLoading}>
+                      {importLoading ? "불러오는 중..." : "로스트아크에서 자동 불러오기"}
+                    </button>
+                  </div>
+                  {importError && <div style={styles.errorText}>{importError}</div>}
                   <div style={styles.slotGrid}>
                     {Array.from({ length: MAX_SLOTS }).map((_, idx) => {
                       const c = loggedIn.characters[idx];
@@ -1094,6 +1147,8 @@ const styles = {
   grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 },
   panel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 14, padding: 20, marginBottom: 16 },
   panelTitle: { fontSize: 14, fontWeight: 700, color: "#c8cddb", marginBottom: 14, letterSpacing: 0.5 },
+  panelTitleRow: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 },
+  importBtn: { fontSize: 11, padding: "6px 10px", borderRadius: 8, border: "1px solid #378ade", color: "#378ade", background: "transparent", cursor: "pointer" },
   slotGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 },
   slot: { position: "relative", border: "1.5px solid #262d3d", borderRadius: 10, aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 6, textAlign: "center" },
   raidCheck: { position: "absolute", top: 4, right: 4, lineHeight: 0, cursor: "pointer" },
