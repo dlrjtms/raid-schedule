@@ -855,6 +855,16 @@ function RaidBoard() {
                       </span>
                     ))}
                   </div>
+                  {m.characters.some((c) => c && c.combatPower) && (
+                    <div style={styles.memberPowers}>
+                      {m.characters.filter(Boolean).map((c, i) => (
+                        <span key={c.id}>
+                          {i > 0 && <span style={styles.memberLevelSep}> · </span>}
+                          <span className="rb-num">{c.combatPower ? Math.round(c.combatPower).toLocaleString("ko-KR") : "-"}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                   {m.request && (
                     <div style={styles.requestRow}>
                       <div style={styles.requestText} title={m.request}>
@@ -1258,6 +1268,7 @@ const styles = {
   memberCardName: { fontSize: 12, fontWeight: 700, color: "#f2ede0" },
   memberCardClass: { fontSize: 10, color: "#8b93a7" },
   memberLevels: { fontSize: 11, fontWeight: 700, marginTop: 2 },
+  memberPowers: { fontSize: 10, color: "#8b93a7", marginTop: 1 },
   memberLevelSep: { color: "#3a4152" },
   raidDoneMark: { color: "#639922", fontSize: 10, marginLeft: 1 },
   requestRow: { display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginTop: 4, width: "100%" },
