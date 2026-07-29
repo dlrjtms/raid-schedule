@@ -177,7 +177,7 @@ const DEFAULT_MEMBERS = [
   ["m08", [["써머밍", "서머너", 1780.0], ["공규밍", "기공사", 1758.33], ["호웅밍", "환수사", 1752.5], ["히퓨밍", "바드", 1752.5], ["타짜밍", "아르카나", 1750.0], ["요마밍", "데모닉", 1750.0]]],
   ["m09", [["Rarecake", "도화가", 1780.0], ["음치박치레케", "바드", 1740.0], ["나도물약먹으니까너도", "발키리", 1730.83], ["집이지만집에가고싶은레케", "환수사", 1720.83], ["칼퇴희망레케", "기상술사", 1720.0], ["차레케", "차원술사", 1705.0]]],
   ["m10", [["민도릿", "소울이터", 1780.0], ["민서깃", "소울이터", 1752.5], ["민또릿", "블레이드", 1723.17], ["닥터잼민레인지", "차원술사", 1715.0], ["밋궁", "리퍼", 1710.0], ["민키릿", "발키리", 1710.0]]],
-  ["m11", [["김호퉁", "호크아이", 1771.67], ["김사형", "소울이터", 1735.0], ["김끝밤", "건슬링어", 1730.0], ["김사기", "가디언나이트", 1720.0], ["김승가", "슬레이어", 1718.17], ["김밥릭", "스트라이커", 1714.17]]],
+  ["m11", [["김호큥", "호크아이", 1771.67], ["김사형", "소울이터", 1735.0], ["김끝밤", "건슬링어", 1730.0], ["김사기", "가디언나이트", 1720.0], ["김승가", "슬레이어", 1718.17], ["김밥릭", "스트라이커", 1714.17]]],
   ["m12", [["신라꽃", "데빌헌터", 1770.0], ["아크라시아의대표총잡이", "데빌헌터", 1750.0], ["세이크리아대표칼잡이", "발키리", 1730.0], ["아크라시아의대표물주먹", "브레이커", 1721.67], ["세이크리아의대표칼잡이", "블레이드", 1715.67], ["백제꽃", "리퍼", 1710.0]]],
   ["m13", [["레전드리퍼등장", "리퍼", 1764.17], ["레전드리퍼퇴장", "리퍼", 1730.83], ["레전드리퍼또퇴장", "리퍼", 1716.83], ["레전드차원술사등장", "차원술사", 1701.67], ["레전드리퍼또등장", "리퍼", 1645.83], ["레전드데빌헌터등장", "데빌헌터", 1642.5]]],
 ];
@@ -255,13 +255,17 @@ function RaidBoard() {
     try {
       const listed = await window.storage.list("member:", true);
       const keys = listed && listed.keys ? listed.keys : [];
-      const results = [];
-      for (const k of keys) {
-        try {
-          const r = await window.storage.get(k, true);
-          if (r && r.value) results.push(JSON.parse(r.value));
-        } catch (e) {}
-      }
+      const fetched = await Promise.all(
+        keys.map(async (k) => {
+          try {
+            const r = await window.storage.get(k, true);
+            return r && r.value ? JSON.parse(r.value) : null;
+          } catch (e) {
+            return null;
+          }
+        })
+      );
+      const results = fetched.filter(Boolean);
       results.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
       setMembers(results);
       return results;
@@ -274,28 +278,29 @@ function RaidBoard() {
   useEffect(() => {
     (async () => {
       try {
-        for (let i = 0; i < DEFAULT_MEMBERS.length; i++) {
-          const [id, chars] = DEFAULT_MEMBERS[i];
-          let exists = true;
-          try {
-            const r = await window.storage.get("member:" + id, true);
-            if (!r || !r.value) exists = false;
-          } catch (e) {
-            exists = false;
-          }
-          if (!exists) {
-            const fresh = {
-              id,
-              password: null,
-              createdAt: i,
-              characters: makeCharacters(chars),
-              schedule: emptySchedule(),
-            };
+        await Promise.all(
+          DEFAULT_MEMBERS.map(async ([id, chars], i) => {
+            let exists = true;
             try {
-              await window.storage.set("member:" + id, JSON.stringify(fresh), true);
-            } catch (e) {}
-          }
-        }
+              const r = await window.storage.get("member:" + id, true);
+              if (!r || !r.value) exists = false;
+            } catch (e) {
+              exists = false;
+            }
+            if (!exists) {
+              const fresh = {
+                id,
+                password: null,
+                createdAt: i,
+                characters: makeCharacters(chars),
+                schedule: emptySchedule(),
+              };
+              try {
+                await window.storage.set("member:" + id, JSON.stringify(fresh), true);
+              } catch (e) {}
+            }
+          })
+        );
         await loadMembers();
       } catch (e) {
         setError("초기 데이터를 불러오지 못했습니다.");
