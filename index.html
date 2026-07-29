@@ -444,6 +444,8 @@ function RaidBoard() {
   const [boardPosts, setBoardPosts] = useState([]);
   const [boardDraft, setBoardDraft] = useState("");
   const [boardError, setBoardError] = useState("");
+  const [boardEditId, setBoardEditId] = useState(null);
+  const [boardEditDraft, setBoardEditDraft] = useState("");
   const sessionIdRef = useRef(null);
   if (!sessionIdRef.current) {
     try {
@@ -684,6 +686,36 @@ function RaidBoard() {
       setBoardDraft("");
     } catch (e) {
       setBoardError("등록에 실패했습니다.");
+    }
+  }
+
+  async function deleteBoardPost(id) {
+    if (!isAdmin) return;
+    try {
+      const r = await window.storage.get(BOARD_KEY, true).catch(() => null);
+      const current = r && r.value ? JSON.parse(r.value) : { posts: [] };
+      const posts = Array.isArray(current.posts) ? current.posts : [];
+      const updated = posts.filter((p) => p.id !== id);
+      await window.storage.set(BOARD_KEY, JSON.stringify({ posts: updated }), true);
+      setBoardPosts(updated);
+    } catch (e) {
+      setBoardError("삭제에 실패했습니다.");
+    }
+  }
+
+  async function saveBoardEdit(id) {
+    if (!isAdmin) return;
+    try {
+      const r = await window.storage.get(BOARD_KEY, true).catch(() => null);
+      const current = r && r.value ? JSON.parse(r.value) : { posts: [] };
+      const posts = Array.isArray(current.posts) ? current.posts : [];
+      const updated = posts.map((p) => (p.id === id ? { ...p, text: boardEditDraft.trim() || p.text } : p));
+      await window.storage.set(BOARD_KEY, JSON.stringify({ posts: updated }), true);
+      setBoardPosts(updated);
+      setBoardEditId(null);
+      setBoardEditDraft("");
+    } catch (e) {
+      setBoardError("수정에 실패했습니다.");
     }
   }
 
@@ -1030,7 +1062,41 @@ function RaidBoard() {
                       <span style={styles.boardAuthor}>{p.authorName}</span>
                       <span style={styles.boardTime}>{timeAgo(p.createdAt)}</span>
                     </div>
-                    <div style={styles.boardText}>{p.text}</div>
+                    {boardEditId === p.id ? (
+                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                        <input
+                          style={styles.input}
+                          value={boardEditDraft}
+                          onChange={(e) => setBoardEditDraft(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && saveBoardEdit(p.id)}
+                          maxLength={60}
+                        />
+                        <button style={styles.ghostBtnSmall} onClick={() => saveBoardEdit(p.id)}>
+                          저장
+                        </button>
+                        <button style={styles.ghostBtnSmall} onClick={() => setBoardEditId(null)}>
+                          취소
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={styles.boardText}>{p.text}</div>
+                    )}
+                    {isAdmin && boardEditId !== p.id && (
+                      <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+                        <button
+                          style={styles.debugToggleBtn}
+                          onClick={() => {
+                            setBoardEditId(p.id);
+                            setBoardEditDraft(p.text);
+                          }}
+                        >
+                          수정
+                        </button>
+                        <button style={styles.debugToggleBtn} onClick={() => deleteBoardPost(p.id)}>
+                          삭제
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1584,7 +1650,11 @@ function RaidBoard() {
                             </div>
                           )}
                           {debugOpenIdx === i && (
-                            <div style={styles.debugBox}>{parsed.raw || "(원본 데이터 없음)"}</div>
+                            <div style={styles.debugBox}>
+                              [파싱 결과] {JSON.stringify(parsed.lines)}
+                              {"\n\n"}
+                              [원본] {parsed.raw || "(원본 데이터 없음)"}
+                            </div>
                           )}
                         </div>
                       );
