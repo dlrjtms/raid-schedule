@@ -269,6 +269,33 @@ function timeAgo(ts) {
 }
 
 // 장비 Tooltip(JSON 문자열) 안에서 옵션/수치로 보이는 텍스트 줄만 뽑아낸다.
+const OPTION_KEYWORDS = [
+  "추가 피해",
+  "적에게 주는 피해",
+  "낙인력",
+  "무기 공격력",
+  "공격력",
+  "최대 마나",
+  "최대 생명력",
+  "치명타 적중률",
+  "치명타 피해",
+  "상태이상 공격 지속시간",
+  "전투 중 생명력 회복량",
+  "아군 공격력 강화",
+  "아군 피해량 강화",
+  "파티원 회복 효과",
+  "파티원 보호막 효과",
+  "이동 속도",
+  "돌격대장",
+  "예리한 둔기",
+  "방어력 감소",
+  "달성량",
+  "딜증량",
+  "치피증",
+  "백어택 피해",
+  "무방향성 피증",
+];
+
 function extractTooltipOptionLines(tooltipRaw) {
   if (!tooltipRaw) return [];
   let obj;
@@ -298,17 +325,42 @@ function extractTooltipOptionLines(tooltipRaw) {
   }
   walk(obj);
 
-  const seen = new Set();
-  const result = [];
-  rawLines.forEach((line) => {
-    if (line.length > 45) return;
-    if (!/[0-9%]/.test(line)) return;
-    if (/^\[|^로스트아크|아이템 등급|귀속|거래 불가/.test(line)) return;
-    if (seen.has(line)) return;
-    seen.add(line);
-    result.push(line);
-  });
-  return result.slice(0, 8);
+  const GRADE_WORDS = ["상", "중", "하"];
+  const used = new Set();
+  const results = [];
+
+  for (let i = 0; i < rawLines.length; i++) {
+    if (used.has(i)) continue;
+    const line = rawLines[i];
+    const kw = OPTION_KEYWORDS.find((k) => line.includes(k));
+    if (!kw) continue;
+
+    let valuePart = "";
+    const inline = line.replace(kw, "").trim();
+    if (/^[+\-]?[\d,.]+%?$/.test(inline)) valuePart = inline;
+
+    let gradePart = "";
+    for (let j = i + 1; j < Math.min(i + 4, rawLines.length); j++) {
+      if (used.has(j)) continue;
+      const l2 = rawLines[j];
+      if (OPTION_KEYWORDS.some((k) => l2.includes(k))) break;
+      if (!valuePart && /^[+\-]?[\d,.]+%?$/.test(l2)) {
+        valuePart = l2;
+        used.add(j);
+        continue;
+      }
+      if (!gradePart && GRADE_WORDS.includes(l2)) {
+        gradePart = l2;
+        used.add(j);
+        break;
+      }
+    }
+
+    const label = kw + (valuePart ? " " + valuePart : "") + (gradePart ? ` (${gradePart})` : "");
+    if (!results.includes(label)) results.push(label);
+  }
+
+  return results.slice(0, 6);
 }
 
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
@@ -327,7 +379,7 @@ function lastTuesday11pm(now) {
 }
 
 const LOSTARK_PROXY_URL = "https://raid-sch.mr88sws.workers.dev/";
-const ADMIN_PASSWORD = "1a2a3a"; // 이 값을 원하는 관리자 비밀번호로 바꾸세요
+const ADMIN_PASSWORD = "연고관리자2026"; // 이 값을 원하는 관리자 비밀번호로 바꾸세요
 
 function RaidBoard() {
   const [members, setMembers] = useState([]);
