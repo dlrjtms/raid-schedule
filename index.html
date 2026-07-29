@@ -63,7 +63,7 @@
 </script>
 
 <script type="text/babel" data-presets="react">
-const { useState, useEffect, useCallback, useMemo } = React;
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 const ROLE = {
@@ -292,6 +292,21 @@ function RaidBoard() {
   const [scheduleSaved, setScheduleSaved] = useState(false);
   const [requestDraft, setRequestDraft] = useState("");
   const [requestSaved, setRequestSaved] = useState(false);
+  const [onlineNames, setOnlineNames] = useState([]);
+  const [onlineCount, setOnlineCount] = useState(0);
+  const sessionIdRef = useRef(null);
+  if (!sessionIdRef.current) {
+    try {
+      let sid = localStorage.getItem("raidboard-session-id");
+      if (!sid) {
+        sid = uid();
+        localStorage.setItem("raidboard-session-id", sid);
+      }
+      sessionIdRef.current = sid;
+    } catch (e) {
+      sessionIdRef.current = uid();
+    }
+  }
 
   const loadMembers = useCallback(async () => {
     try {
@@ -337,6 +352,8 @@ function RaidBoard() {
                 createdAt: i,
                 characters: makeCharacters(chars),
                 schedule: emptySchedule(),
+                request: "",
+                requestClaims: [],
               };
               try {
                 await window.storage.set("member:" + id, JSON.stringify(fresh), true);
@@ -413,6 +430,50 @@ function RaidBoard() {
     }
   }, [loggedInId]);
 
+  // 내 접속 상태를 주기적으로 기록 (하트비트)
+  useEffect(() => {
+    const myName = loggedIn && loggedIn.characters[0] ? loggedIn.characters[0].name : null;
+    async function beat() {
+      try {
+        await window.storage.set(
+          "presence:" + sessionIdRef.current,
+          JSON.stringify({ name: myName, lastSeen: Date.now() }),
+          true
+        );
+      } catch (e) {}
+    }
+    beat();
+    const t = setInterval(beat, 20000);
+    return () => clearInterval(t);
+  }, [loggedInId, members.length]);
+
+  // 다른 사람들의 접속 상태를 주기적으로 확인
+  useEffect(() => {
+    async function poll() {
+      try {
+        const listed = await window.storage.list("presence:", true);
+        const keys = listed && listed.keys ? listed.keys : [];
+        const fetched = await Promise.all(
+          keys.map(async (k) => {
+            try {
+              const r = await window.storage.get(k, true);
+              return r && r.value ? JSON.parse(r.value) : null;
+            } catch (e) {
+              return null;
+            }
+          })
+        );
+        const now = Date.now();
+        const active = fetched.filter((p) => p && now - p.lastSeen < 60000);
+        setOnlineCount(active.length);
+        setOnlineNames(Array.from(new Set(active.map((p) => p.name).filter(Boolean))));
+      } catch (e) {}
+    }
+    poll();
+    const t = setInterval(poll, 15000);
+    return () => clearInterval(t);
+  }, []);
+
   function pickCard(id) {
     setSelectedId(id);
     setPassword("");
@@ -464,6 +525,7 @@ function RaidBoard() {
       characters: [{ id: uid(), name: regName.trim(), className: regClass.trim(), role: roleOf(regClass.trim()), level: 1, raidDone: false }],
       schedule: emptySchedule(),
       request: "",
+      requestClaims: [],
     };
     await saveMember(fresh);
     setLoggedInId(fresh.id);
@@ -548,6 +610,16 @@ function RaidBoard() {
     setRequestSaved(true);
   }
 
+  async function toggleRequestClaim(targetId) {
+    if (!loggedInId) return;
+    const target = members.find((m) => m.id === targetId);
+    if (!target) return;
+    const claims = Array.isArray(target.requestClaims) ? target.requestClaims : [];
+    const has = claims.includes(loggedInId);
+    const newClaims = has ? claims.filter((id) => id !== loggedInId) : [...claims, loggedInId];
+    await saveMember({ ...target, requestClaims: newClaims });
+  }
+
   const daySchedule = useMemo(() => {
     return DAYS.map((d) => ({ day: d, segments: daySegments(members, d) })).filter((x) => x.segments.length > 0);
   }, [members]);
@@ -568,6 +640,14 @@ function RaidBoard() {
         <div style={styles.heroEyebrow}>연고</div>
         <h1 style={styles.heroTitle}>레이드 시간표</h1>
       </div>
+
+      {onlineCount > 0 && (
+        <div style={styles.presenceBar}>
+          <span style={styles.presenceDot}>●</span>
+          지금 {onlineCount}명 접속 중
+          {onlineNames.length > 0 && <span style={styles.presenceNames}> · {onlineNames.join(", ")}</span>}
+        </div>
+      )}
 
       {loading ? (
         <div style={styles.loadingBox}>불러오는 중...</div>
@@ -602,7 +682,26 @@ function RaidBoard() {
                       </span>
                     ))}
                   </div>
-                  {m.request && <div style={styles.requestText} title={m.request}>{m.request}</div>}
+                  {m.request && (
+                    <div style={styles.requestRow}>
+                      <div style={styles.requestText} title={m.request}>
+                        {m.request}
+                      </div>
+                      <button
+                        style={{
+                          ...styles.claimBtn,
+                          ...((m.requestClaims || []).includes(loggedInId) ? styles.claimBtnActive : {}),
+                        }}
+                        disabled={!loggedInId}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleRequestClaim(m.id);
+                        }}
+                      >
+                        저요{(m.requestClaims || []).length > 0 ? ` ${(m.requestClaims || []).length}` : ""}
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -955,6 +1054,9 @@ const styles = {
   heroEyebrow: { fontFamily: "'Chakra Petch', sans-serif", letterSpacing: 4, fontSize: 12, color: "#d9a94e", marginBottom: 8 },
   heroTitle: { fontFamily: "'Black Han Sans', sans-serif", fontSize: 32, margin: 0, color: "#f2ede0" },
   loadingBox: { textAlign: "center", color: "#8b93a7", padding: 40 },
+  presenceBar: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: "#8b93a7", marginBottom: 18 },
+  presenceDot: { color: "#639922", fontSize: 8 },
+  presenceNames: { color: "#c8cddb" },
   sectionTitle: { fontSize: 15, fontWeight: 700, color: "#c8cddb", marginBottom: 12 },
   cardGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(96px, 1fr))", gap: 10, marginBottom: 18 },
   memberCard: { position: "relative", background: "#171c26", border: "1.5px solid #262d3d", borderRadius: 10, padding: "14px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", textAlign: "center" },
@@ -963,7 +1065,10 @@ const styles = {
   memberLevels: { fontSize: 11, fontWeight: 700, marginTop: 2 },
   memberLevelSep: { color: "#3a4152" },
   raidDoneMark: { color: "#639922", fontSize: 10, marginLeft: 1 },
-  requestText: { fontSize: 10, color: "#d9a94e", marginTop: 4, maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  requestRow: { display: "flex", alignItems: "center", gap: 4, marginTop: 4, width: "100%" },
+  requestText: { fontSize: 10, color: "#d9a94e", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  claimBtn: { fontSize: 9, padding: "2px 6px", borderRadius: 6, border: "1px solid #2a3040", background: "transparent", color: "#8b93a7", cursor: "pointer", flexShrink: 0 },
+  claimBtnActive: { border: "1px solid #d9a94e", color: "#d9a94e", background: "#2a2210" },
   plusIcon: { fontSize: 26, color: "#3a4152" },
   authPanel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 12, padding: 18, marginBottom: 18, maxWidth: 480 },
   authTitle: { fontSize: 13, color: "#c8cddb", marginBottom: 10 },
