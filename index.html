@@ -373,20 +373,15 @@ function extractTooltipOptionLines(tooltipRaw) {
     }
   }
 
-  // [3] 팔찌: "팔찌 효과" 구간은 이름/값이 나뉘어 있지 않고 긴 문장으로 되어있어 문장 단위로 잘라서 보여준다.
+  // [3] 팔찌: "팔찌 효과" 구간은 이름/값이 나뉘어 있지 않고 문장 단위로 이미 하나씩 들어온다.
   if (lines.length === 0) {
     chunk = sectionChunk("팔찌 효과");
     if (chunk) {
       chunk.forEach((l) => {
         if (STAT_ONLY.test(l)) return;
         if (!l.includes("%")) return;
-        l.split("다. ")
-          .map((s) => s.trim())
-          .filter((s) => s.includes("%"))
-          .forEach((s) => {
-            const clean = s.replace(/다\.?$/, "").trim();
-            lines.push(clean.length > 55 ? clean.slice(0, 55) + "…" : clean);
-          });
+        const clean = l.replace(/\.$/, "").trim();
+        lines.push(clean.length > 60 ? clean.slice(0, 60) + "…" : clean);
       });
     }
   }
