@@ -1559,17 +1559,17 @@ function RaidBoard() {
                   </div>
                 )}
 
-                {detailEngravingList.length > 0 && (
-                  <div style={styles.modalSection}>
-                    <div style={styles.modalSectionTitle}>
-                      각인
-                      <button
-                        style={styles.debugToggleBtn}
-                        onClick={() => setDebugEngravingOpen((v) => !v)}
-                      >
-                        {debugEngravingOpen ? "원본 닫기" : "원본 보기"}
-                      </button>
-                    </div>
+                <div style={styles.modalSection}>
+                  <div style={styles.modalSectionTitle}>
+                    각인
+                    <button
+                      style={styles.debugToggleBtn}
+                      onClick={() => setDebugEngravingOpen((v) => !v)}
+                    >
+                      {debugEngravingOpen ? "원본 닫기" : "원본 보기"}
+                    </button>
+                  </div>
+                  {detailEngravingList.length > 0 ? (
                     <div style={styles.modalChipRow}>
                       {detailEngravingList.map((e, i) => {
                         const name = (e.Name || "").replace(/<[^>]+>/g, "");
@@ -1587,11 +1587,13 @@ function RaidBoard() {
                         );
                       })}
                     </div>
-                    {debugEngravingOpen && (
-                      <div style={styles.debugBox}>{JSON.stringify(detailData.engravings)}</div>
-                    )}
-                  </div>
-                )}
+                  ) : (
+                    <div style={styles.emptyHint}>각인 정보를 가져오지 못했습니다.</div>
+                  )}
+                  {debugEngravingOpen && (
+                    <div style={styles.debugBox}>{JSON.stringify(detailData.engravings)}</div>
+                  )}
+                </div>
 
                 {detailGemList.length > 0 && (
                   <div style={styles.modalSection}>
