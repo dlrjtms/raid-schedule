@@ -301,8 +301,38 @@ const OPTION_KEYWORDS = [
   "무방향성 피증",
 ];
 
+// 사용자가 제공한 티어4(1680) 장신구 연마 효과 상/중/하 수치표.
+// API에 등급 자체가 없어서, 뽑아낸 숫자값을 이 표와 대조해 역으로 등급을 추정한다.
+const GRADE_TABLE = [
+  { match: "추가 피해", unit: "%", tiers: [2.6, 1.6, 0.6] },
+  { match: "적에게 주는 피해", unit: "%", tiers: [2.0, 1.2, 0.55] },
+  { match: "낙인력", unit: "%", tiers: [8.0, 4.8, 2.15] },
+  { match: "서폿 아덴 획득량", unit: "%", tiers: [6.0, 3.6, 1.6] },
+  { match: "무기 공격력", unit: "%", tiers: [3.0, 1.8, 0.8] },
+  { match: "공격력", unit: "%", tiers: [1.55, 0.95, 0.4] },
+  { match: "무기 공격력", unit: "+", tiers: [960, 480, 195] },
+  { match: "공격력", unit: "+", tiers: [390, 195, 80] },
+  { match: "치명타 적중률", unit: "%", tiers: [1.55, 0.95, 0.4] },
+  { match: "치명타 피해", unit: "%", tiers: [4.0, 2.4, 1.1] },
+  { match: "아군 공격력 강화", unit: "%", tiers: [5.0, 3.0, 1.35] },
+  { match: "아군 피해량 강화", unit: "%", tiers: [7.5, 4.5, 2.0] },
+];
+const GRADE_LABELS = ["상", "중", "하"];
+const GRADE_COLORS = { 상: "#f5d949", 중: "#c58cf5", 하: "#5b9bd5" };
+
+function gradeFromValue(name, valueStr) {
+  if (!name || !valueStr) return null;
+  const unit = valueStr.includes("%") ? "%" : "+";
+  const num = parseFloat(valueStr.replace(/[+%,]/g, ""));
+  if (Number.isNaN(num)) return null;
+  const entry = GRADE_TABLE.find((t) => name.includes(t.match) && t.unit === unit);
+  if (!entry) return null;
+  const idx = entry.tiers.findIndex((v) => Math.abs(v - num) < 0.01);
+  return idx === -1 ? null : GRADE_LABELS[idx];
+}
+
 function extractTooltipOptionLines(tooltipRaw) {
-  const empty = { lines: [], raw: "" };
+  const empty = { lines: [], items: [], raw: "" };
   if (!tooltipRaw) return empty;
   let obj;
   try {
@@ -348,6 +378,7 @@ function extractTooltipOptionLines(tooltipRaw) {
   }
 
   const lines = [];
+  const items = [];
 
   // [1] 목걸이/귀걸이/반지: "연마 효과" 구간에 [이름, 값, 이름, 값 ...] 순서로 나온다.
   let chunk = sectionChunk("연마 효과");
@@ -355,7 +386,10 @@ function extractTooltipOptionLines(tooltipRaw) {
     for (let i = 0; i < chunk.length; i += 2) {
       const name = chunk[i];
       const val = chunk[i + 1] || "";
-      if (name) lines.push(val ? `${name} ${val}` : name);
+      if (name) {
+        lines.push(val ? `${name} ${val}` : name);
+        items.push({ name, value: val });
+      }
     }
   }
 
@@ -370,9 +404,11 @@ function extractTooltipOptionLines(tooltipRaw) {
         const next = cleaned[i + 1];
         if (next && /^Lv\.?\s*\d+$/i.test(next)) {
           lines.push(`${cur} ${next}`);
+          items.push({ name: cur, value: next });
           i++;
         } else if (/[%\d]/.test(cur) && cur !== "무작위 각인 효과") {
           lines.push(cur);
+          items.push({ name: cur, value: "" });
         }
       }
     }
@@ -414,12 +450,14 @@ function extractTooltipOptionLines(tooltipRaw) {
           .join(" ")
           .replace(/\.$/, "")
           .trim();
-        lines.push(combined.length > 60 ? combined.slice(0, 60) + "…" : combined);
+        const finalText = combined.length > 60 ? combined.slice(0, 60) + "…" : combined;
+        lines.push(finalText);
+        items.push({ name: finalText, value: "" });
       }
     }
   }
 
-  return { lines: lines.slice(0, 6), raw: rawLines.join(" | ") };
+  return { lines: lines.slice(0, 6), items: items.slice(0, 6), raw: rawLines.join(" | ") };
 }
 
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
@@ -457,6 +495,7 @@ function RaidBoard() {
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState("");
   const [detailFor, setDetailFor] = useState(null);
+  const [detailMemberChars, setDetailMemberChars] = useState(null);
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
@@ -957,8 +996,9 @@ function RaidBoard() {
     }
   }
 
-  async function openDetail(name) {
+  async function openDetail(name, memberChars) {
     setDetailFor(name);
+    if (memberChars) setDetailMemberChars(memberChars);
     setDetailData(null);
     setDetailError("");
     setDetailLoading(true);
@@ -980,6 +1020,7 @@ function RaidBoard() {
 
   function closeDetail() {
     setDetailFor(null);
+    setDetailMemberChars(null);
     setDetailData(null);
     setDetailError("");
     setDebugOpenIdx(null);
@@ -1269,7 +1310,7 @@ function RaidBoard() {
                     style={styles.cardDetailBtn}
                     onClick={(e) => {
                       e.stopPropagation();
-                      openDetail(main.name);
+                      openDetail(main.name, m.characters.filter(Boolean));
                     }}
                     title="캐릭터 상세보기"
                   >
@@ -1449,7 +1490,7 @@ function RaidBoard() {
                                 style={styles.detailBtn}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  openDetail(c.name);
+                                  openDetail(c.name, loggedIn.characters.filter(Boolean));
                                 }}
                                 title="캐릭터 상세보기"
                               >
@@ -1700,6 +1741,23 @@ function RaidBoard() {
               </button>
             </div>
 
+            {detailMemberChars && detailMemberChars.length > 1 && (
+              <div style={styles.charSwitchRow}>
+                {detailMemberChars.map((c) => (
+                  <button
+                    key={c.id}
+                    style={{
+                      ...styles.charSwitchBtn,
+                      ...(c.name === detailFor ? styles.charSwitchBtnActive : {}),
+                    }}
+                    onClick={() => openDetail(c.name, detailMemberChars)}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
             {detailLoading ? (
               <div style={styles.emptyHint}>불러오는 중...</div>
             ) : detailError ? (
@@ -1749,13 +1807,25 @@ function RaidBoard() {
                               </button>
                             )}
                           </div>
-                          {parsed.lines.length > 0 && (
+                          {parsed.items.length > 0 && (
                             <div style={styles.modalOptionBox}>
-                              {parsed.lines.map((line, li) => (
-                                <div key={li} style={styles.modalOptionLine}>
-                                  {line}
-                                </div>
-                              ))}
+                              {parsed.items.map((it, li) => {
+                                const grade = gradeFromValue(it.name, it.value);
+                                return (
+                                  <div
+                                    key={li}
+                                    style={{
+                                      ...styles.modalOptionLine,
+                                      color: grade ? GRADE_COLORS[grade] : styles.modalOptionLine.color,
+                                      fontWeight: grade ? 700 : 400,
+                                    }}
+                                  >
+                                    {it.name}
+                                    {it.value ? ` ${it.value}` : ""}
+                                    {grade ? ` (${grade})` : ""}
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                           {debugOpenIdx === i && (
@@ -1880,8 +1950,11 @@ const styles = {
   slotGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 },
   slot: { position: "relative", border: "1.5px solid #262d3d", borderRadius: 10, aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 6, textAlign: "center" },
   raidCheck: { position: "absolute", top: 4, right: 4, lineHeight: 0, cursor: "pointer" },
-  detailBtn: { position: "absolute", top: 3, left: 4, lineHeight: 1.1, cursor: "pointer", background: "transparent", border: "none", fontSize: 8, padding: 1, opacity: 0.85, color: "#8b93a7" },
-  cardDetailBtn: { position: "absolute", top: 4, right: 4, lineHeight: 1.1, cursor: "pointer", background: "transparent", border: "none", fontSize: 8, padding: 1, opacity: 0.85, color: "#8b93a7" },
+  detailBtn: { position: "absolute", top: 3, left: 4, lineHeight: 1.1, cursor: "pointer", background: "transparent", border: "none", fontSize: 8, padding: 1, opacity: 1, color: "#5ec9e8", fontWeight: 700 },
+  cardDetailBtn: { position: "absolute", top: 4, right: 4, lineHeight: 1.1, cursor: "pointer", background: "transparent", border: "none", fontSize: 8, padding: 1, opacity: 1, color: "#5ec9e8", fontWeight: 700 },
+  charSwitchRow: { display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10, paddingBottom: 10, borderBottom: "1px solid #262d3d" },
+  charSwitchBtn: { fontSize: 11, padding: "4px 8px", borderRadius: 6, border: "1px solid #2a3040", background: "transparent", color: "#8b93a7", cursor: "pointer" },
+  charSwitchBtnActive: { border: "1px solid #d9a94e", color: "#d9a94e", background: "#2a2210" },
   slotRole: { fontSize: 10, fontWeight: 700, marginBottom: 2 },
   slotName: { fontSize: 12, color: "#e8ebf0", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" },
   slotClass: { fontSize: 9, color: "#8b93a7" },
