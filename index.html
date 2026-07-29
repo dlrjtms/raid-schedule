@@ -297,17 +297,24 @@ const OPTION_KEYWORDS = [
 ];
 
 function extractTooltipOptionLines(tooltipRaw) {
-  if (!tooltipRaw) return [];
+  const empty = { lines: [], raw: "" };
+  if (!tooltipRaw) return empty;
   let obj;
   try {
     obj = JSON.parse(tooltipRaw);
   } catch (e) {
-    return [];
+    return empty;
   }
   const rawLines = [];
+  const imgSrcs = [];
   function walk(node) {
     if (node == null) return;
     if (typeof node === "string") {
+      const imgMatches = node.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi) || [];
+      imgMatches.forEach((tag) => {
+        const m = tag.match(/src=["']([^"']+)["']/i);
+        if (m) imgSrcs.push(m[1]);
+      });
       const stripped = node
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/<[^>]*>/g, "\n")
@@ -326,41 +333,51 @@ function extractTooltipOptionLines(tooltipRaw) {
   walk(obj);
 
   const GRADE_WORDS = ["상", "중", "하"];
-  const used = new Set();
-  const results = [];
+  const nameQueue = [];
+  const valueQueue = [];
+  const gradeQueue = [];
 
-  for (let i = 0; i < rawLines.length; i++) {
-    if (used.has(i)) continue;
-    const line = rawLines[i];
-    const kw = OPTION_KEYWORDS.find((k) => line.includes(k));
-    if (!kw) continue;
-
-    let valuePart = "";
-    const inline = line.replace(kw, "").trim();
-    if (/^[+\-]?[\d,.]+%?$/.test(inline)) valuePart = inline;
-
-    let gradePart = "";
-    for (let j = i + 1; j < Math.min(i + 4, rawLines.length); j++) {
-      if (used.has(j)) continue;
-      const l2 = rawLines[j];
-      if (OPTION_KEYWORDS.some((k) => l2.includes(k))) break;
-      if (!valuePart && /^[+\-]?[\d,.]+%?$/.test(l2)) {
-        valuePart = l2;
-        used.add(j);
-        continue;
-      }
-      if (!gradePart && GRADE_WORDS.includes(l2)) {
-        gradePart = l2;
-        used.add(j);
-        break;
-      }
+  rawLines.forEach((line) => {
+    const kw = OPTION_KEYWORDS.find((k) => line === k || line.startsWith(k));
+    if (kw) {
+      nameQueue.push(kw);
+      const rest = line.slice(kw.length).trim();
+      if (/^[+\-]?[\d,.]+%?$/.test(rest)) valueQueue.push(rest);
+      return;
     }
+    if (GRADE_WORDS.includes(line)) {
+      gradeQueue.push(line);
+      return;
+    }
+    if (/^Lv\.?\s*\d+$/i.test(line)) {
+      valueQueue.push(line.replace(/^Lv\.?\s*/i, "Lv."));
+      return;
+    }
+    if (/^[+\-]?[\d,.]+%?$/.test(line)) {
+      valueQueue.push(line);
+    }
+  });
 
-    const label = kw + (valuePart ? " " + valuePart : "") + (gradePart ? ` (${gradePart})` : "");
+  // 등급 아이콘(이미지) 파일명에서 상/중/하 추정 시도
+  if (gradeQueue.length === 0 && imgSrcs.length > 0) {
+    imgSrcs.forEach((src) => {
+      const s = src.toLowerCase();
+      if (/high|upper|_h_|grade_3|grade3/.test(s)) gradeQueue.push("상");
+      else if (/mid|middle|_m_|grade_2|grade2/.test(s)) gradeQueue.push("중");
+      else if (/low|lower|_l_|grade_1|grade1/.test(s)) gradeQueue.push("하");
+    });
+  }
+
+  const results = [];
+  for (let i = 0; i < nameQueue.length; i++) {
+    const name = nameQueue[i];
+    const val = valueQueue[i] || "";
+    const grade = gradeQueue[i] || "";
+    const label = name + (val ? " " + val : "") + (grade ? ` (${grade})` : "");
     if (!results.includes(label)) results.push(label);
   }
 
-  return results.slice(0, 6);
+  return { lines: results.slice(0, 6), raw: rawLines.join(" | ") };
 }
 
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
@@ -401,6 +418,7 @@ function RaidBoard() {
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const [debugOpenIdx, setDebugOpenIdx] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPwInput, setAdminPwInput] = useState("");
@@ -889,6 +907,7 @@ function RaidBoard() {
     setDetailFor(null);
     setDetailData(null);
     setDetailError("");
+    setDebugOpenIdx(null);
   }
 
   async function deleteSlot(idx) {
@@ -1528,21 +1547,32 @@ function RaidBoard() {
                     <div style={styles.modalSectionTitle}>장비</div>
                     {detailEquipList.map((eq, i) => {
                       const isAccessory = ["목걸이", "귀걸이", "반지", "팔찌", "어빌리티 스톤"].includes(eq.Type);
-                      const optionLines = isAccessory ? extractTooltipOptionLines(eq.Tooltip) : [];
+                      const parsed = isAccessory ? extractTooltipOptionLines(eq.Tooltip) : { lines: [], raw: "" };
                       return (
                         <div key={i} style={styles.modalEquipBlock}>
                           <div style={styles.modalListRow}>
                             <span style={styles.modalListType}>{eq.Type}</span>
                             <span style={styles.modalListName}>{(eq.Name || "").replace(/<[^>]+>/g, "")}</span>
+                            {isAccessory && (
+                              <button
+                                style={styles.debugToggleBtn}
+                                onClick={() => setDebugOpenIdx(debugOpenIdx === i ? null : i)}
+                              >
+                                {debugOpenIdx === i ? "원본 닫기" : "원본 보기"}
+                              </button>
+                            )}
                           </div>
-                          {optionLines.length > 0 && (
+                          {parsed.lines.length > 0 && (
                             <div style={styles.modalOptionBox}>
-                              {optionLines.map((line, li) => (
+                              {parsed.lines.map((line, li) => (
                                 <div key={li} style={styles.modalOptionLine}>
                                   {line}
                                 </div>
                               ))}
                             </div>
+                          )}
+                          {debugOpenIdx === i && (
+                            <div style={styles.debugBox}>{parsed.raw || "(원본 데이터 없음)"}</div>
                           )}
                         </div>
                       );
@@ -1680,6 +1710,8 @@ const styles = {
   modalEquipBlock: { padding: "4px 0", borderBottom: "1px solid #1e2430" },
   modalOptionBox: { display: "flex", flexDirection: "column", gap: 2, marginTop: 2, marginBottom: 4, paddingLeft: 54 },
   modalOptionLine: { fontSize: 11, color: "#9ec9e2" },
+  debugToggleBtn: { fontSize: 9, color: "#5f6577", background: "transparent", border: "1px solid #262d3d", borderRadius: 4, padding: "1px 5px", cursor: "pointer", marginLeft: "auto", flexShrink: 0 },
+  debugBox: { fontSize: 9, color: "#639922", background: "#000", border: "1px solid #262d3d", borderRadius: 6, padding: 8, marginTop: 4, marginBottom: 6, maxHeight: 120, overflowY: "auto", wordBreak: "break-all", fontFamily: "monospace" },
 };
 
 
