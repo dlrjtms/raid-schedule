@@ -700,6 +700,17 @@ function RaidBoard() {
                       >
                         저요{(m.requestClaims || []).length > 0 ? ` ${(m.requestClaims || []).length}` : ""}
                       </button>
+                      {(m.requestClaims || []).length > 0 && (
+                        <div style={styles.claimNames}>
+                          {(m.requestClaims || [])
+                            .map((id) => {
+                              const cm = memberById(id);
+                              return cm && cm.characters[0] ? cm.characters[0].name : null;
+                            })
+                            .filter(Boolean)
+                            .join(", ")}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1069,6 +1080,7 @@ const styles = {
   requestText: { fontSize: 10, color: "#d9a94e", whiteSpace: "normal", wordBreak: "break-word", textAlign: "center", lineHeight: 1.4 },
   claimBtn: { fontSize: 9, padding: "2px 6px", borderRadius: 6, border: "1px solid #2a3040", background: "transparent", color: "#8b93a7", cursor: "pointer", flexShrink: 0 },
   claimBtnActive: { border: "1px solid #d9a94e", color: "#d9a94e", background: "#2a2210" },
+  claimNames: { fontSize: 9, color: "#8b93a7", textAlign: "center", whiteSpace: "normal", wordBreak: "break-word" },
   plusIcon: { fontSize: 26, color: "#3a4152" },
   authPanel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 12, padding: 18, marginBottom: 18, maxWidth: 480 },
   authTitle: { fontSize: 13, color: "#c8cddb", marginBottom: 10 },
