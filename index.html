@@ -306,15 +306,9 @@ function extractTooltipOptionLines(tooltipRaw) {
     return empty;
   }
   const rawLines = [];
-  const imgSrcs = [];
   function walk(node) {
     if (node == null) return;
     if (typeof node === "string") {
-      const imgMatches = node.match(/<img[^>]*src=["']([^"']+)["'][^>]*>/gi) || [];
-      imgMatches.forEach((tag) => {
-        const m = tag.match(/src=["']([^"']+)["']/i);
-        if (m) imgSrcs.push(m[1]);
-      });
       const stripped = node
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/<[^>]*>/g, "\n")
@@ -332,52 +326,35 @@ function extractTooltipOptionLines(tooltipRaw) {
   }
   walk(obj);
 
-  const GRADE_WORDS = ["상", "중", "하"];
-  const nameQueue = [];
-  const valueQueue = [];
-  const gradeQueue = [];
+  // 실제 부여효과는 "연마 효과"(장신구) / "각인 효과"(어빌리티 스톤) 같은 구간 표지 바로 다음부터
+  // 다음 구간 표지 전까지 [이름, 값, 이름, 값 ...] 순서로 나온다.
+  const SECTION_MARKERS = ["연마 효과", "각인 효과", "특수 효과"];
+  const STOP_MARKERS = ["ItemPartBox", "MultiTextBox", "SingleTextBox", "Progress", "NameTagBox", "ItemTitle"];
 
-  rawLines.forEach((line) => {
-    const kw = OPTION_KEYWORDS.find((k) => line === k || line.startsWith(k));
-    if (kw) {
-      nameQueue.push(kw);
-      const rest = line.slice(kw.length).trim();
-      if (/^[+\-]?[\d,.]+%?$/.test(rest)) valueQueue.push(rest);
-      return;
+  let sectionStart = -1;
+  for (const marker of SECTION_MARKERS) {
+    const idx = rawLines.indexOf(marker);
+    if (idx !== -1) {
+      sectionStart = idx;
+      break;
     }
-    if (GRADE_WORDS.includes(line)) {
-      gradeQueue.push(line);
-      return;
-    }
-    if (/^Lv\.?\s*\d+$/i.test(line)) {
-      valueQueue.push(line.replace(/^Lv\.?\s*/i, "Lv."));
-      return;
-    }
-    if (/^[+\-]?[\d,.]+%?$/.test(line)) {
-      valueQueue.push(line);
-    }
-  });
-
-  // 등급 아이콘(이미지) 파일명에서 상/중/하 추정 시도
-  if (gradeQueue.length === 0 && imgSrcs.length > 0) {
-    imgSrcs.forEach((src) => {
-      const s = src.toLowerCase();
-      if (/high|upper|_h_|grade_3|grade3/.test(s)) gradeQueue.push("상");
-      else if (/mid|middle|_m_|grade_2|grade2/.test(s)) gradeQueue.push("중");
-      else if (/low|lower|_l_|grade_1|grade1/.test(s)) gradeQueue.push("하");
-    });
   }
 
-  const results = [];
-  for (let i = 0; i < nameQueue.length; i++) {
-    const name = nameQueue[i];
-    const val = valueQueue[i] || "";
-    const grade = gradeQueue[i] || "";
-    const label = name + (val ? " " + val : "") + (grade ? ` (${grade})` : "");
-    if (!results.includes(label)) results.push(label);
+  const lines = [];
+  if (sectionStart !== -1) {
+    const chunk = [];
+    for (let i = sectionStart + 1; i < rawLines.length; i++) {
+      if (STOP_MARKERS.includes(rawLines[i])) break;
+      chunk.push(rawLines[i]);
+    }
+    for (let i = 0; i < chunk.length; i += 2) {
+      const name = chunk[i];
+      const val = chunk[i + 1] || "";
+      if (name) lines.push(val ? `${name} ${val}` : name);
+    }
   }
 
-  return { lines: results.slice(0, 6), raw: rawLines.join(" | ") };
+  return { lines: lines.slice(0, 6), raw: rawLines.join(" | ") };
 }
 
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
@@ -419,6 +396,7 @@ function RaidBoard() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [debugOpenIdx, setDebugOpenIdx] = useState(null);
+  const [debugEngravingOpen, setDebugEngravingOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPwInput, setAdminPwInput] = useState("");
@@ -908,6 +886,7 @@ function RaidBoard() {
     setDetailData(null);
     setDetailError("");
     setDebugOpenIdx(null);
+    setDebugEngravingOpen(false);
   }
 
   async function deleteSlot(idx) {
@@ -1582,14 +1561,35 @@ function RaidBoard() {
 
                 {detailEngravingList.length > 0 && (
                   <div style={styles.modalSection}>
-                    <div style={styles.modalSectionTitle}>각인</div>
-                    <div style={styles.modalChipRow}>
-                      {detailEngravingList.map((e, i) => (
-                        <span key={i} style={styles.modalChip}>
-                          {(e.Name || "").replace(/<[^>]+>/g, "")}
-                        </span>
-                      ))}
+                    <div style={styles.modalSectionTitle}>
+                      각인
+                      <button
+                        style={styles.debugToggleBtn}
+                        onClick={() => setDebugEngravingOpen((v) => !v)}
+                      >
+                        {debugEngravingOpen ? "원본 닫기" : "원본 보기"}
+                      </button>
                     </div>
+                    <div style={styles.modalChipRow}>
+                      {detailEngravingList.map((e, i) => {
+                        const name = (e.Name || "").replace(/<[^>]+>/g, "");
+                        let lvl = null;
+                        if (typeof e.Level === "number") lvl = e.Level;
+                        else {
+                          const m = (name + " " + (e.Description || "")).match(/Lv\.?\s*(\d+)/i);
+                          if (m) lvl = m[1];
+                        }
+                        return (
+                          <span key={i} style={styles.modalChip}>
+                            {name}
+                            {lvl ? ` Lv.${lvl}` : ""}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {debugEngravingOpen && (
+                      <div style={styles.debugBox}>{JSON.stringify(detailData.engravings)}</div>
+                    )}
                   </div>
                 )}
 
@@ -1701,7 +1701,7 @@ const styles = {
   modalSubtitle: { fontSize: 12, color: "#8b93a7", marginBottom: 8 },
   modalStatRow: { display: "flex", gap: 14, fontSize: 13, color: "#d9a94e", fontWeight: 700, marginBottom: 14 },
   modalSection: { marginTop: 14, paddingTop: 12, borderTop: "1px solid #262d3d" },
-  modalSectionTitle: { fontSize: 12, fontWeight: 700, color: "#c8cddb", marginBottom: 8 },
+  modalSectionTitle: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontWeight: 700, color: "#c8cddb", marginBottom: 8 },
   modalChipRow: { display: "flex", flexWrap: "wrap", gap: 6 },
   modalChip: { fontSize: 11, color: "#e8ebf0", background: "#0f1219", border: "1px solid #262d3d", borderRadius: 6, padding: "4px 8px" },
   modalListRow: { display: "flex", gap: 10, fontSize: 12, color: "#e8ebf0", padding: "4px 0" },
