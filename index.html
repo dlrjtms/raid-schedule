@@ -729,17 +729,35 @@ function RaidBoard() {
     }
   }
 
+  async function safeFetchJson(type, name) {
+    try {
+      const res = await fetch(LOSTARK_PROXY_URL + "?type=" + type + "&name=" + encodeURIComponent(name));
+      if (!res.ok) return null;
+      const text = await res.text();
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function openDetail(name) {
     setDetailFor(name);
     setDetailData(null);
     setDetailError("");
     setDetailLoading(true);
     try {
-      const res = await fetch(LOSTARK_PROXY_URL + "?type=armories&name=" + encodeURIComponent(name));
-      if (!res.ok) throw new Error("API 오류 (" + res.status + ")");
-      const data = await res.json();
-      if (!data || !data.ArmoryProfile) throw new Error("정보를 찾을 수 없습니다.");
-      setDetailData(data);
+      const [profile, equipment, engravings, gems] = await Promise.all([
+        safeFetchJson("profile", name),
+        safeFetchJson("equipment", name),
+        safeFetchJson("engravings", name),
+        safeFetchJson("gems", name),
+      ]);
+      if (!profile) throw new Error("캐릭터 정보를 찾을 수 없습니다.");
+      setDetailData({ profile, equipment, engravings, gems });
     } catch (e) {
       setDetailError(e.message || "불러오기에 실패했습니다.");
     } finally {
@@ -785,6 +803,30 @@ function RaidBoard() {
     const newClaims = has ? claims.filter((id) => id !== loggedInId) : [...claims, loggedInId];
     await saveMember({ ...target, requestClaims: newClaims });
   }
+
+  const detailEquipList = useMemo(() => {
+    const eq = detailData && detailData.equipment;
+    if (Array.isArray(eq)) return eq;
+    if (eq && Array.isArray(eq.ArmoryEquipment)) return eq.ArmoryEquipment;
+    return [];
+  }, [detailData]);
+
+  const detailEngravingList = useMemo(() => {
+    const en = detailData && detailData.engravings;
+    if (!en) return [];
+    if (Array.isArray(en.Effects)) return en.Effects;
+    if (en.ArmoryEngraving && Array.isArray(en.ArmoryEngraving.Effects)) return en.ArmoryEngraving.Effects;
+    if (Array.isArray(en)) return en;
+    return [];
+  }, [detailData]);
+
+  const detailGemList = useMemo(() => {
+    const g = detailData && detailData.gems;
+    if (!g) return [];
+    if (Array.isArray(g.Gems)) return g.Gems;
+    if (Array.isArray(g)) return g;
+    return [];
+  }, [detailData]);
 
   const daySchedule = useMemo(() => {
     return DAYS.map((d) => ({ day: d, segments: daySegments(members, d) })).filter((x) => x.segments.length > 0);
@@ -1301,24 +1343,20 @@ function RaidBoard() {
             ) : detailData ? (
               <>
                 <div style={styles.modalSubtitle}>
-                  {detailData.ArmoryProfile.CharacterClassName}
-                  {detailData.ArmoryProfile.Title ? ` · ${detailData.ArmoryProfile.Title}` : ""}
-                  {detailData.ArmoryProfile.GuildName ? ` · ${detailData.ArmoryProfile.GuildName}` : ""}
+                  {detailData.profile.CharacterClassName}
+                  {detailData.profile.Title ? ` · ${detailData.profile.Title}` : ""}
+                  {detailData.profile.GuildName ? ` · ${detailData.profile.GuildName}` : ""}
                 </div>
                 <div style={styles.modalStatRow}>
-                  <span>
-                    아이템 Lv.{detailData.ArmoryProfile.ItemAvgLevel}
-                  </span>
-                  {detailData.ArmoryProfile.CombatPower && (
-                    <span>⚔ {detailData.ArmoryProfile.CombatPower}</span>
-                  )}
+                  <span>아이템 Lv.{detailData.profile.ItemAvgLevel}</span>
+                  {detailData.profile.CombatPower && <span>⚔ {detailData.profile.CombatPower}</span>}
                 </div>
 
-                {Array.isArray(detailData.ArmoryProfile.Stats) && detailData.ArmoryProfile.Stats.length > 0 && (
+                {Array.isArray(detailData.profile.Stats) && detailData.profile.Stats.length > 0 && (
                   <div style={styles.modalSection}>
                     <div style={styles.modalSectionTitle}>주요 스탯</div>
                     <div style={styles.modalChipRow}>
-                      {detailData.ArmoryProfile.Stats.map((s, i) => (
+                      {detailData.profile.Stats.map((s, i) => (
                         <span key={i} style={styles.modalChip}>
                           {s.Type} {s.Value}
                         </span>
@@ -1327,10 +1365,10 @@ function RaidBoard() {
                   </div>
                 )}
 
-                {Array.isArray(detailData.ArmoryEquipment) && detailData.ArmoryEquipment.length > 0 && (
+                {detailEquipList.length > 0 && (
                   <div style={styles.modalSection}>
                     <div style={styles.modalSectionTitle}>장비</div>
-                    {detailData.ArmoryEquipment.map((eq, i) => (
+                    {detailEquipList.map((eq, i) => (
                       <div key={i} style={styles.modalListRow}>
                         <span style={styles.modalListType}>{eq.Type}</span>
                         <span style={styles.modalListName}>{(eq.Name || "").replace(/<[^>]+>/g, "")}</span>
@@ -1339,35 +1377,35 @@ function RaidBoard() {
                   </div>
                 )}
 
-                {detailData.ArmoryEngraving &&
-                  Array.isArray(detailData.ArmoryEngraving.Effects) &&
-                  detailData.ArmoryEngraving.Effects.length > 0 && (
-                    <div style={styles.modalSection}>
-                      <div style={styles.modalSectionTitle}>각인</div>
-                      <div style={styles.modalChipRow}>
-                        {detailData.ArmoryEngraving.Effects.map((e, i) => (
-                          <span key={i} style={styles.modalChip}>
-                            {(e.Name || "").replace(/<[^>]+>/g, "")}
-                          </span>
-                        ))}
-                      </div>
+                {detailEngravingList.length > 0 && (
+                  <div style={styles.modalSection}>
+                    <div style={styles.modalSectionTitle}>각인</div>
+                    <div style={styles.modalChipRow}>
+                      {detailEngravingList.map((e, i) => (
+                        <span key={i} style={styles.modalChip}>
+                          {(e.Name || "").replace(/<[^>]+>/g, "")}
+                        </span>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
-                {detailData.ArmoryGem &&
-                  Array.isArray(detailData.ArmoryGem.Gems) &&
-                  detailData.ArmoryGem.Gems.length > 0 && (
-                    <div style={styles.modalSection}>
-                      <div style={styles.modalSectionTitle}>보석</div>
-                      <div style={styles.modalChipRow}>
-                        {detailData.ArmoryGem.Gems.map((g, i) => (
-                          <span key={i} style={styles.modalChip}>
-                            {(g.Name || "").replace(/<[^>]+>/g, "")}
-                          </span>
-                        ))}
-                      </div>
+                {detailGemList.length > 0 && (
+                  <div style={styles.modalSection}>
+                    <div style={styles.modalSectionTitle}>보석</div>
+                    <div style={styles.modalChipRow}>
+                      {detailGemList.map((g, i) => (
+                        <span key={i} style={styles.modalChip}>
+                          {(g.Name || "").replace(/<[^>]+>/g, "")}
+                        </span>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
+
+                {detailEquipList.length === 0 && detailEngravingList.length === 0 && detailGemList.length === 0 && (
+                  <div style={styles.emptyHint}>장비/각인/보석 정보를 가져오지 못했습니다 (프로필 정보만 표시).</div>
+                )}
               </>
             ) : null}
           </div>
