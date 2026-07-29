@@ -366,6 +366,27 @@ function RaidBoard() {
           })
         );
 
+        // 오타 정정: 로그인 없이 대표 캐릭터 이름을 한 번만 자동으로 고쳐줌
+        try {
+          const nameFixes = [
+            { id: "m05", correctName: "노냐니" },
+            { id: "m11", correctName: "김호큥" },
+          ];
+          for (const fx of nameFixes) {
+            try {
+              const r = await window.storage.get("member:" + fx.id, true);
+              if (r && r.value) {
+                const m = JSON.parse(r.value);
+                if (m.characters && m.characters[0] && m.characters[0].name !== fx.correctName) {
+                  m.characters = [...m.characters];
+                  m.characters[0] = { ...m.characters[0], name: fx.correctName };
+                  await window.storage.set("member:" + fx.id, JSON.stringify(m), true);
+                }
+              }
+            } catch (e) {}
+          }
+        } catch (e) {}
+
         // 매주 화요일 23시가 지난 뒤 첫 접속에서 전체 요일별 시간을 초기화
         try {
           const target = lastTuesday11pm(new Date()).getTime();
