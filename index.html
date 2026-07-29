@@ -799,9 +799,11 @@ function RaidBoard() {
               <div style={styles.boardList}>
                 {[...boardPosts].reverse().map((p) => (
                   <div key={p.id} style={styles.boardItem}>
-                    <span style={styles.boardAuthor}>{p.authorName}</span>
-                    <span style={styles.boardText}>{p.text}</span>
-                    <span style={styles.boardTime}>{timeAgo(p.createdAt)}</span>
+                    <div style={styles.boardMeta}>
+                      <span style={styles.boardAuthor}>{p.authorName}</span>
+                      <span style={styles.boardTime}>{timeAgo(p.createdAt)}</span>
+                    </div>
+                    <div style={styles.boardText}>{p.text}</div>
                   </div>
                 ))}
               </div>
@@ -1303,9 +1305,10 @@ const styles = {
   hoursLabel: { fontSize: 11, color: "#d9a94e", marginLeft: "auto", fontWeight: 700 },
   emptyHint: { fontSize: 12, color: "#5f6577", textAlign: "center", padding: "10px 0" },
   boardList: { display: "flex", flexDirection: "column", gap: 6 },
-  boardItem: { display: "flex", alignItems: "center", gap: 10, background: "#0f1219", border: "1px solid #262d3d", borderRadius: 8, padding: "8px 12px" },
-  boardAuthor: { fontSize: 12, fontWeight: 700, color: "#d9a94e", flexShrink: 0 },
-  boardText: { fontSize: 13, color: "#e8ebf0", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  boardItem: { display: "flex", flexDirection: "column", gap: 4, background: "#0f1219", border: "1px solid #262d3d", borderRadius: 8, padding: "8px 12px" },
+  boardMeta: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 },
+  boardAuthor: { fontSize: 12, fontWeight: 700, color: "#d9a94e" },
+  boardText: { fontSize: 13, color: "#e8ebf0", whiteSpace: "normal", wordBreak: "break-word", lineHeight: 1.4 },
   boardTime: { fontSize: 11, color: "#5f6577", flexShrink: 0 },
   savedHint: { fontSize: 12, color: "#639922" },
   dayScheduleBlock: { marginBottom: 14 },
