@@ -326,31 +326,68 @@ function extractTooltipOptionLines(tooltipRaw) {
   }
   walk(obj);
 
-  // 실제 부여효과는 "연마 효과"(장신구) / "각인 효과"(어빌리티 스톤) 같은 구간 표지 바로 다음부터
-  // 다음 구간 표지 전까지 [이름, 값, 이름, 값 ...] 순서로 나온다.
-  const SECTION_MARKERS = ["연마 효과", "각인 효과", "특수 효과"];
   const STOP_MARKERS = ["ItemPartBox", "MultiTextBox", "SingleTextBox", "Progress", "NameTagBox", "ItemTitle"];
+  const STAT_ONLY = /^(체력|힘|민첩|지능)\s*[+\-]?[\d,.]+$/;
 
-  let sectionStart = -1;
-  for (const marker of SECTION_MARKERS) {
+  function sectionChunk(marker) {
     const idx = rawLines.indexOf(marker);
-    if (idx !== -1) {
-      sectionStart = idx;
-      break;
+    if (idx === -1) return null;
+    const chunk = [];
+    for (let i = idx + 1; i < rawLines.length; i++) {
+      const l = rawLines[i];
+      if (STOP_MARKERS.includes(l)) break;
+      if (l === "IndentStringGroup") continue; // 하위 구조 표지, 건너뛰고 계속
+      chunk.push(l);
     }
+    return chunk;
   }
 
   const lines = [];
-  if (sectionStart !== -1) {
-    const chunk = [];
-    for (let i = sectionStart + 1; i < rawLines.length; i++) {
-      if (STOP_MARKERS.includes(rawLines[i])) break;
-      chunk.push(rawLines[i]);
-    }
+
+  // [1] 목걸이/귀걸이/반지: "연마 효과" 구간에 [이름, 값, 이름, 값 ...] 순서로 나온다.
+  let chunk = sectionChunk("연마 효과");
+  if (chunk) {
     for (let i = 0; i < chunk.length; i += 2) {
       const name = chunk[i];
       const val = chunk[i + 1] || "";
       if (name) lines.push(val ? `${name} ${val}` : name);
+    }
+  }
+
+  // [2] 어빌리티 스톤: "세공 단계 보너스" 구간에 [ 이름 | Lv.N | ] 형태로 대괄호가 섞여 나온다.
+  if (lines.length === 0) {
+    chunk = sectionChunk("세공 단계 보너스");
+    if (chunk) {
+      const cleaned = chunk.filter((l) => l !== "[" && l !== "]" && l !== "레벨 보너스" && !STAT_ONLY.test(l));
+      for (let i = 0; i < cleaned.length; i++) {
+        const cur = cleaned[i];
+        if (/^Lv\.?\s*\d+$/i.test(cur)) continue;
+        const next = cleaned[i + 1];
+        if (next && /^Lv\.?\s*\d+$/i.test(next)) {
+          lines.push(`${cur} ${next}`);
+          i++;
+        } else if (/[%\d]/.test(cur) && cur !== "무작위 각인 효과") {
+          lines.push(cur);
+        }
+      }
+    }
+  }
+
+  // [3] 팔찌: "팔찌 효과" 구간은 이름/값이 나뉘어 있지 않고 긴 문장으로 되어있어 문장 단위로 잘라서 보여준다.
+  if (lines.length === 0) {
+    chunk = sectionChunk("팔찌 효과");
+    if (chunk) {
+      chunk.forEach((l) => {
+        if (STAT_ONLY.test(l)) return;
+        if (!l.includes("%")) return;
+        l.split("다. ")
+          .map((s) => s.trim())
+          .filter((s) => s.includes("%"))
+          .forEach((s) => {
+            const clean = s.replace(/다\.?$/, "").trim();
+            lines.push(clean.length > 55 ? clean.slice(0, 55) + "…" : clean);
+          });
+      });
     }
   }
 
@@ -373,7 +410,7 @@ function lastTuesday11pm(now) {
 }
 
 const LOSTARK_PROXY_URL = "https://raid-sch.mr88sws.workers.dev/";
-const ADMIN_PASSWORD = "1a2a3a"; // 이 값을 원하는 관리자 비밀번호로 바꾸세요
+const ADMIN_PASSWORD = "연고관리자2026"; // 이 값을 원하는 관리자 비밀번호로 바꾸세요
 
 function RaidBoard() {
   const [members, setMembers] = useState([]);
