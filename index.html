@@ -612,17 +612,32 @@ function RaidBoard() {
         .sort((a, b) => b.level - a.level)
         .slice(0, MAX_SLOTS);
 
+      const withPower = await Promise.all(
+        parsed.map(async (c) => {
+          try {
+            const pr = await fetch(LOSTARK_PROXY_URL + "?type=profile&name=" + encodeURIComponent(c.name));
+            if (!pr.ok) return { ...c, combatPower: null };
+            const profile = await pr.json();
+            const cp = profile && profile.CombatPower ? parseFloat(String(profile.CombatPower).replace(/,/g, "")) : null;
+            return { ...c, combatPower: cp };
+          } catch (e) {
+            return { ...c, combatPower: null };
+          }
+        })
+      );
+
       const oldByName = {};
       loggedIn.characters.forEach((c) => {
         if (c) oldByName[c.name] = c;
       });
 
-      const newChars = parsed.map((c) => ({
+      const newChars = withPower.map((c) => ({
         id: oldByName[c.name] ? oldByName[c.name].id : uid(),
         name: c.name,
         className: c.className,
         role: roleOf(c.className),
         level: c.level,
+        combatPower: c.combatPower,
         raidDone: oldByName[c.name] ? !!oldByName[c.name].raidDone : false,
       }));
 
@@ -895,6 +910,11 @@ function RaidBoard() {
                               <div className="rb-num" style={{ ...styles.slotLevel, color: roleInfo.color }}>
                                 Lv.{c.level}
                               </div>
+                              {c.combatPower ? (
+                                <div className="rb-num" style={styles.slotPower}>
+                                  ⚔ {Math.round(c.combatPower).toLocaleString("ko-KR")}
+                                </div>
+                              ) : null}
                             </>
                           ) : (
                             <div style={styles.slotEmpty}>+</div>
@@ -1156,6 +1176,7 @@ const styles = {
   slotName: { fontSize: 12, color: "#e8ebf0", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" },
   slotClass: { fontSize: 9, color: "#8b93a7" },
   slotLevel: { fontSize: 13, fontWeight: 700, marginTop: 2 },
+  slotPower: { fontSize: 10, color: "#8b93a7", marginTop: 1 },
   slotEmpty: { fontSize: 28, color: "#3a4152" },
   editorBox: { marginTop: 16, borderTop: "1px solid #262d3d", paddingTop: 16 },
   roleToggle: { flex: 1, border: "1.5px solid", borderRadius: 8, padding: "8px 0", fontSize: 13, fontWeight: 600, cursor: "pointer", background: "transparent" },
