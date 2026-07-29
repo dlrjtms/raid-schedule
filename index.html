@@ -232,6 +232,19 @@ function fmt(mins) {
   return `${h}:${m}`;
 }
 
+// 가장 최근에 지나간 "화요일 23:00" 시점을 구한다 (0=일, 2=화)
+function lastTuesday11pm(now) {
+  const d = new Date(now);
+  const day = d.getDay();
+  const diff = (day - 2 + 7) % 7;
+  d.setDate(d.getDate() - diff);
+  d.setHours(23, 0, 0, 0);
+  if (d.getTime() > now.getTime()) {
+    d.setDate(d.getDate() - 7);
+  }
+  return d;
+}
+
 function RaidBoard() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -301,6 +314,34 @@ function RaidBoard() {
             }
           })
         );
+
+        // 매주 화요일 23시가 지난 뒤 첫 접속에서 전체 요일별 시간을 초기화
+        try {
+          const target = lastTuesday11pm(new Date()).getTime();
+          let lastReset = 0;
+          try {
+            const r = await window.storage.get("meta:lastReset", true);
+            if (r && r.value) lastReset = Number(r.value) || 0;
+          } catch (e) {}
+          if (lastReset < target) {
+            await window.storage.set("meta:lastReset", String(target), true);
+            const listed2 = await window.storage.list("member:", true);
+            const keys2 = listed2 && listed2.keys ? listed2.keys : [];
+            await Promise.all(
+              keys2.map(async (k) => {
+                try {
+                  const r = await window.storage.get(k, true);
+                  if (r && r.value) {
+                    const m = JSON.parse(r.value);
+                    m.schedule = emptySchedule();
+                    await window.storage.set(k, JSON.stringify(m), true);
+                  }
+                } catch (e) {}
+              })
+            );
+          }
+        } catch (e) {}
+
         await loadMembers();
       } catch (e) {
         setError("초기 데이터를 불러오지 못했습니다.");
@@ -479,7 +520,7 @@ function RaidBoard() {
       `}</style>
 
       <div style={styles.hero}>
-        <div style={styles.heroEyebrow}>GUILD BOARD</div>
+        <div style={styles.heroEyebrow}>연고</div>
         <h1 style={styles.heroTitle}>레이드 시간표</h1>
       </div>
 
@@ -500,7 +541,10 @@ function RaidBoard() {
                   style={{ ...styles.memberCard, borderColor: isSel ? "#3b82f6" : "#262d3d" }}
                   onClick={() => pickCard(m.id)}
                 >
-                  <div style={styles.memberCardName}>{main.name}</div>
+                  <div style={styles.memberCardName}>
+                    {m.id === "m05" && <span style={{ marginRight: 3 }}>👑</span>}
+                    {main.name}
+                  </div>
                   <div style={styles.memberCardClass}>{main.className}</div>
                   <div style={styles.memberLevels}>
                     {m.characters.filter(Boolean).map((c, i) => (
