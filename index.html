@@ -300,6 +300,10 @@ function RaidBoard() {
   const [editSlot, setEditSlot] = useState(null);
   const [importLoading, setImportLoading] = useState(false);
   const [importError, setImportError] = useState("");
+  const [detailFor, setDetailFor] = useState(null);
+  const [detailData, setDetailData] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
   const [slotDraft, setSlotDraft] = useState({ name: "", className: "", role: "딜러", level: "" });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [scheduleDraft, setScheduleDraft] = useState(null);
@@ -725,6 +729,30 @@ function RaidBoard() {
     }
   }
 
+  async function openDetail(name) {
+    setDetailFor(name);
+    setDetailData(null);
+    setDetailError("");
+    setDetailLoading(true);
+    try {
+      const res = await fetch(LOSTARK_PROXY_URL + "?type=armories&name=" + encodeURIComponent(name));
+      if (!res.ok) throw new Error("API 오류 (" + res.status + ")");
+      const data = await res.json();
+      if (!data || !data.ArmoryProfile) throw new Error("정보를 찾을 수 없습니다.");
+      setDetailData(data);
+    } catch (e) {
+      setDetailError(e.message || "불러오기에 실패했습니다.");
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  function closeDetail() {
+    setDetailFor(null);
+    setDetailData(null);
+    setDetailError("");
+  }
+
   async function deleteSlot(idx) {
     if (idx === 0) return;
     const chars = [...loggedIn.characters];
@@ -1011,6 +1039,16 @@ function RaidBoard() {
                         >
                           {c ? (
                             <>
+                              <button
+                                style={styles.detailBtn}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDetail(c.name);
+                                }}
+                                title="상세정보 보기"
+                              >
+                                🔍
+                              </button>
                               <label
                                 style={styles.raidCheck}
                                 onClick={(e) => e.stopPropagation()}
@@ -1245,6 +1283,96 @@ function RaidBoard() {
           </div>
         </>
       )}
+
+      {detailFor && (
+        <div style={styles.modalOverlay} onClick={closeDetail}>
+          <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalTitle}>{detailFor}</div>
+              <button style={styles.modalClose} onClick={closeDetail}>
+                ✕
+              </button>
+            </div>
+
+            {detailLoading ? (
+              <div style={styles.emptyHint}>불러오는 중...</div>
+            ) : detailError ? (
+              <div style={styles.errorText}>{detailError}</div>
+            ) : detailData ? (
+              <>
+                <div style={styles.modalSubtitle}>
+                  {detailData.ArmoryProfile.CharacterClassName}
+                  {detailData.ArmoryProfile.Title ? ` · ${detailData.ArmoryProfile.Title}` : ""}
+                  {detailData.ArmoryProfile.GuildName ? ` · ${detailData.ArmoryProfile.GuildName}` : ""}
+                </div>
+                <div style={styles.modalStatRow}>
+                  <span>
+                    아이템 Lv.{detailData.ArmoryProfile.ItemAvgLevel}
+                  </span>
+                  {detailData.ArmoryProfile.CombatPower && (
+                    <span>⚔ {detailData.ArmoryProfile.CombatPower}</span>
+                  )}
+                </div>
+
+                {Array.isArray(detailData.ArmoryProfile.Stats) && detailData.ArmoryProfile.Stats.length > 0 && (
+                  <div style={styles.modalSection}>
+                    <div style={styles.modalSectionTitle}>주요 스탯</div>
+                    <div style={styles.modalChipRow}>
+                      {detailData.ArmoryProfile.Stats.map((s, i) => (
+                        <span key={i} style={styles.modalChip}>
+                          {s.Type} {s.Value}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {Array.isArray(detailData.ArmoryEquipment) && detailData.ArmoryEquipment.length > 0 && (
+                  <div style={styles.modalSection}>
+                    <div style={styles.modalSectionTitle}>장비</div>
+                    {detailData.ArmoryEquipment.map((eq, i) => (
+                      <div key={i} style={styles.modalListRow}>
+                        <span style={styles.modalListType}>{eq.Type}</span>
+                        <span style={styles.modalListName}>{(eq.Name || "").replace(/<[^>]+>/g, "")}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {detailData.ArmoryEngraving &&
+                  Array.isArray(detailData.ArmoryEngraving.Effects) &&
+                  detailData.ArmoryEngraving.Effects.length > 0 && (
+                    <div style={styles.modalSection}>
+                      <div style={styles.modalSectionTitle}>각인</div>
+                      <div style={styles.modalChipRow}>
+                        {detailData.ArmoryEngraving.Effects.map((e, i) => (
+                          <span key={i} style={styles.modalChip}>
+                            {(e.Name || "").replace(/<[^>]+>/g, "")}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                {detailData.ArmoryGem &&
+                  Array.isArray(detailData.ArmoryGem.Gems) &&
+                  detailData.ArmoryGem.Gems.length > 0 && (
+                    <div style={styles.modalSection}>
+                      <div style={styles.modalSectionTitle}>보석</div>
+                      <div style={styles.modalChipRow}>
+                        {detailData.ArmoryGem.Gems.map((g, i) => (
+                          <span key={i} style={styles.modalChip}>
+                            {(g.Name || "").replace(/<[^>]+>/g, "")}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+              </>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1291,6 +1419,7 @@ const styles = {
   slotGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 },
   slot: { position: "relative", border: "1.5px solid #262d3d", borderRadius: 10, aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 6, textAlign: "center" },
   raidCheck: { position: "absolute", top: 4, right: 4, lineHeight: 0, cursor: "pointer" },
+  detailBtn: { position: "absolute", top: 3, left: 4, lineHeight: 0, cursor: "pointer", background: "transparent", border: "none", fontSize: 12, padding: 2, opacity: 0.8 },
   slotRole: { fontSize: 10, fontWeight: 700, marginBottom: 2 },
   slotName: { fontSize: 12, color: "#e8ebf0", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" },
   slotClass: { fontSize: 9, color: "#8b93a7" },
@@ -1317,6 +1446,20 @@ const styles = {
   segmentTime: { fontSize: 12, color: "#c8cddb", minWidth: 108 },
   segmentNames: { fontSize: 12, color: "#e8ebf0", flex: 1 },
   overlapCount: { fontSize: 11, color: "#d9a94e", fontWeight: 700 },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 100 },
+  modalPanel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 14, padding: 20, maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto" },
+  modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  modalTitle: { fontSize: 17, fontWeight: 700, color: "#f2ede0" },
+  modalClose: { background: "transparent", border: "none", color: "#8b93a7", fontSize: 16, cursor: "pointer" },
+  modalSubtitle: { fontSize: 12, color: "#8b93a7", marginBottom: 8 },
+  modalStatRow: { display: "flex", gap: 14, fontSize: 13, color: "#d9a94e", fontWeight: 700, marginBottom: 14 },
+  modalSection: { marginTop: 14, paddingTop: 12, borderTop: "1px solid #262d3d" },
+  modalSectionTitle: { fontSize: 12, fontWeight: 700, color: "#c8cddb", marginBottom: 8 },
+  modalChipRow: { display: "flex", flexWrap: "wrap", gap: 6 },
+  modalChip: { fontSize: 11, color: "#e8ebf0", background: "#0f1219", border: "1px solid #262d3d", borderRadius: 6, padding: "4px 8px" },
+  modalListRow: { display: "flex", gap: 10, fontSize: 12, color: "#e8ebf0", padding: "4px 0", borderBottom: "1px solid #1e2430" },
+  modalListType: { color: "#8b93a7", minWidth: 44, flexShrink: 0 },
+  modalListName: { flex: 1, wordBreak: "break-word" },
 };
 
 
