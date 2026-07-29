@@ -373,16 +373,44 @@ function extractTooltipOptionLines(tooltipRaw) {
     }
   }
 
-  // [3] 팔찌: "팔찌 효과" 구간은 이름/값이 나뉘어 있지 않고 문장 단위로 이미 하나씩 들어온다.
+  // [3] 팔찌: "팔찌 효과" 구간. 옵션 하나가 한 줄로 오는 경우도, "이름 문구 | N% | 증가한다."처럼
+  // 퍼센트 값이 앞뒤 문구와 분리된 3줄로 오는 경우도 있어 앞뒤를 붙여서 완전한 문장으로 만든다.
   if (lines.length === 0) {
     chunk = sectionChunk("팔찌 효과");
     if (chunk) {
-      chunk.forEach((l) => {
-        if (STAT_ONLY.test(l)) return;
-        if (!l.includes("%")) return;
-        const clean = l.replace(/\.$/, "").trim();
-        lines.push(clean.length > 60 ? clean.slice(0, 60) + "…" : clean);
-      });
+      const filtered = chunk.filter((l) => !STAT_ONLY.test(l));
+      const used = new Set();
+      for (let i = 0; i < filtered.length; i++) {
+        if (used.has(i)) continue;
+        const l = filtered[i];
+        if (!l.includes("%")) continue;
+        let prefix = "";
+        if (
+          i > 0 &&
+          !used.has(i - 1) &&
+          !filtered[i - 1].includes("%") &&
+          !/^[+\-]?[\d,.]+$/.test(filtered[i - 1])
+        ) {
+          prefix = filtered[i - 1];
+          used.add(i - 1);
+        }
+        let suffix = "";
+        if (
+          i + 1 < filtered.length &&
+          !filtered[i + 1].includes("%") &&
+          !/^[+\-]?[\d,.]+$/.test(filtered[i + 1])
+        ) {
+          suffix = filtered[i + 1];
+          used.add(i + 1);
+        }
+        used.add(i);
+        const combined = [prefix, l, suffix]
+          .filter(Boolean)
+          .join(" ")
+          .replace(/\.$/, "")
+          .trim();
+        lines.push(combined.length > 60 ? combined.slice(0, 60) + "…" : combined);
+      }
     }
   }
 
