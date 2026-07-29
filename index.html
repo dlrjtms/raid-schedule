@@ -257,6 +257,16 @@ function dayHoursLabel(s) {
 
 const HOUR_OPTIONS_START = Array.from({ length: 24 }, (_, i) => i);
 const HOUR_OPTIONS_END = Array.from({ length: 25 }, (_, i) => i);
+
+function timeAgo(ts) {
+  if (!ts) return "";
+  const diffMin = Math.floor((Date.now() - ts) / 60000);
+  if (diffMin < 1) return "방금";
+  if (diffMin < 60) return `${diffMin}분 전`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}시간 전`;
+  return `${Math.floor(diffHr / 24)}일 전`;
+}
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
 
 // 가장 최근에 지나간 "화요일 23:00" 시점을 구한다 (0=일, 2=화)
@@ -298,6 +308,9 @@ function RaidBoard() {
   const [requestSaved, setRequestSaved] = useState(false);
   const [onlineNames, setOnlineNames] = useState([]);
   const [onlineCount, setOnlineCount] = useState(0);
+  const [boardPosts, setBoardPosts] = useState([]);
+  const [boardDraft, setBoardDraft] = useState("");
+  const [boardError, setBoardError] = useState("");
   const sessionIdRef = useRef(null);
   if (!sessionIdRef.current) {
     try {
@@ -498,6 +511,48 @@ function RaidBoard() {
     const t = setInterval(poll, 15000);
     return () => clearInterval(t);
   }, []);
+
+  const BOARD_KEY = "board:raid-request";
+  const BOARD_MAX = 5;
+
+  const loadBoard = useCallback(async () => {
+    try {
+      const r = await window.storage.get(BOARD_KEY, true);
+      const data = r && r.value ? JSON.parse(r.value) : { posts: [] };
+      setBoardPosts(Array.isArray(data.posts) ? data.posts : []);
+    } catch (e) {
+      setBoardPosts([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBoard();
+    const t = setInterval(loadBoard, 15000);
+    return () => clearInterval(t);
+  }, [loadBoard]);
+
+  async function postToBoard() {
+    if (!loggedIn || !boardDraft.trim()) return;
+    setBoardError("");
+    try {
+      const r = await window.storage.get(BOARD_KEY, true).catch(() => null);
+      const current = r && r.value ? JSON.parse(r.value) : { posts: [] };
+      const posts = Array.isArray(current.posts) ? current.posts : [];
+      const newPost = {
+        id: uid(),
+        authorId: loggedInId,
+        authorName: loggedIn.characters[0].name,
+        text: boardDraft.trim(),
+        createdAt: Date.now(),
+      };
+      const updated = [...posts, newPost].slice(-BOARD_MAX);
+      await window.storage.set(BOARD_KEY, JSON.stringify({ posts: updated }), true);
+      setBoardPosts(updated);
+      setBoardDraft("");
+    } catch (e) {
+      setBoardError("등록에 실패했습니다.");
+    }
+  }
 
   function pickCard(id) {
     setSelectedId(id);
@@ -736,6 +791,41 @@ function RaidBoard() {
         <div style={styles.loadingBox}>불러오는 중...</div>
       ) : (
         <>
+          <div style={styles.panel}>
+            <div style={styles.panelTitle}>레이드 지원 요청 (최근 {BOARD_MAX}개만 유지)</div>
+            {boardPosts.length === 0 ? (
+              <div style={styles.emptyHint}>등록된 요청이 없습니다.</div>
+            ) : (
+              <div style={styles.boardList}>
+                {[...boardPosts].reverse().map((p) => (
+                  <div key={p.id} style={styles.boardItem}>
+                    <span style={styles.boardAuthor}>{p.authorName}</span>
+                    <span style={styles.boardText}>{p.text}</span>
+                    <span style={styles.boardTime}>{timeAgo(p.createdAt)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {loggedIn ? (
+              <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                <input
+                  style={styles.input}
+                  placeholder="예: 목요일 카멘 하드 트라이 도와주실분 구함"
+                  value={boardDraft}
+                  onChange={(e) => setBoardDraft(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && postToBoard()}
+                  maxLength={60}
+                />
+                <button style={styles.primaryBtn} onClick={postToBoard}>
+                  등록
+                </button>
+              </div>
+            ) : (
+              <div style={styles.emptyHint}>글을 남기려면 캐릭터로 로그인해주세요.</div>
+            )}
+            {boardError && <div style={styles.errorText}>{boardError}</div>}
+          </div>
+
           <div style={styles.sectionTitle}>캐릭터를 선택하세요</div>
           <div style={styles.cardGrid}>
             {[...members]
@@ -1206,6 +1296,11 @@ const styles = {
   timeSelect: { background: "#0f1219", border: "1px solid #2a3040", borderRadius: 6, padding: "5px 4px", color: "#e8ebf0", fontSize: 12, cursor: "pointer" },
   hoursLabel: { fontSize: 11, color: "#d9a94e", marginLeft: "auto", fontWeight: 700 },
   emptyHint: { fontSize: 12, color: "#5f6577", textAlign: "center", padding: "10px 0" },
+  boardList: { display: "flex", flexDirection: "column", gap: 6 },
+  boardItem: { display: "flex", alignItems: "center", gap: 10, background: "#0f1219", border: "1px solid #262d3d", borderRadius: 8, padding: "8px 12px" },
+  boardAuthor: { fontSize: 12, fontWeight: 700, color: "#d9a94e", flexShrink: 0 },
+  boardText: { fontSize: 13, color: "#e8ebf0", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  boardTime: { fontSize: 11, color: "#5f6577", flexShrink: 0 },
   savedHint: { fontSize: 12, color: "#639922" },
   dayScheduleBlock: { marginBottom: 14 },
   overlapDay: { fontSize: 13, fontWeight: 700, color: "#d9a94e", marginBottom: 6 },
