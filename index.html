@@ -267,6 +267,50 @@ function timeAgo(ts) {
   if (diffHr < 24) return `${diffHr}시간 전`;
   return `${Math.floor(diffHr / 24)}일 전`;
 }
+
+// 장비 Tooltip(JSON 문자열) 안에서 옵션/수치로 보이는 텍스트 줄만 뽑아낸다.
+function extractTooltipOptionLines(tooltipRaw) {
+  if (!tooltipRaw) return [];
+  let obj;
+  try {
+    obj = JSON.parse(tooltipRaw);
+  } catch (e) {
+    return [];
+  }
+  const rawLines = [];
+  function walk(node) {
+    if (node == null) return;
+    if (typeof node === "string") {
+      const stripped = node
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]*>/g, "\n")
+        .replace(/&nbsp;/g, " ");
+      stripped
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((s) => rawLines.push(s));
+    } else if (Array.isArray(node)) {
+      node.forEach(walk);
+    } else if (typeof node === "object") {
+      Object.values(node).forEach(walk);
+    }
+  }
+  walk(obj);
+
+  const seen = new Set();
+  const result = [];
+  rawLines.forEach((line) => {
+    if (line.length > 45) return;
+    if (!/[0-9%]/.test(line)) return;
+    if (/^\[|^로스트아크|아이템 등급|귀속|거래 불가/.test(line)) return;
+    if (seen.has(line)) return;
+    seen.add(line);
+    result.push(line);
+  });
+  return result.slice(0, 8);
+}
+
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
 
 // 가장 최근에 지나간 "화요일 23:00" 시점을 구한다 (0=일, 2=화)
@@ -283,6 +327,7 @@ function lastTuesday11pm(now) {
 }
 
 const LOSTARK_PROXY_URL = "https://raid-sch.mr88sws.workers.dev/";
+const ADMIN_PASSWORD = "연고관리자2026"; // 이 값을 원하는 관리자 비밀번호로 바꾸세요
 
 function RaidBoard() {
   const [members, setMembers] = useState([]);
@@ -304,6 +349,10 @@ function RaidBoard() {
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminLogin, setShowAdminLogin] = useState(false);
+  const [adminPwInput, setAdminPwInput] = useState("");
+  const [adminError, setAdminError] = useState("");
   const [slotDraft, setSlotDraft] = useState({ name: "", className: "", role: "딜러", level: "" });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [scheduleDraft, setScheduleDraft] = useState(null);
@@ -564,6 +613,25 @@ function RaidBoard() {
     setClaimPw("");
     setClaimPw2("");
     setError("");
+    if (isAdmin && id !== "new") {
+      setLoggedInId(id);
+    }
+  }
+
+  function attemptAdminLogin() {
+    if (adminPwInput === ADMIN_PASSWORD) {
+      setIsAdmin(true);
+      setShowAdminLogin(false);
+      setAdminPwInput("");
+      setAdminError("");
+    } else {
+      setAdminError("비밀번호가 일치하지 않습니다.");
+    }
+  }
+
+  function logoutAdmin() {
+    setIsAdmin(false);
+    logout();
   }
 
   function attemptLogin() {
@@ -820,12 +888,18 @@ function RaidBoard() {
     return [];
   }, [detailData]);
 
+  function gemLevelOf(g) {
+    if (typeof g.Level === "number") return g.Level;
+    const m = String(g.Name || "").match(/(\d+)\s*레벨/);
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
   const detailGemList = useMemo(() => {
     const g = detailData && detailData.gems;
-    if (!g) return [];
-    if (Array.isArray(g.Gems)) return g.Gems;
-    if (Array.isArray(g)) return g;
-    return [];
+    let list = [];
+    if (g && Array.isArray(g.Gems)) list = g.Gems;
+    else if (Array.isArray(g)) list = g;
+    return [...list].sort((a, b) => gemLevelOf(b) - gemLevelOf(a));
   }, [detailData]);
 
   const daySchedule = useMemo(() => {
@@ -898,7 +972,39 @@ function RaidBoard() {
             {boardError && <div style={styles.errorText}>{boardError}</div>}
           </div>
 
-          <div style={styles.sectionTitle}>캐릭터를 선택하세요</div>
+          <div style={styles.sectionHeaderRow}>
+            <div style={styles.sectionTitle}>캐릭터를 선택하세요</div>
+            {isAdmin ? (
+              <div style={styles.adminBadgeRow}>
+                <span style={styles.adminBadge}>관리자 모드</span>
+                <button style={styles.ghostBtnSmall} onClick={logoutAdmin}>
+                  관리자 로그아웃
+                </button>
+              </div>
+            ) : showAdminLogin ? (
+              <div style={styles.adminLoginRow}>
+                <input
+                  style={styles.adminPwInput}
+                  type="password"
+                  placeholder="관리자 비밀번호"
+                  value={adminPwInput}
+                  onChange={(e) => setAdminPwInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && attemptAdminLogin()}
+                />
+                <button style={styles.ghostBtnSmall} onClick={attemptAdminLogin}>
+                  확인
+                </button>
+                <button style={styles.ghostBtnSmall} onClick={() => setShowAdminLogin(false)}>
+                  취소
+                </button>
+                {adminError && <span style={styles.errorText}>{adminError}</span>}
+              </div>
+            ) : (
+              <button style={styles.ghostBtnSmall} onClick={() => setShowAdminLogin(true)}>
+                관리자 로그인
+              </button>
+            )}
+          </div>
           <div style={styles.cardGrid}>
             {[...members]
               .sort((a, b) => ((b.characters[0] && b.characters[0].level) || 0) - ((a.characters[0] && a.characters[0].level) || 0))
@@ -1087,9 +1193,9 @@ function RaidBoard() {
                                   e.stopPropagation();
                                   openDetail(c.name);
                                 }}
-                                title="상세정보 보기"
+                                title="캐릭터 상세보기"
                               >
-                                🔍
+                                [상세보기]
                               </button>
                               <label
                                 style={styles.raidCheck}
@@ -1368,12 +1474,27 @@ function RaidBoard() {
                 {detailEquipList.length > 0 && (
                   <div style={styles.modalSection}>
                     <div style={styles.modalSectionTitle}>장비</div>
-                    {detailEquipList.map((eq, i) => (
-                      <div key={i} style={styles.modalListRow}>
-                        <span style={styles.modalListType}>{eq.Type}</span>
-                        <span style={styles.modalListName}>{(eq.Name || "").replace(/<[^>]+>/g, "")}</span>
-                      </div>
-                    ))}
+                    {detailEquipList.map((eq, i) => {
+                      const isAccessory = ["목걸이", "귀걸이", "반지", "팔찌", "어빌리티 스톤"].includes(eq.Type);
+                      const optionLines = isAccessory ? extractTooltipOptionLines(eq.Tooltip) : [];
+                      return (
+                        <div key={i} style={styles.modalEquipBlock}>
+                          <div style={styles.modalListRow}>
+                            <span style={styles.modalListType}>{eq.Type}</span>
+                            <span style={styles.modalListName}>{(eq.Name || "").replace(/<[^>]+>/g, "")}</span>
+                          </div>
+                          {optionLines.length > 0 && (
+                            <div style={styles.modalOptionBox}>
+                              {optionLines.map((line, li) => (
+                                <div key={li} style={styles.modalOptionLine}>
+                                  {line}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -1425,6 +1546,12 @@ const styles = {
   presenceDot: { color: "#639922", fontSize: 8 },
   presenceNames: { color: "#c8cddb" },
   sectionTitle: { fontSize: 15, fontWeight: 700, color: "#c8cddb", marginBottom: 12 },
+  sectionHeaderRow: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  adminBadgeRow: { display: "flex", alignItems: "center", gap: 8 },
+  adminBadge: { fontSize: 11, color: "#639922", background: "#182a0c", borderRadius: 6, padding: "3px 8px", fontWeight: 700 },
+  ghostBtnSmall: { fontSize: 11, padding: "5px 10px", borderRadius: 6, border: "1px solid #2a3040", background: "transparent", color: "#8b93a7", cursor: "pointer" },
+  adminLoginRow: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" },
+  adminPwInput: { background: "#0f1219", border: "1px solid #2a3040", borderRadius: 6, padding: "5px 8px", color: "#e8ebf0", fontSize: 12, width: 140 },
   cardGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 10, marginBottom: 18 },
   memberCard: { position: "relative", background: "#171c26", border: "1.5px solid #262d3d", borderRadius: 10, padding: "14px 8px", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, cursor: "pointer", textAlign: "center" },
   memberCardName: { fontSize: 12, fontWeight: 700, color: "#f2ede0" },
@@ -1457,7 +1584,7 @@ const styles = {
   slotGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 },
   slot: { position: "relative", border: "1.5px solid #262d3d", borderRadius: 10, aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 6, textAlign: "center" },
   raidCheck: { position: "absolute", top: 4, right: 4, lineHeight: 0, cursor: "pointer" },
-  detailBtn: { position: "absolute", top: 3, left: 4, lineHeight: 0, cursor: "pointer", background: "transparent", border: "none", fontSize: 12, padding: 2, opacity: 0.8 },
+  detailBtn: { position: "absolute", top: 3, left: 4, lineHeight: 1.1, cursor: "pointer", background: "transparent", border: "none", fontSize: 8, padding: 1, opacity: 0.85, color: "#8b93a7" },
   slotRole: { fontSize: 10, fontWeight: 700, marginBottom: 2 },
   slotName: { fontSize: 12, color: "#e8ebf0", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" },
   slotClass: { fontSize: 9, color: "#8b93a7" },
@@ -1495,9 +1622,12 @@ const styles = {
   modalSectionTitle: { fontSize: 12, fontWeight: 700, color: "#c8cddb", marginBottom: 8 },
   modalChipRow: { display: "flex", flexWrap: "wrap", gap: 6 },
   modalChip: { fontSize: 11, color: "#e8ebf0", background: "#0f1219", border: "1px solid #262d3d", borderRadius: 6, padding: "4px 8px" },
-  modalListRow: { display: "flex", gap: 10, fontSize: 12, color: "#e8ebf0", padding: "4px 0", borderBottom: "1px solid #1e2430" },
+  modalListRow: { display: "flex", gap: 10, fontSize: 12, color: "#e8ebf0", padding: "4px 0" },
   modalListType: { color: "#8b93a7", minWidth: 44, flexShrink: 0 },
   modalListName: { flex: 1, wordBreak: "break-word" },
+  modalEquipBlock: { padding: "4px 0", borderBottom: "1px solid #1e2430" },
+  modalOptionBox: { display: "flex", flexDirection: "column", gap: 2, marginTop: 2, marginBottom: 4, paddingLeft: 54 },
+  modalOptionLine: { fontSize: 11, color: "#9ec9e2" },
 };
 
 
