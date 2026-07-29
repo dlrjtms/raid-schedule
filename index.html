@@ -2006,9 +2006,52 @@ const styles = {
   debugBox: { fontSize: 9, color: "#639922", background: "#000", border: "1px solid #262d3d", borderRadius: 6, padding: 8, marginTop: 4, marginBottom: 6, maxHeight: 120, overflowY: "auto", wordBreak: "break-all", fontFamily: "monospace" },
 };
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("RaidBoard crashed:", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div
+          style={{
+            padding: 20,
+            color: "#e2593f",
+            background: "#0f1219",
+            minHeight: "100vh",
+            fontFamily: "monospace",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          <h2 style={{ color: "#f2ede0" }}>화면에 오류가 발생했습니다</h2>
+          <div style={{ marginBottom: 12 }}>{String((this.state.error && this.state.error.message) || this.state.error)}</div>
+          <div style={{ fontSize: 12, color: "#8b93a7" }}>{String((this.state.error && this.state.error.stack) || "")}</div>
+          <button
+            style={{ marginTop: 16, padding: "8px 14px", background: "#d9a94e", color: "#241a08", border: "none", borderRadius: 8, cursor: "pointer" }}
+            onClick={() => this.setState({ error: null })}
+          >
+            다시 시도
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
-root.render(<RaidBoard />);
+root.render(
+  <ErrorBoundary>
+    <RaidBoard />
+  </ErrorBoundary>
+);
 </script>
 </body>
 </html>
