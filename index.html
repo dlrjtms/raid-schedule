@@ -66,6 +66,11 @@
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+
+function todayLabel() {
+  const jsDay = new Date().getDay(); // 0=일 1=월 ... 6=토
+  return DAYS[(jsDay + 6) % 7];
+}
 const ROLE = {
   딜러: { color: "#e2593f", bg: "#2a1a15", label: "딜러" },
   서포터: { color: "#4fb8b0", bg: "#122624", label: "서포터" },
@@ -1049,6 +1054,9 @@ function RaidBoard() {
     return DAYS.map((d) => ({ day: d, segments: daySegments(members, d) })).filter((x) => x.segments.length > 0);
   }, [members]);
 
+  const today = todayLabel();
+  const todaySegments = useMemo(() => daySegments(members, today), [members, today]);
+
   const memberById = (id) => members.find((m) => m.id === id);
   const selectedMember = selectedId && selectedId !== "new" ? memberById(selectedId) : null;
 
@@ -1078,6 +1086,69 @@ function RaidBoard() {
         <div style={styles.loadingBox}>불러오는 중...</div>
       ) : (
         <>
+          <div style={styles.panel}>
+            <div style={styles.panelTitle}>오늘의 시간표 ({today}요일)</div>
+            {todaySegments.length === 0 ? (
+              <div style={styles.emptyHint}>오늘 등록된 게임 시간이 없습니다.</div>
+            ) : (
+              <>
+                <div style={styles.timelineBar}>
+                  {[0, 6, 12, 18, 24].map((h) => (
+                    <div key={h} style={{ ...styles.timelineTick, left: `${(h / 24) * 100}%` }}>
+                      <span style={styles.timelineTickLabel}>{h}</span>
+                    </div>
+                  ))}
+                  {todaySegments.map((seg, i) => {
+                    const segStart = Math.max(seg.start, 0);
+                    const segEnd = Math.min(seg.end, 1440);
+                    if (segEnd <= segStart) return null;
+                    const leftPct = (segStart / 1440) * 100;
+                    const widthPct = ((segEnd - segStart) / 1440) * 100;
+                    const names = seg.ids
+                      .map((id) => {
+                        const m = memberById(id);
+                        return m && m.characters[0] ? m.characters[0].name : null;
+                      })
+                      .filter(Boolean)
+                      .join(", ");
+                    return (
+                      <div
+                        key={i}
+                        title={`${fmt(seg.start)} ~ ${fmt(seg.end)} · ${names}`}
+                        style={{
+                          ...styles.timelineBlock,
+                          left: `${leftPct}%`,
+                          width: `${Math.max(widthPct, 0.5)}%`,
+                          background: seg.ids.length >= 2 ? "#d9a94e" : "#378ade",
+                        }}
+                      />
+                    );
+                  })}
+                </div>
+                <div style={styles.boardList}>
+                  {todaySegments.map((seg, i) => {
+                    const names = seg.ids
+                      .map((id) => {
+                        const m = memberById(id);
+                        return m && m.characters[0] ? m.characters[0].name : null;
+                      })
+                      .filter(Boolean)
+                      .join(", ");
+                    return (
+                      <div key={i} style={{ ...styles.segmentRow, borderColor: seg.ids.length >= 2 ? "#d9a94e" : "#262d3d" }}>
+                        <span className="rb-num" style={styles.segmentTime}>
+                          {fmt(seg.start)} ~ {fmt(seg.end)}
+                        </span>
+                        <span style={styles.segmentNames}>{names}</span>
+                        {seg.ids.length >= 2 && <span style={styles.overlapCount}>{seg.ids.length}명 겹침</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+
           <div style={styles.panel}>
             <div style={styles.panelTitle}>레이드 지원 요청 (최근 {BOARD_MAX}개만 유지)</div>
             {boardPosts.length === 0 ? (
@@ -1194,6 +1265,16 @@ function RaidBoard() {
                   style={{ ...styles.memberCard, borderColor: isSel ? "#3b82f6" : "#262d3d" }}
                   onClick={() => pickCard(m.id)}
                 >
+                  <button
+                    style={styles.cardDetailBtn}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openDetail(main.name);
+                    }}
+                    title="캐릭터 상세보기"
+                  >
+                    [정보]
+                  </button>
                   <div style={styles.memberCardName}>
                     {m.id === "m05" && <span style={{ marginRight: 3 }}>👑</span>}
                     {main.name}
@@ -1800,6 +1881,7 @@ const styles = {
   slot: { position: "relative", border: "1.5px solid #262d3d", borderRadius: 10, aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 6, textAlign: "center" },
   raidCheck: { position: "absolute", top: 4, right: 4, lineHeight: 0, cursor: "pointer" },
   detailBtn: { position: "absolute", top: 3, left: 4, lineHeight: 1.1, cursor: "pointer", background: "transparent", border: "none", fontSize: 8, padding: 1, opacity: 0.85, color: "#8b93a7" },
+  cardDetailBtn: { position: "absolute", top: 4, right: 4, lineHeight: 1.1, cursor: "pointer", background: "transparent", border: "none", fontSize: 8, padding: 1, opacity: 0.85, color: "#8b93a7" },
   slotRole: { fontSize: 10, fontWeight: 700, marginBottom: 2 },
   slotName: { fontSize: 12, color: "#e8ebf0", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" },
   slotClass: { fontSize: 9, color: "#8b93a7" },
@@ -1822,6 +1904,10 @@ const styles = {
   savedHint: { fontSize: 12, color: "#639922" },
   dayScheduleBlock: { marginBottom: 14 },
   overlapDay: { fontSize: 13, fontWeight: 700, color: "#d9a94e", marginBottom: 6 },
+  timelineBar: { position: "relative", height: 36, background: "#0f1219", border: "1px solid #262d3d", borderRadius: 8, marginBottom: 28, overflow: "visible" },
+  timelineTick: { position: "absolute", top: 0, bottom: 0, borderLeft: "1px solid #262d3d" },
+  timelineTickLabel: { position: "absolute", bottom: -18, left: -8, fontSize: 10, color: "#5f6577" },
+  timelineBlock: { position: "absolute", top: 4, bottom: 4, borderRadius: 4, minWidth: 2 },
   segmentRow: { display: "flex", alignItems: "center", gap: 10, border: "1px solid #262d3d", borderRadius: 8, padding: "6px 10px", marginBottom: 6, flexWrap: "wrap" },
   segmentTime: { fontSize: 12, color: "#c8cddb", minWidth: 108 },
   segmentNames: { fontSize: 12, color: "#e8ebf0", flex: 1 },
