@@ -676,6 +676,7 @@ function RaidBoard() {
   const [detailError, setDetailError] = useState("");
   const [debugOpenIdx, setDebugOpenIdx] = useState(null);
   const [debugEngravingOpen, setDebugEngravingOpen] = useState(false);
+  const [debugArkPassiveOpen, setDebugArkPassiveOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPwInput, setAdminPwInput] = useState("");
@@ -1343,6 +1344,11 @@ function RaidBoard() {
     let names = [];
     if (Array.isArray(arkpassive.Effects)) {
       names = arkpassive.Effects
+        .map((e) => e && typeof e.Name === "string" && e.Name.trim())
+        .filter((n) => n && !ARKPASSIVE_TREE_LABELS.has(n));
+    }
+    if (names.length === 0 && Array.isArray(arkpassive.ArkPassiveEffects)) {
+      names = arkpassive.ArkPassiveEffects
         .map((e) => e && typeof e.Name === "string" && e.Name.trim())
         .filter((n) => n && !ARKPASSIVE_TREE_LABELS.has(n));
     }
@@ -2351,7 +2357,17 @@ function RaidBoard() {
                   )}
                   {detailData.profile.Title ? ` · ${detailData.profile.Title}` : ""}
                   {detailData.profile.GuildName ? ` · ${detailData.profile.GuildName}` : ""}
+                  {" "}
+                  <button
+                    style={styles.debugToggleBtn}
+                    onClick={() => setDebugArkPassiveOpen((v) => !v)}
+                  >
+                    {debugArkPassiveOpen ? "아크패시브 원본 닫기" : "아크패시브 원본 보기"}
+                  </button>
                 </div>
+                {debugArkPassiveOpen && (
+                  <div style={styles.debugBox}>{JSON.stringify(detailData.arkpassive)}</div>
+                )}
                 {isAdmin && (
                   <div style={styles.debugBox}>
                     관리자 전용 · 아크 패시브 원본: {JSON.stringify(detailData.arkpassive)}
