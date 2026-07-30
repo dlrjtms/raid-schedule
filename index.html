@@ -2150,9 +2150,14 @@ function RaidBoard() {
                   <span style={{ color: synergyTagColor(abbr), fontWeight: 700 }}>{abbr}</span> = {full}
                 </div>
               ))}
+              <div style={{ ...styles.synergyLegendLine, marginTop: 4, paddingTop: 6, borderTop: "1px solid #262d3d" }}>
+                <span style={{ color: "#e8ebf0", fontWeight: 700 }}>흰색</span> = 무조건 채용하는 경우
+              </div>
               <div style={styles.synergyLegendLine}>
-                <span style={{ color: "#5ec9e8", fontWeight: 700 }}>파란색</span> = 무력화·받피감·공속·뎀감 ·{" "}
-                <span style={{ color: "#e2593f", fontWeight: 700 }}>빨간색</span> = 마회·공깎
+                <span style={{ color: "#5ec9e8", fontWeight: 700 }}>하늘색</span> = 세팅따라 채용률이 다른 경우
+              </div>
+              <div style={styles.synergyLegendLine}>
+                <span style={{ color: "#e2593f", fontWeight: 700 }}>빨간색</span> = 채용률이 0%에 근접하는 경우
               </div>
             </div>
 
