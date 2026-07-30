@@ -665,7 +665,13 @@ function RaidBoard() {
   const [password, setPassword] = useState("");
   const [claimPw, setClaimPw] = useState("");
   const [claimPw2, setClaimPw2] = useState("");
-  const [loggedInId, setLoggedInId] = useState(null);
+  const [loggedInId, setLoggedInId] = useState(() => {
+    try {
+      return localStorage.getItem("raidboard-logged-in-id") || null;
+    } catch (e) {
+      return null;
+    }
+  });
   const [regName, setRegName] = useState("");
   const [regClass, setRegClass] = useState("");
   const [regPw, setRegPw] = useState("");
@@ -682,7 +688,13 @@ function RaidBoard() {
   const [debugEngravingOpen, setDebugEngravingOpen] = useState(false);
   const [debugArkPassiveOpen, setDebugArkPassiveOpen] = useState(false);
   const [debugArkGridOpen, setDebugArkGridOpen] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(() => {
+    try {
+      return localStorage.getItem("raidboard-is-admin") === "1";
+    } catch (e) {
+      return false;
+    }
+  });
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPwInput, setAdminPwInput] = useState("");
   const [adminError, setAdminError] = useState("");
@@ -857,6 +869,21 @@ function RaidBoard() {
   }
 
   const loggedIn = members.find((m) => m.id === loggedInId) || null;
+
+  // 새로고침해도 로그인(및 관리자) 상태가 유지되도록 localStorage에 동기화한다.
+  useEffect(() => {
+    try {
+      if (loggedInId) localStorage.setItem("raidboard-logged-in-id", loggedInId);
+      else localStorage.removeItem("raidboard-logged-in-id");
+    } catch (e) {}
+  }, [loggedInId]);
+
+  useEffect(() => {
+    try {
+      if (isAdmin) localStorage.setItem("raidboard-is-admin", "1");
+      else localStorage.removeItem("raidboard-is-admin");
+    } catch (e) {}
+  }, [isAdmin]);
 
   useEffect(() => {
     if (loggedIn) {
