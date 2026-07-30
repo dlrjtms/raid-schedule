@@ -544,6 +544,16 @@ function lastTuesday11pm(now) {
 const LOSTARK_PROXY_URL = "https://raid-sch.mr88sws.workers.dev/";
 const ADMIN_PASSWORD = "146325";
 const ADMIN_MEMBER_ID = "m01"; // 이거슨의문사를피하는무빙 계정으로 로그인했을 때만 관리자 로그인 노출
+const LOGIN_TTL_MS = 4 * 60 * 60 * 1000; // 로그인 유지 시간: 4시간
+
+function isLoginExpired() {
+  try {
+    const t = Number(localStorage.getItem("raidboard-login-time") || 0);
+    return !t || Date.now() - t > LOGIN_TTL_MS;
+  } catch (e) {
+    return true;
+  }
+}
 
 // 레이드 컨닝페이퍼: 요청한 순서대로, 레이드별 이미지 파일 목록 (여러 장 가능)
 const RAID_ORDER = ["3막", "4막", "종막", "세르카", "성당"];
@@ -667,6 +677,7 @@ function RaidBoard() {
   const [claimPw2, setClaimPw2] = useState("");
   const [loggedInId, setLoggedInId] = useState(() => {
     try {
+      if (isLoginExpired()) return null;
       return localStorage.getItem("raidboard-logged-in-id") || null;
     } catch (e) {
       return null;
@@ -690,6 +701,7 @@ function RaidBoard() {
   const [debugArkGridOpen, setDebugArkGridOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(() => {
     try {
+      if (isLoginExpired()) return false;
       return localStorage.getItem("raidboard-is-admin") === "1";
     } catch (e) {
       return false;
@@ -871,10 +883,19 @@ function RaidBoard() {
   const loggedIn = members.find((m) => m.id === loggedInId) || null;
 
   // 새로고침해도 로그인(및 관리자) 상태가 유지되도록 localStorage에 동기화한다.
+  // 로그인 시각(raidboard-login-time)은 새로 로그인했을 때만 기록하고,
+  // 새로고침으로 복원된 경우엔 기존 시각을 그대로 유지해서 4시간 타이머가 리셋되지 않게 한다.
   useEffect(() => {
     try {
-      if (loggedInId) localStorage.setItem("raidboard-logged-in-id", loggedInId);
-      else localStorage.removeItem("raidboard-logged-in-id");
+      if (loggedInId) {
+        localStorage.setItem("raidboard-logged-in-id", loggedInId);
+        if (!localStorage.getItem("raidboard-login-time")) {
+          localStorage.setItem("raidboard-login-time", String(Date.now()));
+        }
+      } else {
+        localStorage.removeItem("raidboard-logged-in-id");
+        localStorage.removeItem("raidboard-login-time");
+      }
     } catch (e) {}
   }, [loggedInId]);
 
@@ -884,6 +905,18 @@ function RaidBoard() {
       else localStorage.removeItem("raidboard-is-admin");
     } catch (e) {}
   }, [isAdmin]);
+
+  // 로그인한 지 4시간이 지나면 탭을 새로고침하지 않아도 자동으로 로그아웃한다.
+  useEffect(() => {
+    if (!loggedInId) return;
+    const t = setInterval(() => {
+      if (isLoginExpired()) {
+        setLoggedInId(null);
+        setIsAdmin(false);
+      }
+    }, 60000);
+    return () => clearInterval(t);
+  }, [loggedInId]);
 
   // 저장돼있던 로그인 계정이 더 이상 존재하지 않으면(예: 관리자가 삭제) 어중간한 상태로 남지 않도록 정리한다.
   useEffect(() => {
