@@ -1356,6 +1356,21 @@ function RaidBoard() {
     return typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : "";
   }
 
+  // 아크그리드 코어/젬의 Tooltip 필드는 JSON 문자열이라 한 번 더 파싱이 필요하다.
+  function parseTooltipJson(t) {
+    if (typeof t !== "string") return null;
+    try {
+      return JSON.parse(t);
+    } catch (e) {
+      return null;
+    }
+  }
+  function tooltipText(tt, key) {
+    const el = tt && tt[key];
+    const v = el && el.value;
+    return typeof v === "string" ? stripHtml(v) : "";
+  }
+
   // 진화/깨달음/도약 트리별로 투자 포인트와, 각 트리에 배치된 노드 목록을 정리한다.
   const arkPassiveTrees = useMemo(() => {
     const ap = detailData && detailData.arkpassive;
@@ -1368,6 +1383,36 @@ function RaidBoard() {
       nodes: effects
         .filter((e) => e && e.Name === p.Name)
         .map((e) => stripHtml(e.Description)),
+    }));
+  }, [detailData]);
+
+  // 아크그리드 코어 6개 + 장착된 젬, 그리고 하단 옵션(스탯) 합계를 정리한다.
+  const arkGridCores = useMemo(() => {
+    const ag = detailData && detailData.arkgrid;
+    if (!ag || !Array.isArray(ag.Slots)) return [];
+    return ag.Slots.map((slot) => {
+      const gems = Array.isArray(slot.Gems)
+        ? slot.Gems.map((g) => {
+            const tt = parseTooltipJson(g.Tooltip);
+            return {
+              grade: g.Grade,
+              name: tooltipText(tt, "Element_000"),
+              info: tooltipText(tt, "Element_004"),
+              effect: tooltipText(tt, "Element_005"),
+            };
+          })
+        : [];
+      return { name: slot.Name, grade: slot.Grade, point: slot.Point, gems };
+    });
+  }, [detailData]);
+
+  const arkGridEffects = useMemo(() => {
+    const ag = detailData && detailData.arkgrid;
+    if (!ag || !Array.isArray(ag.Effects)) return [];
+    return ag.Effects.map((e) => ({
+      name: e.Name,
+      level: e.Level,
+      text: stripHtml(e.Tooltip),
     }));
   }, [detailData]);
 
@@ -2401,8 +2446,35 @@ function RaidBoard() {
                 {debugArkGridOpen && (
                   <div style={styles.modalSection}>
                     <div style={styles.modalSectionTitle}>아크그리드</div>
-                    {detailData.arkgrid ? (
-                      <div style={styles.debugBox}>{JSON.stringify(detailData.arkgrid, null, 1)}</div>
+                    {arkGridCores.length > 0 ? (
+                      <>
+                        {arkGridCores.map((c, ci) => (
+                          <div key={ci} style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#d9a94e" }}>
+                              {c.name} · {c.grade} · {c.point}P
+                            </div>
+                            {c.gems.map((g, gi) => (
+                              <div key={gi} style={{ fontSize: 11, color: "#c8cddb", padding: "2px 0 2px 8px" }}>
+                                [{g.grade}] {g.name}
+                                {g.info ? ` — ${g.info}` : ""}
+                                {g.effect ? ` / ${g.effect}` : ""}
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                        {arkGridEffects.length > 0 && (
+                          <>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#d9a94e", marginTop: 10 }}>
+                              옵션 합계
+                            </div>
+                            {arkGridEffects.map((e, ei) => (
+                              <div key={ei} style={{ fontSize: 11, color: "#c8cddb", padding: "2px 0 2px 8px" }}>
+                                {e.name} Lv.{e.level} · {e.text}
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </>
                     ) : (
                       <div style={styles.emptyHint}>아크그리드 정보를 가져오지 못했습니다.</div>
                     )}
