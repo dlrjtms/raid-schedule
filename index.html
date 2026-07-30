@@ -661,6 +661,7 @@ function RaidBoard() {
   const [onlineGuesses, setOnlineGuesses] = useState([]);
   const [calendarData, setCalendarData] = useState(null);
   const [guardianData, setGuardianData] = useState(null);
+  const [guardianDebug, setGuardianDebug] = useState("아직 요청 안 함");
   const [nowTick, setNowTick] = useState(new Date());
   const [onlineCount, setOnlineCount] = useState(0);
   const [boardPosts, setBoardPosts] = useState([]);
@@ -912,10 +913,23 @@ function RaidBoard() {
     async function loadGuardian() {
       try {
         const res = await fetch(LOSTARK_PROXY_URL + "?type=challenge-guardian");
-        if (!res.ok) return;
-        const data = await res.json();
+        const text = await res.text();
+        if (!res.ok) {
+          setGuardianDebug(`HTTP ${res.status} · ${text.slice(0, 300)}`);
+          return;
+        }
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          setGuardianDebug(`JSON 파싱 실패 · ${text.slice(0, 300)}`);
+          return;
+        }
         setGuardianData(Array.isArray(data) ? data : null);
-      } catch (e) {}
+        setGuardianDebug(Array.isArray(data) ? `배열 ${data.length}개 수신` : `배열 아님 · ${text.slice(0, 300)}`);
+      } catch (e) {
+        setGuardianDebug("요청 자체 실패: " + (e && e.message));
+      }
     }
     loadGuardian();
     const t = setInterval(loadGuardian, 10 * 60 * 1000);
@@ -1395,7 +1409,7 @@ function RaidBoard() {
         isAdmin && (
           <div style={styles.guardianRow}>
             관리자 전용 · 도전 가디언 원본:{" "}
-            {guardianData === null ? "(아직 못 불러옴 또는 API 오류)" : JSON.stringify(guardianData)}
+            {guardianData === null ? guardianDebug : JSON.stringify(guardianData)}
           </div>
         )
       )}
