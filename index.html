@@ -885,9 +885,17 @@ function RaidBoard() {
     } catch (e) {}
   }, [isAdmin]);
 
+  // 저장돼있던 로그인 계정이 더 이상 존재하지 않으면(예: 관리자가 삭제) 어중간한 상태로 남지 않도록 정리한다.
+  useEffect(() => {
+    if (!loading && loggedInId && !loggedIn) {
+      setLoggedInId(null);
+      setIsAdmin(false);
+    }
+  }, [loading, loggedInId, !!loggedIn]);
+
   useEffect(() => {
     if (loggedIn) {
-      setScheduleDraft(loggedIn.schedule);
+      setScheduleDraft({ ...emptySchedule(), ...(loggedIn.schedule || {}) });
       setScheduleSaved(false);
       setRequestDraft(loggedIn.request || "");
       setRequestSaved(false);
