@@ -677,6 +677,7 @@ function RaidBoard() {
   const [debugOpenIdx, setDebugOpenIdx] = useState(null);
   const [debugEngravingOpen, setDebugEngravingOpen] = useState(false);
   const [debugArkPassiveOpen, setDebugArkPassiveOpen] = useState(false);
+  const [debugArkGridOpen, setDebugArkGridOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPwInput, setAdminPwInput] = useState("");
@@ -1254,15 +1255,16 @@ function RaidBoard() {
     }
 
     try {
-      const [profile, equipment, engravings, gems, arkpassive] = await Promise.all([
+      const [profile, equipment, engravings, gems, arkpassive, arkgrid] = await Promise.all([
         safeFetchJson("profile", name),
         safeFetchJson("equipment", name),
         safeFetchJson("engravings", name),
         safeFetchJson("gems", name),
         safeFetchJson("arkpassive", name),
+        safeFetchJson("arkgrid", name),
       ]);
       if (!profile) throw new Error("캐릭터 정보를 찾을 수 없습니다.");
-      setDetailData({ profile, equipment, engravings, gems, arkpassive });
+      setDetailData({ profile, equipment, engravings, gems, arkpassive, arkgrid });
     } catch (e) {
       setDetailError(e.message || "불러오기에 실패했습니다.");
     } finally {
@@ -1335,9 +1337,6 @@ function RaidBoard() {
     return m ? parseInt(m[1], 10) : 0;
   }
 
-  // 아크 패시브 응답에서 "직업각인"(예: 광기, 광전사의 비기) 이름을 추정한다.
-  // arkpassive.Type / Points[].Name 은 "진화·깨달음·도약" 같은 트리 분류명이라 직업각인이 아니므로 제외하고,
-  // 실제로 활성화된 개별 효과 이름(arkpassive.Effects[].Name)에서 뽑아온다.
   // 아크 패시브 응답의 최상위 Title 필드가 바로 직업각인(특성 빌드) 이름이다.
   // 예: {"Title":"완벽한 억제", ...} → "완벽한 억제"
   // Effects[].Name 은 "진화/깨달음/도약" 트리 분류명이 반복될 뿐이라 사용하지 않는다.
@@ -1348,6 +1347,25 @@ function RaidBoard() {
     }
     return null;
   }
+
+  function stripHtml(s) {
+    return typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : "";
+  }
+
+  // 진화/깨달음/도약 트리별로 투자 포인트와, 각 트리에 배치된 노드 목록을 정리한다.
+  const arkPassiveTrees = useMemo(() => {
+    const ap = detailData && detailData.arkpassive;
+    if (!ap || !Array.isArray(ap.Points)) return [];
+    const effects = Array.isArray(ap.Effects) ? ap.Effects : [];
+    return ap.Points.map((p) => ({
+      tree: p.Name,
+      value: p.Value,
+      desc: stripHtml(p.Description),
+      nodes: effects
+        .filter((e) => e && e.Name === p.Name)
+        .map((e) => stripHtml(e.Description)),
+    }));
+  }, [detailData]);
 
   const detailGemList = useMemo(() => {
     const g = detailData && detailData.gems;
@@ -2342,15 +2360,54 @@ function RaidBoard() {
                     style={styles.debugToggleBtn}
                     onClick={() => setDebugArkPassiveOpen((v) => !v)}
                   >
-                    {debugArkPassiveOpen ? "아크패시브 원본 닫기" : "아크패시브 원본 보기"}
+                    아크패시브
+                  </button>{" "}
+                  <button
+                    style={styles.debugToggleBtn}
+                    onClick={() => setDebugArkGridOpen((v) => !v)}
+                  >
+                    아크그리드
                   </button>
                 </div>
                 {debugArkPassiveOpen && (
-                  <div style={styles.debugBox}>{JSON.stringify(detailData.arkpassive)}</div>
+                  <div style={styles.modalSection}>
+                    <div style={styles.modalSectionTitle}>아크패시브</div>
+                    {arkPassiveTrees.length > 0 ? (
+                      arkPassiveTrees.map((t, ti) => (
+                        <div key={ti} style={{ marginBottom: 10 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#d9a94e", marginBottom: 4 }}>
+                            {t.tree} · {t.value}P{t.desc ? ` (${t.desc})` : ""}
+                          </div>
+                          {t.nodes.length > 0 ? (
+                            t.nodes.map((n, ni) => (
+                              <div key={ni} style={{ fontSize: 11, color: "#c8cddb", padding: "2px 0 2px 8px" }}>
+                                {n}
+                              </div>
+                            ))
+                          ) : (
+                            <div style={styles.emptyHint}>투자된 노드가 없습니다.</div>
+                          )}
+                        </div>
+                      ))
+                    ) : (
+                      <div style={styles.emptyHint}>아크패시브 정보를 가져오지 못했습니다.</div>
+                    )}
+                  </div>
+                )}
+                {debugArkGridOpen && (
+                  <div style={styles.modalSection}>
+                    <div style={styles.modalSectionTitle}>아크그리드</div>
+                    {detailData.arkgrid ? (
+                      <div style={styles.debugBox}>{JSON.stringify(detailData.arkgrid, null, 1)}</div>
+                    ) : (
+                      <div style={styles.emptyHint}>아크그리드 정보를 가져오지 못했습니다.</div>
+                    )}
+                  </div>
                 )}
                 {isAdmin && (
                   <div style={styles.debugBox}>
                     관리자 전용 · 아크 패시브 원본: {JSON.stringify(detailData.arkpassive)}
+                    {"\n"}관리자 전용 · 아크그리드 원본: {JSON.stringify(detailData.arkgrid)}
                   </div>
                 )}
                 <div style={styles.modalStatRow}>
