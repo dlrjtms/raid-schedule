@@ -1338,35 +1338,15 @@ function RaidBoard() {
   // 아크 패시브 응답에서 "직업각인"(예: 광기, 광전사의 비기) 이름을 추정한다.
   // arkpassive.Type / Points[].Name 은 "진화·깨달음·도약" 같은 트리 분류명이라 직업각인이 아니므로 제외하고,
   // 실제로 활성화된 개별 효과 이름(arkpassive.Effects[].Name)에서 뽑아온다.
-  const ARKPASSIVE_TREE_LABELS = new Set(["진화", "깨달음", "도약"]);
+  // 아크 패시브 응답의 최상위 Title 필드가 바로 직업각인(특성 빌드) 이름이다.
+  // 예: {"Title":"완벽한 억제", ...} → "완벽한 억제"
+  // Effects[].Name 은 "진화/깨달음/도약" 트리 분류명이 반복될 뿐이라 사용하지 않는다.
   function extractSpecName(arkpassive) {
     if (!arkpassive) return null;
-    let names = [];
-    if (Array.isArray(arkpassive.Effects)) {
-      names = arkpassive.Effects
-        .map((e) => e && typeof e.Name === "string" && e.Name.trim())
-        .filter((n) => n && !ARKPASSIVE_TREE_LABELS.has(n));
+    if (typeof arkpassive.Title === "string" && arkpassive.Title.trim()) {
+      return arkpassive.Title.trim();
     }
-    if (names.length === 0 && Array.isArray(arkpassive.ArkPassiveEffects)) {
-      names = arkpassive.ArkPassiveEffects
-        .map((e) => e && typeof e.Name === "string" && e.Name.trim())
-        .filter((n) => n && !ARKPASSIVE_TREE_LABELS.has(n));
-    }
-    if (names.length === 0 && Array.isArray(arkpassive.Points)) {
-      names = arkpassive.Points
-        .map((p) => p && typeof p.Name === "string" && p.Name.trim())
-        .filter((n) => n && !ARKPASSIVE_TREE_LABELS.has(n));
-    }
-    if (
-      names.length === 0 &&
-      typeof arkpassive.Type === "string" &&
-      arkpassive.Type.trim() &&
-      !ARKPASSIVE_TREE_LABELS.has(arkpassive.Type.trim())
-    ) {
-      names = [arkpassive.Type.trim()];
-    }
-    if (names.length === 0) return null;
-    return [...new Set(names)].join(", ");
+    return null;
   }
 
   const detailGemList = useMemo(() => {
