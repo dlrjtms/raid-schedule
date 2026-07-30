@@ -1383,7 +1383,7 @@ function RaidBoard() {
         </span>
       </div>
 
-      {Array.isArray(guardianData) && guardianData.length > 0 && (
+      {Array.isArray(guardianData) && guardianData.length > 0 ? (
         <div style={styles.guardianRow}>
           이번 주 도전 가디언 토벌 ·{" "}
           {guardianData
@@ -1391,6 +1391,13 @@ function RaidBoard() {
             .filter(Boolean)
             .join(", ")}
         </div>
+      ) : (
+        isAdmin && (
+          <div style={styles.guardianRow}>
+            관리자 전용 · 도전 가디언 원본:{" "}
+            {guardianData === null ? "(아직 못 불러옴 또는 API 오류)" : JSON.stringify(guardianData)}
+          </div>
+        )
       )}
 
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
@@ -2470,7 +2477,7 @@ const styles = {
   contentBadgeRow: { display: "flex", justifyContent: "center", gap: 14, marginBottom: 18 },
   contentBadgeOn: { fontSize: 13, fontWeight: 700, color: "#f5d949", textShadow: "0 0 8px rgba(245,217,73,0.6)" },
   contentBadgeOff: { fontSize: 13, fontWeight: 700, color: "#4a5065" },
-  guardianRow: { textAlign: "center", fontSize: 12, color: "#8ea1ff", marginBottom: 14 },
+  guardianRow: { textAlign: "center", fontSize: 12, color: "#8ea1ff", marginBottom: 14, wordBreak: "break-all", padding: "0 12px" },
   sectionTitle: { fontSize: 15, fontWeight: 700, color: "#c8cddb", marginBottom: 12 },
   sectionHeaderRow: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   adminBadgeRow: { display: "flex", alignItems: "center", gap: 8 },
