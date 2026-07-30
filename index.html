@@ -522,6 +522,108 @@ const RAID_CHEATSHEETS = {
   성당: ["cheatsheets/cathedral-1.png"],
 };
 
+// 레이드 보상 정보 (직접 입력한 데이터)
+const RAID_REWARDS = [
+  { name: "벨가르딘 나메", level: 1780, gates: "2관문", gold: 75000, extra: 24000 },
+  { name: "벨가르딘 하드", level: 1770, gates: "2관문", gold: 62000, extra: 19840 },
+  { name: "벨가르딘 노말", level: 1750, gates: "2관문", gold: 50000, extra: 16000 },
+  { name: "성당 3단계", level: 1750, gates: "2관문", gold: 50000, extra: 16000 },
+  { name: "성당 2단계", level: 1720, gates: "2관문", gold: 40000, extra: 12800 },
+  { name: "성당 1단계", level: 1700, gates: "2관문", gold: 30000, extra: 9600 },
+  { name: "세르카 나메", level: 1740, gates: "2관문", gold: 54000, extra: 17280 },
+  { name: "세르카 하드", level: 1730, gates: "2관문", gold: 44000, extra: 14080 },
+  { name: "세르카 노말", level: 1710, gates: "2관문", gold: 32000, extra: 10240 },
+  { name: "종막 하드", level: 1730, gates: "2관문", gold: 48000, extra: 15360 },
+  { name: "종막 노말", level: 1710, gates: "2관문", gold: 32000, extra: 10240 },
+  { name: "4막 하드", level: 1720, gates: "2관문", gold: 38000, extra: 12160 },
+  { name: "4막 노말", level: 1700, gates: "2관문", gold: 27000, extra: 8640 },
+  { name: "3막 하드", level: 1700, gates: "3관문", gold: 27000, extra: 8350 },
+  { name: "3막 노말", level: 1680, gates: "3관문", gold: 21000, extra: 7010 },
+  { name: "2막 하드", level: 1690, gates: "2관문", gold: 23000, extra: 7500 },
+  { name: "2막 노말", level: 1670, gates: "2관문", gold: 16500, extra: 5540 },
+  { name: "1막 하드", level: 1680, gates: "2관문", gold: 18000, extra: 5970 },
+  { name: "1막 노말", level: 1660, gates: "2관문", gold: 11500, extra: 2530 },
+  { name: "서막", level: 1640, gates: "2관문", gold: 7200, extra: 2350 },
+  { name: "베히모스", level: 1640, gates: "2관문", gold: 7200, extra: 2350 },
+];
+
+// 직업 시너지 (그룹은 원본 정리 순서를 그대로 구분선으로 유지)
+const SYNERGY_GLOSSARY = {
+  방깎: "방어력 감소",
+  피증: "피해 증가",
+  공증: "공격력 증가",
+  치적: "치명타 적중률 증가",
+  치피증: "치명타 공격 적중시 받는 피해 증가",
+  "백헤드 피증": "피해 증가 4% + 백어택/헤드어택 스킬 피해 증가 5%",
+  공이속: "공격속도·이동속도 동시 적용",
+  공속: "공격속도",
+  이속: "이동속도",
+  마회: "마나 회복 속도 증가",
+  공깎: "보스 공격력 감소",
+  받피감: "받는 피해 감소",
+  뎀감: "받는 피해 감소",
+  무력화: "무력화 피해 증가",
+};
+// 등급 색: 파란색=무력화/받피감/공속/뎀감, 빨간색=마회/공깎, 그 외 기본색
+const SYNERGY_BLUE_TAGS = ["무력화", "받피감", "공속", "뎀감"];
+const SYNERGY_RED_TAGS = ["마회", "공깎"];
+function synergyTagColor(tag) {
+  if (SYNERGY_BLUE_TAGS.includes(tag)) return "#5ec9e8";
+  if (SYNERGY_RED_TAGS.includes(tag)) return "#e2593f";
+  return "#e8ebf0";
+}
+const CLASS_SYNERGY_GROUPS = [
+  [
+    { cls: "디스트로이어", tags: ["방깎", "무력화"] },
+    { cls: "버서커", tags: ["피증"] },
+    { cls: "워로드(고독한 기사)", tags: ["백헤드 피증", "받피감", "공깎"] },
+    { cls: "워로드(전투 태세)", tags: ["방깎", "백헤드 피증", "받피감", "공깎"] },
+    { cls: "홀리나이트(심판자)", tags: ["치피증"] },
+  ],
+  [
+    { cls: "슬레이어", tags: ["피증"] },
+    { cls: "발키리(빛의 기사)", tags: ["치피증"] },
+  ],
+  [
+    { cls: "기공사", tags: ["공증", "받피감", "공깎"] },
+    { cls: "배틀마스터", tags: ["치적", "공이속"] },
+    { cls: "인파이터", tags: ["피증", "무력화"] },
+    { cls: "창술사", tags: ["치피증"] },
+  ],
+  [
+    { cls: "브레이커", tags: ["피증"] },
+    { cls: "스트라이커", tags: ["치적", "공속"] },
+  ],
+  [
+    { cls: "데빌헌터", tags: ["치적"] },
+    { cls: "블래스터", tags: ["방깎", "무력화"] },
+    { cls: "스카우터", tags: ["공증"] },
+    { cls: "호크아이(두 번째 동료)", tags: ["피증", "이속", "공깎"] },
+    { cls: "호크아이(죽음의 습격)", tags: ["피증", "공깎"] },
+  ],
+  [{ cls: "건슬링어", tags: ["치적"] }],
+  [
+    { cls: "바드(진실된 용맹)", tags: ["방깎", "공속", "공깎", "마회", "뎀감"] },
+    { cls: "서머너", tags: ["방깎", "마회"] },
+    { cls: "소서리스", tags: ["피증"] },
+    { cls: "아르카나", tags: ["치적"] },
+  ],
+  [
+    { cls: "데모닉", tags: ["피증"] },
+    { cls: "리퍼", tags: ["방깎"] },
+    { cls: "블레이드", tags: ["백헤드 피증", "공이속", "공깎"] },
+    { cls: "소울이터", tags: ["피증"] },
+  ],
+  [
+    { cls: "기상술사(이슬비)", tags: ["치적", "공깎"] },
+    { cls: "기상술사(질풍노도)", tags: ["치적", "공이속"] },
+    { cls: "도화가(회귀)", tags: ["방깎", "받피감", "공속", "마회"] },
+    { cls: "환수사", tags: ["방깎"] },
+    { cls: "차원술사", tags: ["방깎"] },
+  ],
+  [{ cls: "가디언나이트", tags: ["피증"] }],
+];
+
 function RaidBoard() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -570,6 +672,8 @@ function RaidBoard() {
   const [auctionPartyCustom, setAuctionPartyCustom] = useState("");
   const [auctionCopied, setAuctionCopied] = useState(null);
   const [showCheatSheet, setShowCheatSheet] = useState(false);
+  const [showRaidRewards, setShowRaidRewards] = useState(false);
+  const [showSynergy, setShowSynergy] = useState(false);
   const [selectedRaid, setSelectedRaid] = useState(null);
   const sessionIdRef = useRef(null);
   if (!sessionIdRef.current) {
@@ -1236,6 +1340,12 @@ function RaidBoard() {
           }}
         >
           [컨닝페이퍼]
+        </button>
+        <button style={styles.auctionCalcBtn} onClick={() => setShowRaidRewards(true)}>
+          [레이드 보상]
+        </button>
+        <button style={styles.auctionCalcBtn} onClick={() => setShowSynergy(true)}>
+          [직업시너지]
         </button>
       </div>
 
@@ -1989,6 +2099,84 @@ function RaidBoard() {
         </div>
       )}
 
+      {showRaidRewards && (
+        <div style={styles.modalOverlay} onClick={() => setShowRaidRewards(false)}>
+          <div style={{ ...styles.modalPanel, maxWidth: 620 }} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalTitle}>레이드 보상 정보</div>
+              <button style={styles.modalClose} onClick={() => setShowRaidRewards(false)}>
+                ✕
+              </button>
+            </div>
+            <div style={{ overflowX: "auto" }}>
+              <div style={styles.rewardHeaderRow}>
+                <span>레이드</span>
+                <span>입장 레벨</span>
+                <span>관문 수</span>
+                <span>총 클리어 골드</span>
+                <span>총 더보기 비용</span>
+              </div>
+              {RAID_REWARDS.map((r, i) => (
+                <div key={i} style={styles.rewardRow}>
+                  <span style={{ color: "#e8ebf0" }}>{r.name}</span>
+                  <span className="rb-num">{r.level}</span>
+                  <span>{r.gates}</span>
+                  <span className="rb-num" style={{ color: "#d9a94e" }}>
+                    {r.gold.toLocaleString("ko-KR")}
+                  </span>
+                  <span className="rb-num" style={{ color: "#8b93a7" }}>
+                    {r.extra.toLocaleString("ko-KR")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSynergy && (
+        <div style={styles.modalOverlay} onClick={() => setShowSynergy(false)}>
+          <div style={{ ...styles.modalPanel, maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalTitle}>직업 시너지</div>
+              <button style={styles.modalClose} onClick={() => setShowSynergy(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div style={styles.synergyLegendBox}>
+              {Object.entries(SYNERGY_GLOSSARY).map(([abbr, full]) => (
+                <div key={abbr} style={styles.synergyLegendLine}>
+                  <span style={{ color: synergyTagColor(abbr), fontWeight: 700 }}>{abbr}</span> = {full}
+                </div>
+              ))}
+              <div style={styles.synergyLegendLine}>
+                <span style={{ color: "#5ec9e8", fontWeight: 700 }}>파란색</span> = 무력화·받피감·공속·뎀감 ·{" "}
+                <span style={{ color: "#e2593f", fontWeight: 700 }}>빨간색</span> = 마회·공깎
+              </div>
+            </div>
+
+            {CLASS_SYNERGY_GROUPS.map((group, gi) => (
+              <div key={gi} style={styles.synergyGroup}>
+                {group.map((c, ci) => (
+                  <div key={ci} style={styles.synergyRow}>
+                    <span style={styles.synergyClass}>{c.cls}</span>
+                    <span>
+                      {c.tags.map((t, ti) => (
+                        <span key={ti}>
+                          {ti > 0 && <span style={{ color: "#3a4152" }}> · </span>}
+                          <span style={{ color: synergyTagColor(t), fontWeight: 700 }}>{t}</span>
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {detailFor && (
         <div style={styles.modalOverlay} onClick={closeDetail}>
           <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
@@ -2266,6 +2454,13 @@ const styles = {
   auctionHeaderRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr", fontSize: 11, color: "#5f6577", padding: "4px 0", borderBottom: "1px solid #262d3d" },
   auctionRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #1e2430" },
   auctionBidBtn: { background: "transparent", border: "1px solid #2a3040", borderRadius: 6, color: "#e8ebf0", fontSize: 13, padding: "5px 8px", cursor: "pointer", textAlign: "left" },
+  rewardHeaderRow: { display: "grid", gridTemplateColumns: "1.3fr 0.9fr 0.8fr 1.1fr 1.1fr", gap: 6, fontSize: 11, color: "#5f6577", padding: "4px 2px", borderBottom: "1px solid #262d3d", minWidth: 480 },
+  rewardRow: { display: "grid", gridTemplateColumns: "1.3fr 0.9fr 0.8fr 1.1fr 1.1fr", gap: 6, fontSize: 12, padding: "7px 2px", borderBottom: "1px solid #1e2430", minWidth: 480 },
+  synergyLegendBox: { background: "#0f1219", border: "1px solid #262d3d", borderRadius: 8, padding: "10px 12px", marginBottom: 14, display: "flex", flexDirection: "column", gap: 3 },
+  synergyLegendLine: { fontSize: 11, color: "#8b93a7" },
+  synergyGroup: { marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid #262d3d" },
+  synergyRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 0", fontSize: 13, flexWrap: "wrap", gap: 6 },
+  synergyClass: { color: "#c8cddb" },
   modalEquipBlock: { padding: "4px 0", borderBottom: "1px solid #1e2430" },
   modalOptionBox: { display: "flex", flexDirection: "column", gap: 2, marginTop: 2, marginBottom: 4, paddingLeft: 54 },
   modalOptionLine: { fontSize: 11, color: "#9ec9e2" },
