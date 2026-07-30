@@ -1873,6 +1873,18 @@ function RaidBoard() {
                   >
                     [정보]
                   </button>
+                  {isAdmin && m.password && (
+                    <button
+                      style={{ ...styles.cardDetailBtn, right: 56 }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        adminResetPassword(m.id);
+                      }}
+                      title="이 회원의 비밀번호를 초기화합니다"
+                    >
+                      [PW초기화]
+                    </button>
+                  )}
                   <div style={styles.memberCardName}>
                     {m.id === "m05" && <span style={{ marginRight: 3 }}>👑</span>}
                     {main.name}
@@ -1987,14 +1999,6 @@ function RaidBoard() {
               <button style={{ ...styles.primaryBtn, marginTop: 10 }} onClick={attemptLogin}>
                 로그인
               </button>
-              {isAdmin && (
-                <button
-                  style={{ ...styles.ghostBtn, marginTop: 8 }}
-                  onClick={() => adminResetPassword(selectedMember.id)}
-                >
-                  관리자 · 비밀번호 초기화
-                </button>
-              )}
             </div>
           )}
 
