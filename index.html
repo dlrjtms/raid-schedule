@@ -674,6 +674,7 @@ function RaidBoard() {
   const [showCheatSheet, setShowCheatSheet] = useState(false);
   const [showRaidRewards, setShowRaidRewards] = useState(false);
   const [showSynergy, setShowSynergy] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
   const [selectedRaid, setSelectedRaid] = useState(null);
   const sessionIdRef = useRef(null);
   if (!sessionIdRef.current) {
@@ -1181,7 +1182,7 @@ function RaidBoard() {
 
   async function openDetail(name, memberChars) {
     setDetailFor(name);
-    if (memberChars) setDetailMemberChars(memberChars);
+    setDetailMemberChars(memberChars || null);
     setDetailData(null);
     setDetailError("");
     setDetailLoading(true);
@@ -1346,6 +1347,26 @@ function RaidBoard() {
         </button>
         <button style={styles.auctionCalcBtn} onClick={() => setShowSynergy(true)}>
           [직업시너지]
+        </button>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18 }}>
+        <input
+          style={{ ...styles.input, maxWidth: 220 }}
+          placeholder="캐릭터 이름으로 검색"
+          value={userSearch}
+          onChange={(e) => setUserSearch(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && userSearch.trim()) openDetail(userSearch.trim());
+          }}
+        />
+        <button
+          style={styles.ghostBtnSmall}
+          onClick={() => {
+            if (userSearch.trim()) openDetail(userSearch.trim());
+          }}
+        >
+          검색
         </button>
       </div>
 
@@ -1958,17 +1979,6 @@ function RaidBoard() {
           </div>
         </>
       )}
-
-      <div style={styles.footerRow}>
-        <a
-          href="https://discord.com/invite/Ng6QEKwdU"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={styles.discordLink}
-        >
-          [연고 디스코드 입장]
-        </a>
-      </div>
 
       {showAuctionCalc && (
         <div style={styles.modalOverlay} onClick={() => setShowAuctionCalc(false)}>
