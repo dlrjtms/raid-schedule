@@ -1392,7 +1392,8 @@ function RaidBoard() {
   }
 
   function stripHtml(s) {
-    return typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : "";
+    if (typeof s !== "string") return "";
+    return s.replace(/<br\s*\/?>/gi, " / ").replace(/<[^>]+>/g, "").trim();
   }
 
   // 각인 레벨별 시인성 색상: 4는 금색, 3은 보라, 2는 파랑, 1 이하/미상은 흰색.
@@ -1413,10 +1414,18 @@ function RaidBoard() {
       return null;
     }
   }
+  // NameTagBox처럼 value가 바로 문자열인 경우도 있고,
+  // ItemPartBox처럼 value가 { Element_000: 라벨, Element_001: 실제 값 } 형태로 중첩된 경우도 있다.
   function tooltipText(tt, key) {
     const el = tt && tt[key];
-    const v = el && el.value;
-    return typeof v === "string" ? stripHtml(v) : "";
+    if (!el) return "";
+    const v = el.value;
+    if (typeof v === "string") return stripHtml(v);
+    if (v && typeof v === "object") {
+      const val = typeof v.Element_001 === "string" ? v.Element_001 : v.Element_000;
+      return typeof val === "string" ? stripHtml(val) : "";
+    }
+    return "";
   }
 
   // 진화/깨달음/도약 트리별로 투자 포인트와, 각 트리에 배치된 노드 목록을 정리한다.
