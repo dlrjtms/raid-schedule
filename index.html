@@ -1186,6 +1186,15 @@ function RaidBoard() {
     setDetailData(null);
     setDetailError("");
     setDetailLoading(true);
+
+    if (!memberChars) {
+      safeFetchJson("siblings", name).then((list) => {
+        if (Array.isArray(list) && list.length > 0) {
+          setDetailMemberChars(list.map((c) => ({ id: c.CharacterName, name: c.CharacterName })));
+        }
+      });
+    }
+
     try {
       const [profile, equipment, engravings, gems] = await Promise.all([
         safeFetchJson("profile", name),
