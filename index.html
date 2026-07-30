@@ -720,6 +720,8 @@ function RaidBoard() {
   const [adminError, setAdminError] = useState("");
   const [slotDraft, setSlotDraft] = useState({ name: "", className: "", role: "딜러", level: "" });
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // 로그인이 새로고침 후에도 유지되면서 모바일에서 내 정보 패널이 항상 펼쳐져 있으면 답답하니 기본은 접어둔다.
+  const [myPanelOpen, setMyPanelOpen] = useState(false);
   const [scheduleDraft, setScheduleDraft] = useState(null);
   const [scheduleSaved, setScheduleSaved] = useState(false);
   const [requestDraft, setRequestDraft] = useState("");
@@ -2072,6 +2074,9 @@ function RaidBoard() {
                   <strong>{loggedIn.characters[0].name}</strong>님으로 로그인됨
                 </span>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <button style={styles.ghostBtn} onClick={() => setMyPanelOpen((v) => !v)}>
+                    {myPanelOpen ? "내 정보 접기 ▴" : "내 정보 펼치기 ▾"}
+                  </button>
                   {confirmDelete ? (
                     <>
                       <span style={styles.errorText}>정말 삭제할까요? 내 캐릭터/일정이 모두 사라집니다.</span>
@@ -2093,6 +2098,8 @@ function RaidBoard() {
                 </div>
               </div>
 
+              {myPanelOpen && (
+                <>
               <div style={styles.grid}>
                 <div style={styles.panel}>
                   <div style={styles.panelTitleRow}>
@@ -2315,6 +2322,8 @@ function RaidBoard() {
                   {requestSaved && <span style={styles.savedHint}>저장됨</span>}
                 </div>
               </div>
+                </>
+              )}
             </>
           )}
 
