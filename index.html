@@ -1362,13 +1362,12 @@ function RaidBoard() {
     setDetailError("");
     setDetailLoading(true);
 
-    if (!memberChars) {
-      safeFetchJson("siblings", name).then((list) => {
-        if (Array.isArray(list) && list.length > 0) {
-          setDetailMemberChars(list.map((c) => ({ id: c.CharacterName, name: c.CharacterName })));
-        }
-      });
-    }
+    // 사이트에 등록된 캐릭터 슬롯(최대 6개)이 아니라, 실제 로스트아크 원정대 전체 캐릭터 목록을 항상 불러온다.
+    safeFetchJson("siblings", name).then((list) => {
+      if (Array.isArray(list) && list.length > 0) {
+        setDetailMemberChars(list.map((c) => ({ id: c.CharacterName, name: c.CharacterName })));
+      }
+    });
 
     try {
       const [profile, equipment, engravings, gems, arkpassive, arkgrid] = await Promise.all([
