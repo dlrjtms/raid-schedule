@@ -1356,6 +1356,15 @@ function RaidBoard() {
     return typeof s === "string" ? s.replace(/<[^>]+>/g, "").trim() : "";
   }
 
+  // 각인 레벨별 시인성 색상: 4는 금색, 3은 보라, 2는 파랑, 1 이하/미상은 흰색.
+  function engravingLevelColor(lvl) {
+    const n = Number(lvl);
+    if (n >= 4) return "#ffd200";
+    if (n === 3) return "#c48cf0";
+    if (n === 2) return "#4fa8e0";
+    return "#ffffff";
+  }
+
   // 아크그리드 코어/젬의 Tooltip 필드는 JSON 문자열이라 한 번 더 파싱이 필요하다.
   function parseTooltipJson(t) {
     if (typeof t !== "string") return null;
@@ -2579,7 +2588,10 @@ function RaidBoard() {
                           if (m) lvl = m[1];
                         }
                         return (
-                          <span key={i} style={styles.modalChip}>
+                          <span
+                            key={i}
+                            style={{ ...styles.modalChip, color: engravingLevelColor(lvl), fontWeight: 700 }}
+                          >
                             {name}
                             {lvl ? ` Lv.${lvl}` : ""}
                           </span>
