@@ -1478,6 +1478,14 @@ function RaidBoard() {
     return "#ffffff";
   }
 
+  // 아크그리드 등급별 색상 (로스트아크 아이템 등급 색과 동일): 고대=베이지, 유물=주황, 전설=금색.
+  function gradeColor(grade) {
+    if (grade === "고대") return "#E3C7A1";
+    if (grade === "유물") return "#FA5D00";
+    if (grade === "전설") return "#F99200";
+    return "#8b93a7";
+  }
+
   // 아크그리드 코어/젬의 Tooltip 필드는 JSON 문자열이라 한 번 더 파싱이 필요하다.
   function parseTooltipJson(t) {
     if (typeof t !== "string") return null;
@@ -2651,17 +2659,20 @@ function RaidBoard() {
                     {arkGridCores.length > 0 ? (
                       <>
                         {arkGridCores.map((c, ci) => (
-                          <div key={ci} style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#d9a94e" }}>
-                              {c.name} · {c.grade} · {c.point}P
-                            </div>
-                            {c.gems.map((g, gi) => (
-                              <div key={gi} style={{ fontSize: 11, color: "#c8cddb", padding: "2px 0 2px 8px" }}>
-                                [{g.grade}] {g.name}
-                                {g.info ? ` — ${g.info}` : ""}
-                                {g.effect ? ` / ${g.effect}` : ""}
-                              </div>
-                            ))}
+                          <div
+                            key={ci}
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "baseline",
+                              fontSize: 12,
+                              padding: "3px 0",
+                            }}
+                          >
+                            <span style={{ color: "#c8cddb" }}>{c.name}</span>
+                            <span style={{ color: gradeColor(c.grade), fontWeight: 700, whiteSpace: "nowrap", marginLeft: 8 }}>
+                              {c.grade} · {c.point}P
+                            </span>
                           </div>
                         ))}
                         {arkGridEffects.length > 0 && (
