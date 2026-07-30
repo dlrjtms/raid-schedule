@@ -970,7 +970,7 @@ function RaidBoard() {
       const newPost = {
         id: uid(),
         authorId: loggedInId,
-        authorName: loggedIn ? loggedIn.characters[0].name : "관리자",
+        authorName: isAdmin ? "관리자" : loggedIn.characters[0].name,
         text: boardDraft.trim(),
         createdAt: Date.now(),
       };
@@ -2274,11 +2274,11 @@ function RaidBoard() {
               <div style={styles.modalTitle}>{detailFor}</div>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 <button
-                  style={styles.ghostBtnSmall}
+                  style={styles.refreshBtn}
                   onClick={() => openDetail(detailFor, detailMemberChars)}
                   disabled={detailLoading}
                 >
-                  {detailLoading ? "불러오는 중..." : "로스트아크에서 새로고침"}
+                  {detailLoading ? "불러오는 중..." : "갱신"}
                 </button>
                 <button style={styles.modalClose} onClick={closeDetail}>
                   ✕
@@ -2490,12 +2490,13 @@ const styles = {
   contentBadgeRow: { display: "flex", justifyContent: "center", gap: 14, marginBottom: 18 },
   contentBadgeOn: { fontSize: 13, fontWeight: 700, color: "#f5d949", textShadow: "0 0 8px rgba(245,217,73,0.6)" },
   contentBadgeOff: { fontSize: 13, fontWeight: 700, color: "#4a5065" },
-  guardianRow: { textAlign: "center", fontSize: 12, color: "#8ea1ff", marginBottom: 14, wordBreak: "break-all", padding: "0 12px" },
+  guardianRow: { textAlign: "center", fontSize: 13, fontWeight: 700, color: "#8ea1ff", marginBottom: 14, wordBreak: "break-all", padding: "0 12px" },
   sectionTitle: { fontSize: 15, fontWeight: 700, color: "#c8cddb", marginBottom: 12 },
   sectionHeaderRow: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   adminBadgeRow: { display: "flex", alignItems: "center", gap: 8 },
   adminBadge: { fontSize: 11, color: "#639922", background: "#182a0c", borderRadius: 6, padding: "3px 8px", fontWeight: 700 },
   ghostBtnSmall: { fontSize: 11, padding: "5px 10px", borderRadius: 6, border: "1px solid #2a3040", background: "transparent", color: "#8b93a7", cursor: "pointer" },
+  refreshBtn: { fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 6, border: "1px solid #5ec9e8", background: "#0f2b33", color: "#5ec9e8", cursor: "pointer" },
   auctionCalcBtn: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #d9a94e", background: "#2a2210", color: "#d9a94e", cursor: "pointer" },
   discordLink: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #5865F2", background: "#1d1f33", color: "#8ea1ff", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center" },
   adminLoginRow: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" },
