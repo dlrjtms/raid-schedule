@@ -71,6 +71,23 @@ function todayLabel() {
   const jsDay = new Date().getDay(); // 0=일 1=월 ... 6=토
   return DAYS[(jsDay + 6) % 7];
 }
+
+// 로스트아크 경매 입찰가/손익 계산 (수수료 5% 고정, 인원수 기반)
+function computeAuctionRows(price, n) {
+  if (!price || !n || n < 2) return [];
+  const direct = (price * (n - 1)) / n;
+  const bep = direct * 0.95;
+  const marginRows = [0, 25, 50, 75, 100].map((L) => {
+    const bid = bep / (1 + L / 1000);
+    const profit = bid * (L / 1000);
+    return { label: L === 0 ? "손익 분기점" : L === 100 ? "선점" : `${L}%`, bid, profit };
+  });
+  return [{ label: "직접 사용", bid: direct, profit: price - direct }, ...marginRows].map((r) => ({
+    ...r,
+    bid: Math.round(r.bid),
+    profit: Math.round(r.profit),
+  }));
+}
 const ROLE = {
   딜러: { color: "#e2593f", bg: "#2a1a15", label: "딜러" },
   서포터: { color: "#4fb8b0", bg: "#122624", label: "서포터" },
@@ -518,6 +535,11 @@ function RaidBoard() {
   const [boardError, setBoardError] = useState("");
   const [boardEditId, setBoardEditId] = useState(null);
   const [boardEditDraft, setBoardEditDraft] = useState("");
+  const [showAuctionCalc, setShowAuctionCalc] = useState(false);
+  const [auctionPrice, setAuctionPrice] = useState("");
+  const [auctionParty, setAuctionParty] = useState(8);
+  const [auctionPartyCustom, setAuctionPartyCustom] = useState("");
+  const [auctionCopied, setAuctionCopied] = useState(null);
   const sessionIdRef = useRef(null);
   if (!sessionIdRef.current) {
     try {
@@ -1128,7 +1150,12 @@ function RaidBoard() {
       ) : (
         <>
           <div style={styles.panel}>
-            <div style={styles.panelTitle}>오늘의 시간표 ({today}요일)</div>
+            <div style={styles.panelTitleRow}>
+              <div style={styles.panelTitle}>오늘의 시간표 ({today}요일)</div>
+              <button style={styles.ghostBtnSmall} onClick={() => setShowAuctionCalc(true)}>
+                [경매계산기]
+              </button>
+            </div>
             {todaySegments.length === 0 ? (
               <div style={styles.emptyHint}>오늘 등록된 게임 시간이 없습니다.</div>
             ) : (
@@ -1731,6 +1758,93 @@ function RaidBoard() {
         </>
       )}
 
+      {showAuctionCalc && (
+        <div style={styles.modalOverlay} onClick={() => setShowAuctionCalc(false)}>
+          <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalTitle}>경매 계산기</div>
+              <button style={styles.modalClose} onClick={() => setShowAuctionCalc(false)}>
+                ✕
+              </button>
+            </div>
+
+            <input
+              style={styles.input}
+              type="number"
+              placeholder="아이템 가격"
+              value={auctionPrice}
+              onChange={(e) => setAuctionPrice(e.target.value)}
+            />
+
+            <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+              {[4, 8, 16].map((n) => (
+                <button
+                  key={n}
+                  style={auctionParty === n ? styles.charSwitchBtnActive : styles.charSwitchBtn}
+                  onClick={() => {
+                    setAuctionParty(n);
+                    setAuctionPartyCustom("");
+                  }}
+                >
+                  {n}인
+                </button>
+              ))}
+              <input
+                style={{ ...styles.adminPwInput, width: 90 }}
+                type="number"
+                placeholder="직접 입력"
+                value={auctionPartyCustom}
+                onChange={(e) => {
+                  setAuctionPartyCustom(e.target.value);
+                  const v = Number(e.target.value);
+                  if (v >= 2) setAuctionParty(v);
+                }}
+              />
+            </div>
+
+            {(() => {
+              const priceNum = Number(auctionPrice);
+              const rows = computeAuctionRows(priceNum, auctionParty);
+              if (!priceNum || rows.length === 0) {
+                return <div style={styles.emptyHint}>아이템 가격을 입력해주세요.</div>;
+              }
+              return (
+                <div style={{ marginTop: 16 }}>
+                  <div style={styles.auctionHeaderRow}>
+                    <span>손익</span>
+                    <span>구분</span>
+                    <span>입찰가</span>
+                  </div>
+                  {rows.map((r, i) => (
+                    <div key={i} style={styles.auctionRow}>
+                      <span className="rb-num" style={{ color: r.profit > 0 ? "#639922" : "#8b93a7" }}>
+                        {r.profit > 0 ? "+" : ""}
+                        {r.profit.toLocaleString("ko-KR")}
+                      </span>
+                      <span style={{ color: "#c8cddb" }}>{r.label}</span>
+                      <button
+                        className="rb-num"
+                        style={styles.auctionBidBtn}
+                        onClick={() => {
+                          navigator.clipboard && navigator.clipboard.writeText(String(r.bid));
+                          setAuctionCopied(i);
+                          setTimeout(() => setAuctionCopied(null), 1200);
+                        }}
+                        title="클릭 시 입찰가 복사"
+                      >
+                        {r.bid.toLocaleString("ko-KR")}
+                        {auctionCopied === i ? " ✓ 복사됨" : ""}
+                      </button>
+                    </div>
+                  ))}
+                  <div style={styles.emptyHint}>수수료 5% 반영 · 입찰가 클릭 시 복사</div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {detailFor && (
         <div style={styles.modalOverlay} onClick={closeDetail}>
           <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
@@ -1999,6 +2113,9 @@ const styles = {
   modalListRow: { display: "flex", gap: 10, fontSize: 12, color: "#e8ebf0", padding: "4px 0" },
   modalListType: { color: "#8b93a7", minWidth: 44, flexShrink: 0 },
   modalListName: { flex: 1, wordBreak: "break-word" },
+  auctionHeaderRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr", fontSize: 11, color: "#5f6577", padding: "4px 0", borderBottom: "1px solid #262d3d" },
+  auctionRow: { display: "grid", gridTemplateColumns: "1fr 1fr 1.2fr", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #1e2430" },
+  auctionBidBtn: { background: "transparent", border: "1px solid #2a3040", borderRadius: 6, color: "#e8ebf0", fontSize: 13, padding: "5px 8px", cursor: "pointer", textAlign: "left" },
   modalEquipBlock: { padding: "4px 0", borderBottom: "1px solid #1e2430" },
   modalOptionBox: { display: "flex", flexDirection: "column", gap: 2, marginTop: 2, marginBottom: 4, paddingLeft: 54 },
   modalOptionLine: { fontSize: 11, color: "#9ec9e2" },
