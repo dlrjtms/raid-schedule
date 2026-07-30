@@ -2351,12 +2351,41 @@ function RaidBoard() {
                   <div style={styles.modalSection}>
                     <div style={styles.modalSectionTitle}>보석</div>
                     <div style={styles.modalChipRow}>
-                      {detailGemList.map((g, i) => (
-                        <span key={i} style={styles.modalChip}>
-                          {(g.Name || "").replace(/<[^>]+>/g, "")}
-                        </span>
-                      ))}
+                      {detailGemList.map((g, i) => {
+                        const lvl = gemLevelOf(g);
+                        const gemColor = lvl >= 10 ? "#f5d949" : lvl === 9 ? "#c58cf5" : lvl === 8 ? "#5ec9e8" : "#e8ebf0";
+                        return (
+                          <span key={i} style={{ ...styles.modalChip, color: gemColor, fontWeight: lvl >= 8 ? 700 : 400 }}>
+                            {(g.Name || "").replace(/<[^>]+>/g, "")}
+                          </span>
+                        );
+                      })}
                     </div>
+                    {(() => {
+                      const counts = {};
+                      detailGemList.forEach((g) => {
+                        const lvl = gemLevelOf(g);
+                        counts[lvl] = (counts[lvl] || 0) + 1;
+                      });
+                      const levels = Object.keys(counts)
+                        .map(Number)
+                        .sort((a, b) => b - a);
+                      return (
+                        <div style={styles.gemSummaryRow}>
+                          {levels.map((lvl, i) => {
+                            const gemColor = lvl >= 10 ? "#f5d949" : lvl === 9 ? "#c58cf5" : lvl === 8 ? "#5ec9e8" : "#e8ebf0";
+                            return (
+                              <span key={lvl}>
+                                {i > 0 && <span style={{ color: "#3a4152" }}> · </span>}
+                                <span style={{ color: gemColor, fontWeight: 700 }}>
+                                  {lvl}레벨 × {counts[lvl]}개
+                                </span>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 
@@ -2471,6 +2500,7 @@ const styles = {
   modalSection: { marginTop: 14, paddingTop: 12, borderTop: "1px solid #262d3d" },
   modalSectionTitle: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontWeight: 700, color: "#c8cddb", marginBottom: 8 },
   modalChipRow: { display: "flex", flexWrap: "wrap", gap: 6 },
+  gemSummaryRow: { fontSize: 12, marginTop: 8, paddingTop: 8, borderTop: "1px solid #1e2430" },
   modalChip: { fontSize: 11, color: "#e8ebf0", background: "#0f1219", border: "1px solid #262d3d", borderRadius: 6, padding: "4px 8px" },
   modalListRow: { display: "flex", gap: 10, fontSize: 12, color: "#e8ebf0", padding: "4px 0" },
   modalListType: { color: "#8b93a7", minWidth: 44, flexShrink: 0 },
