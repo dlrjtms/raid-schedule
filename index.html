@@ -895,7 +895,9 @@ function RaidBoard() {
       setScheduleDraft(null);
       setRequestDraft("");
     }
-  }, [loggedInId]);
+    // members 로딩이 끝나 loggedIn이 null → 값으로 바뀌는 시점(새로고침 직후 복원 로그인 포함)에도
+    // 한 번 더 채워지도록 !!loggedIn을 의존성에 포함한다.
+  }, [loggedInId, !!loggedIn]);
 
   // 내 접속 상태를 주기적으로 기록 (하트비트) - 관리자 모드일 땐 숨김
   useEffect(() => {
