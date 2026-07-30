@@ -660,6 +660,7 @@ function RaidBoard() {
   const [onlineNames, setOnlineNames] = useState([]);
   const [onlineGuesses, setOnlineGuesses] = useState([]);
   const [calendarData, setCalendarData] = useState(null);
+  const [guardianData, setGuardianData] = useState(null);
   const [nowTick, setNowTick] = useState(new Date());
   const [onlineCount, setOnlineCount] = useState(0);
   const [boardPosts, setBoardPosts] = useState([]);
@@ -903,6 +904,21 @@ function RaidBoard() {
     }
     loadCalendar();
     const t = setInterval(loadCalendar, 10 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  // 이번 주 도전 가디언 토벌 목록 (로테이션이라 API로 자동 갱신)
+  useEffect(() => {
+    async function loadGuardian() {
+      try {
+        const res = await fetch(LOSTARK_PROXY_URL + "?type=challenge-guardian");
+        if (!res.ok) return;
+        const data = await res.json();
+        setGuardianData(Array.isArray(data) ? data : null);
+      } catch (e) {}
+    }
+    loadGuardian();
+    const t = setInterval(loadGuardian, 10 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -1366,6 +1382,16 @@ function RaidBoard() {
           [필드보스]
         </span>
       </div>
+
+      {Array.isArray(guardianData) && guardianData.length > 0 && (
+        <div style={styles.guardianRow}>
+          이번 주 도전 가디언 토벌 ·{" "}
+          {guardianData
+            .map((g) => g.GuardianRaidName || g.Name || g.ContentsName || "")
+            .filter(Boolean)
+            .join(", ")}
+        </div>
+      )}
 
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         <button style={styles.auctionCalcBtn} onClick={() => setShowAuctionCalc(true)}>
@@ -2444,6 +2470,7 @@ const styles = {
   contentBadgeRow: { display: "flex", justifyContent: "center", gap: 14, marginBottom: 18 },
   contentBadgeOn: { fontSize: 13, fontWeight: 700, color: "#f5d949", textShadow: "0 0 8px rgba(245,217,73,0.6)" },
   contentBadgeOff: { fontSize: 13, fontWeight: 700, color: "#4a5065" },
+  guardianRow: { textAlign: "center", fontSize: 12, color: "#8ea1ff", marginBottom: 14 },
   sectionTitle: { fontSize: 15, fontWeight: 700, color: "#c8cddb", marginBottom: 12 },
   sectionHeaderRow: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   adminBadgeRow: { display: "flex", alignItems: "center", gap: 8 },
