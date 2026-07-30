@@ -494,6 +494,7 @@ function lastTuesday11pm(now) {
 
 const LOSTARK_PROXY_URL = "https://raid-sch.mr88sws.workers.dev/";
 const ADMIN_PASSWORD = "1a2a3a";
+const ADMIN_MEMBER_ID = "m01"; // 이거슨의문사를피하는무빙 계정으로 로그인했을 때만 관리자 로그인 노출
 
 function RaidBoard() {
   const [members, setMembers] = useState([]);
@@ -825,6 +826,10 @@ function RaidBoard() {
   }
 
   function attemptAdminLogin() {
+    if (loggedInId !== ADMIN_MEMBER_ID) {
+      setAdminError("이 계정으로는 관리자 로그인을 할 수 없습니다.");
+      return;
+    }
     if (adminPwInput === ADMIN_PASSWORD) {
       setIsAdmin(true);
       setShowAdminLogin(false);
@@ -900,6 +905,7 @@ function RaidBoard() {
     setSelectedId(null);
     setPassword("");
     setConfirmDelete(false);
+    setIsAdmin(false);
   }
 
   async function deleteMyAccount() {
@@ -1307,7 +1313,7 @@ function RaidBoard() {
                   관리자 로그아웃
                 </button>
               </div>
-            ) : showAdminLogin ? (
+            ) : showAdminLogin && loggedInId === ADMIN_MEMBER_ID ? (
               <div style={styles.adminLoginRow}>
                 <input
                   style={styles.adminPwInput}
@@ -1325,11 +1331,11 @@ function RaidBoard() {
                 </button>
                 {adminError && <span style={styles.errorText}>{adminError}</span>}
               </div>
-            ) : (
+            ) : loggedInId === ADMIN_MEMBER_ID ? (
               <button style={styles.ghostBtnSmall} onClick={() => setShowAdminLogin(true)}>
                 관리자 로그인
               </button>
-            )}
+            ) : null}
           </div>
           <div style={styles.cardGrid}>
             {[...members]
