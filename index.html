@@ -1334,19 +1334,33 @@ function RaidBoard() {
     return m ? parseInt(m[1], 10) : 0;
   }
 
-  // 아크 패시브 응답에서 "직업 특성"(예: 광전사의 비기) 이름을 최대한 추정해본다.
-  // 정확한 필드 구조를 확인하지 못해서, 몇 가지 후보 경로를 시도하고 안되면 null.
+  // 아크 패시브 응답에서 "직업각인"(예: 광기, 광전사의 비기) 이름을 추정한다.
+  // arkpassive.Type / Points[].Name 은 "진화·깨달음·도약" 같은 트리 분류명이라 직업각인이 아니므로 제외하고,
+  // 실제로 활성화된 개별 효과 이름(arkpassive.Effects[].Name)에서 뽑아온다.
+  const ARKPASSIVE_TREE_LABELS = new Set(["진화", "깨달음", "도약"]);
   function extractSpecName(arkpassive) {
     if (!arkpassive) return null;
-    if (typeof arkpassive.Type === "string" && arkpassive.Type.trim()) return arkpassive.Type;
-    if (Array.isArray(arkpassive.Effects) && arkpassive.Effects[0] && arkpassive.Effects[0].Name) {
-      return arkpassive.Effects[0].Name;
+    let names = [];
+    if (Array.isArray(arkpassive.Effects)) {
+      names = arkpassive.Effects
+        .map((e) => e && typeof e.Name === "string" && e.Name.trim())
+        .filter((n) => n && !ARKPASSIVE_TREE_LABELS.has(n));
     }
-    if (Array.isArray(arkpassive.Points)) {
-      const withName = arkpassive.Points.find((p) => p && p.Name);
-      if (withName) return withName.Name;
+    if (names.length === 0 && Array.isArray(arkpassive.Points)) {
+      names = arkpassive.Points
+        .map((p) => p && typeof p.Name === "string" && p.Name.trim())
+        .filter((n) => n && !ARKPASSIVE_TREE_LABELS.has(n));
     }
-    return null;
+    if (
+      names.length === 0 &&
+      typeof arkpassive.Type === "string" &&
+      arkpassive.Type.trim() &&
+      !ARKPASSIVE_TREE_LABELS.has(arkpassive.Type.trim())
+    ) {
+      names = [arkpassive.Type.trim()];
+    }
+    if (names.length === 0) return null;
+    return [...new Set(names)].join(", ");
   }
 
   const detailGemList = useMemo(() => {
