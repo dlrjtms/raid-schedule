@@ -72,6 +72,35 @@ function todayLabel() {
   return DAYS[(jsDay + 6) % 7];
 }
 
+// 가디언 토벌(잔영) 주간 로테이션: 정해진 순서를 매주 수요일 오전 6시(KST)마다 한 칸씩 이동한다.
+// 기준점: 2026-07-29(수) 06:00 KST = "아카테스" 주간 (사용자 확인 기준).
+const GUARDIAN_ROTATION = [
+  "루멘칼리고",
+  "가르가디스",
+  "스콜라키아",
+  "크라티오스",
+  "아게오로스",
+  "드렉탈라스",
+  "소나벨",
+  "베스칼",
+  "쿤겔라니움",
+  "하누마탄",
+  "데스칼루다",
+  "이그렉시온",
+  "벨가누스",
+  "아카테스",
+  "엘버하스틱",
+];
+const GUARDIAN_ANCHOR_INDEX = 13; // 아카테스
+const GUARDIAN_ANCHOR_TIME = new Date("2026-07-29T06:00:00+09:00").getTime();
+
+function currentGuardianName(now) {
+  const diffWeeks = Math.floor((now.getTime() - GUARDIAN_ANCHOR_TIME) / (7 * 24 * 60 * 60 * 1000));
+  let idx = (GUARDIAN_ANCHOR_INDEX + diffWeeks) % GUARDIAN_ROTATION.length;
+  if (idx < 0) idx += GUARDIAN_ROTATION.length;
+  return GUARDIAN_ROTATION[idx];
+}
+
 // 로스트아크 경매 입찰가/손익 계산 (수수료 5% 고정, 인원수 기반)
 function computeAuctionRows(price, n) {
   if (!price || !n || n < 2) return [];
@@ -660,8 +689,6 @@ function RaidBoard() {
   const [onlineNames, setOnlineNames] = useState([]);
   const [onlineGuesses, setOnlineGuesses] = useState([]);
   const [calendarData, setCalendarData] = useState(null);
-  const [guardianData, setGuardianData] = useState(null);
-  const [guardianDebug, setGuardianDebug] = useState("아직 요청 안 함");
   const [nowTick, setNowTick] = useState(new Date());
   const [onlineCount, setOnlineCount] = useState(0);
   const [boardPosts, setBoardPosts] = useState([]);
@@ -905,34 +932,6 @@ function RaidBoard() {
     }
     loadCalendar();
     const t = setInterval(loadCalendar, 10 * 60 * 1000);
-    return () => clearInterval(t);
-  }, []);
-
-  // 이번 주 도전 가디언 토벌 목록 (로테이션이라 API로 자동 갱신)
-  useEffect(() => {
-    async function loadGuardian() {
-      try {
-        const res = await fetch(LOSTARK_PROXY_URL + "?type=challenge-guardian");
-        const text = await res.text();
-        if (!res.ok) {
-          setGuardianDebug(`HTTP ${res.status} · ${text.slice(0, 300)}`);
-          return;
-        }
-        let data;
-        try {
-          data = JSON.parse(text);
-        } catch (e) {
-          setGuardianDebug(`JSON 파싱 실패 · ${text.slice(0, 300)}`);
-          return;
-        }
-        setGuardianData(Array.isArray(data) ? data : null);
-        setGuardianDebug(Array.isArray(data) ? `배열 ${data.length}개 수신` : `배열 아님 · ${text.slice(0, 300)}`);
-      } catch (e) {
-        setGuardianDebug("요청 자체 실패: " + (e && e.message));
-      }
-    }
-    loadGuardian();
-    const t = setInterval(loadGuardian, 10 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -1397,22 +1396,7 @@ function RaidBoard() {
         </span>
       </div>
 
-      {Array.isArray(guardianData) && guardianData.length > 0 ? (
-        <div style={styles.guardianRow}>
-          이번 주 도전 가디언 토벌 ·{" "}
-          {guardianData
-            .map((g) => g.GuardianRaidName || g.Name || g.ContentsName || "")
-            .filter(Boolean)
-            .join(", ")}
-        </div>
-      ) : (
-        isAdmin && (
-          <div style={styles.guardianRow}>
-            관리자 전용 · 도전 가디언 원본:{" "}
-            {guardianData === null ? guardianDebug : JSON.stringify(guardianData)}
-          </div>
-        )
-      )}
+      <div style={styles.guardianRow}>이번 주 가디언 토벌(잔영) · {currentGuardianName(nowTick)}</div>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
         <button style={styles.auctionCalcBtn} onClick={() => setShowAuctionCalc(true)}>
