@@ -2539,12 +2539,6 @@ function RaidBoard() {
                     )}
                   </div>
                 )}
-                {isAdmin && (
-                  <div style={styles.debugBox}>
-                    관리자 전용 · 아크 패시브 원본: {JSON.stringify(detailData.arkpassive)}
-                    {"\n"}관리자 전용 · 아크그리드 원본: {JSON.stringify(detailData.arkgrid)}
-                  </div>
-                )}
                 <div style={styles.modalStatRow}>
                   <span>아이템 Lv.{detailData.profile.ItemAvgLevel}</span>
                   {detailData.profile.CombatPower && <span>⚔ {detailData.profile.CombatPower}</span>}
