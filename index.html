@@ -1453,6 +1453,13 @@ function RaidBoard() {
     return m ? parseInt(m[1], 10) : 0;
   }
 
+  // 10레벨 멸화는 시인성(색상/집계) 상 8레벨과 동일하게 취급한다.
+  function gemEffectiveLevel(g) {
+    const lvl = gemLevelOf(g);
+    if (lvl === 10 && String(g.Name || "").includes("멸화")) return 8;
+    return lvl;
+  }
+
   // 아크 패시브 응답의 최상위 Title 필드가 바로 직업각인(특성 빌드) 이름이다.
   // 예: {"Title":"완벽한 억제", ...} → "완벽한 억제"
   // Effects[].Name 은 "진화/깨달음/도약" 트리 분류명이 반복될 뿐이라 사용하지 않는다.
@@ -2809,7 +2816,7 @@ function RaidBoard() {
                     <div style={styles.modalSectionTitle}>보석</div>
                     <div style={styles.modalChipRow}>
                       {detailGemList.map((g, i) => {
-                        const lvl = gemLevelOf(g);
+                        const lvl = gemEffectiveLevel(g);
                         const gemColor = lvl >= 10 ? "#f5d949" : lvl === 9 ? "#c58cf5" : lvl === 8 ? "#5ec9e8" : "#e8ebf0";
                         return (
                           <span key={i} style={{ ...styles.modalChip, color: gemColor, fontWeight: lvl >= 8 ? 700 : 400 }}>
@@ -2821,7 +2828,7 @@ function RaidBoard() {
                     {(() => {
                       const counts = {};
                       detailGemList.forEach((g) => {
-                        const lvl = gemLevelOf(g);
+                        const lvl = gemEffectiveLevel(g);
                         counts[lvl] = (counts[lvl] || 0) + 1;
                       });
                       const levels = Object.keys(counts)
