@@ -658,6 +658,7 @@ function RaidBoard() {
   const [requestDraft, setRequestDraft] = useState("");
   const [requestSaved, setRequestSaved] = useState(false);
   const [onlineNames, setOnlineNames] = useState([]);
+  const [onlineGuesses, setOnlineGuesses] = useState([]);
   const [calendarData, setCalendarData] = useState(null);
   const [nowTick, setNowTick] = useState(new Date());
   const [onlineCount, setOnlineCount] = useState(0);
@@ -836,11 +837,15 @@ function RaidBoard() {
   // 내 접속 상태를 주기적으로 기록 (하트비트)
   useEffect(() => {
     const myName = loggedIn && loggedIn.characters[0] ? loggedIn.characters[0].name : null;
+    let remembered = null;
+    try {
+      remembered = localStorage.getItem("raidboard-known-name");
+    } catch (e) {}
     async function beat() {
       try {
         await window.storage.set(
           "presence:" + sessionIdRef.current,
-          JSON.stringify({ name: myName, lastSeen: Date.now() }),
+          JSON.stringify({ name: myName, remembered, lastSeen: Date.now() }),
           true
         );
       } catch (e) {}
@@ -870,6 +875,15 @@ function RaidBoard() {
         const active = fetched.filter((p) => p && now - p.lastSeen < 60000);
         setOnlineCount(active.length);
         setOnlineNames(Array.from(new Set(active.map((p) => p.name).filter(Boolean))));
+        setOnlineGuesses(
+          Array.from(
+            new Set(
+              active
+                .filter((p) => !p.name && p.remembered)
+                .map((p) => p.remembered)
+            )
+          )
+        );
       } catch (e) {}
     }
     poll();
@@ -1001,12 +1015,19 @@ function RaidBoard() {
     logout();
   }
 
+  function rememberName(name) {
+    try {
+      localStorage.setItem("raidboard-known-name", name);
+    } catch (e) {}
+  }
+
   function attemptLogin() {
     const m = members.find((x) => x.id === selectedId);
     if (!m) return;
     if (m.password === password) {
       setLoggedInId(m.id);
       setError("");
+      if (m.characters[0]) rememberName(m.characters[0].name);
     } else {
       setError("비밀번호가 일치하지 않습니다.");
     }
@@ -1026,6 +1047,7 @@ function RaidBoard() {
     await saveMember({ ...m, password: claimPw });
     setLoggedInId(m.id);
     setError("");
+    if (m.characters[0]) rememberName(m.characters[0].name);
   }
 
   async function registerMember() {
@@ -1054,6 +1076,7 @@ function RaidBoard() {
     setRegPw("");
     setRegPw2("");
     setError("");
+    rememberName(fresh.characters[0].name);
   }
 
   function logout() {
@@ -1321,6 +1344,12 @@ function RaidBoard() {
           <span style={styles.presenceDot}>●</span>
           지금 {onlineCount}명 접속 중
           {onlineNames.length > 0 && <span style={styles.presenceNames}> · {onlineNames.join(", ")}</span>}
+        </div>
+      )}
+
+      {isAdmin && onlineGuesses.length > 0 && (
+        <div style={styles.adminGuessBar}>
+          관리자 전용 · 로그인 안 한 접속자 중 이 브라우저에서 마지막으로 로그인했던 이름 기준 추정: {onlineGuesses.join(", ")}
         </div>
       )}
 
@@ -2410,6 +2439,7 @@ const styles = {
   presenceBar: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: "#8b93a7", marginBottom: 18 },
   presenceDot: { color: "#639922", fontSize: 8 },
   presenceNames: { color: "#c8cddb" },
+  adminGuessBar: { textAlign: "center", fontSize: 11, color: "#d9a94e", marginBottom: 8, padding: "0 12px" },
   liveClock: { textAlign: "center", fontSize: 13, color: "#639922", marginBottom: 12, letterSpacing: 1 },
   contentBadgeRow: { display: "flex", justifyContent: "center", gap: 14, marginBottom: 18 },
   contentBadgeOn: { fontSize: 13, fontWeight: 700, color: "#f5d949", textShadow: "0 0 8px rgba(245,217,73,0.6)" },
