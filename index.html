@@ -88,6 +88,22 @@ function computeAuctionRows(price, n) {
     profit: Math.round(r.profit),
   }));
 }
+
+// 캘린더 데이터에서 특정 키워드(카오스게이트/필드보스 등) 콘텐츠가 오늘 일정에 있는지 확인
+function hasTodayContent(calendarData, keyword) {
+  if (!Array.isArray(calendarData)) return false;
+  const todayStr = new Date().toDateString();
+  return calendarData.some((item) => {
+    const label = `${item.CategoryName || ""} ${item.ContentsName || ""}`;
+    if (!label.includes(keyword)) return false;
+    const times = Array.isArray(item.StartTimes) ? item.StartTimes : [];
+    return times.some((t) => {
+      const d = new Date(t);
+      return !isNaN(d) && d.toDateString() === todayStr;
+    });
+  });
+}
+
 const ROLE = {
   딜러: { color: "#e2593f", bg: "#2a1a15", label: "딜러" },
   서포터: { color: "#4fb8b0", bg: "#122624", label: "서포터" },
@@ -530,6 +546,7 @@ function RaidBoard() {
   const [requestDraft, setRequestDraft] = useState("");
   const [requestSaved, setRequestSaved] = useState(false);
   const [onlineNames, setOnlineNames] = useState([]);
+  const [calendarData, setCalendarData] = useState(null);
   const [onlineCount, setOnlineCount] = useState(0);
   const [boardPosts, setBoardPosts] = useState([]);
   const [boardDraft, setBoardDraft] = useState("");
@@ -739,6 +756,21 @@ function RaidBoard() {
     }
     poll();
     const t = setInterval(poll, 15000);
+    return () => clearInterval(t);
+  }, []);
+
+  // 카오스게이트/필드보스: 이번 주 캘린더를 가져와 오늘 일정이 있는지 확인
+  useEffect(() => {
+    async function loadCalendar() {
+      try {
+        const res = await fetch(LOSTARK_PROXY_URL + "?type=calendar");
+        if (!res.ok) return;
+        const data = await res.json();
+        setCalendarData(Array.isArray(data) ? data : null);
+      } catch (e) {}
+    }
+    loadCalendar();
+    const t = setInterval(loadCalendar, 10 * 60 * 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -1150,6 +1182,15 @@ function RaidBoard() {
           {onlineNames.length > 0 && <span style={styles.presenceNames}> · {onlineNames.join(", ")}</span>}
         </div>
       )}
+
+      <div style={styles.contentBadgeRow}>
+        <span style={hasTodayContent(calendarData, "카오스게이트") ? styles.contentBadgeOn : styles.contentBadgeOff}>
+          [카오스게이트]
+        </span>
+        <span style={hasTodayContent(calendarData, "필드보스") ? styles.contentBadgeOn : styles.contentBadgeOff}>
+          [필드보스]
+        </span>
+      </div>
 
       {loading ? (
         <div style={styles.loadingBox}>불러오는 중...</div>
@@ -2041,6 +2082,9 @@ const styles = {
   presenceBar: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: "#8b93a7", marginBottom: 18 },
   presenceDot: { color: "#639922", fontSize: 8 },
   presenceNames: { color: "#c8cddb" },
+  contentBadgeRow: { display: "flex", justifyContent: "center", gap: 14, marginBottom: 18 },
+  contentBadgeOn: { fontSize: 13, fontWeight: 700, color: "#f5d949", textShadow: "0 0 8px rgba(245,217,73,0.6)" },
+  contentBadgeOff: { fontSize: 13, fontWeight: 700, color: "#4a5065" },
   sectionTitle: { fontSize: 15, fontWeight: 700, color: "#c8cddb", marginBottom: 12 },
   sectionHeaderRow: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   adminBadgeRow: { display: "flex", alignItems: "center", gap: 8 },
