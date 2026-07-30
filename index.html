@@ -863,8 +863,13 @@ function RaidBoard() {
     }
   }, [loggedInId]);
 
-  // 내 접속 상태를 주기적으로 기록 (하트비트)
+  // 내 접속 상태를 주기적으로 기록 (하트비트) - 관리자 모드일 땐 숨김
   useEffect(() => {
+    if (isAdmin) {
+      // 관리자 모드로 전환된 경우, 이미 남아있던 내 접속 기록을 지운다.
+      window.storage.delete("presence:" + sessionIdRef.current, true).catch(() => {});
+      return;
+    }
     const myName = loggedIn && loggedIn.characters[0] ? loggedIn.characters[0].name : null;
     let remembered = null;
     try {
@@ -882,7 +887,7 @@ function RaidBoard() {
     beat();
     const t = setInterval(beat, 20000);
     return () => clearInterval(t);
-  }, [loggedInId, members.length]);
+  }, [loggedInId, members.length, isAdmin]);
 
   // 다른 사람들의 접속 상태를 주기적으로 확인
   useEffect(() => {
@@ -1248,14 +1253,15 @@ function RaidBoard() {
     }
 
     try {
-      const [profile, equipment, engravings, gems] = await Promise.all([
+      const [profile, equipment, engravings, gems, arkpassive] = await Promise.all([
         safeFetchJson("profile", name),
         safeFetchJson("equipment", name),
         safeFetchJson("engravings", name),
         safeFetchJson("gems", name),
+        safeFetchJson("arkpassive", name),
       ]);
       if (!profile) throw new Error("캐릭터 정보를 찾을 수 없습니다.");
-      setDetailData({ profile, equipment, engravings, gems });
+      setDetailData({ profile, equipment, engravings, gems, arkpassive });
     } catch (e) {
       setDetailError(e.message || "불러오기에 실패했습니다.");
     } finally {
@@ -1326,6 +1332,21 @@ function RaidBoard() {
     if (typeof g.Level === "number") return g.Level;
     const m = String(g.Name || "").match(/(\d+)\s*레벨/);
     return m ? parseInt(m[1], 10) : 0;
+  }
+
+  // 아크 패시브 응답에서 "직업 특성"(예: 광전사의 비기) 이름을 최대한 추정해본다.
+  // 정확한 필드 구조를 확인하지 못해서, 몇 가지 후보 경로를 시도하고 안되면 null.
+  function extractSpecName(arkpassive) {
+    if (!arkpassive) return null;
+    if (typeof arkpassive.Type === "string" && arkpassive.Type.trim()) return arkpassive.Type;
+    if (Array.isArray(arkpassive.Effects) && arkpassive.Effects[0] && arkpassive.Effects[0].Name) {
+      return arkpassive.Effects[0].Name;
+    }
+    if (Array.isArray(arkpassive.Points)) {
+      const withName = arkpassive.Points.find((p) => p && p.Name);
+      if (withName) return withName.Name;
+    }
+    return null;
   }
 
   const detailGemList = useMemo(() => {
@@ -2311,9 +2332,17 @@ function RaidBoard() {
               <>
                 <div style={styles.modalSubtitle}>
                   {detailData.profile.CharacterClassName}
+                  {extractSpecName(detailData.arkpassive) && (
+                    <span style={styles.specName}> · {extractSpecName(detailData.arkpassive)}</span>
+                  )}
                   {detailData.profile.Title ? ` · ${detailData.profile.Title}` : ""}
                   {detailData.profile.GuildName ? ` · ${detailData.profile.GuildName}` : ""}
                 </div>
+                {isAdmin && (
+                  <div style={styles.debugBox}>
+                    관리자 전용 · 아크 패시브 원본: {JSON.stringify(detailData.arkpassive)}
+                  </div>
+                )}
                 <div style={styles.modalStatRow}>
                   <span>아이템 Lv.{detailData.profile.ItemAvgLevel}</span>
                   {detailData.profile.CombatPower && <span>⚔ {detailData.profile.CombatPower}</span>}
@@ -2574,6 +2603,7 @@ const styles = {
   modalTitle: { fontSize: 17, fontWeight: 700, color: "#f2ede0" },
   modalClose: { background: "transparent", border: "none", color: "#8b93a7", fontSize: 16, cursor: "pointer" },
   modalSubtitle: { fontSize: 12, color: "#8b93a7", marginBottom: 8 },
+  specName: { color: "#f5d949", fontWeight: 700 },
   modalStatRow: { display: "flex", gap: 14, fontSize: 13, color: "#d9a94e", fontWeight: 700, marginBottom: 14 },
   modalSection: { marginTop: 14, paddingTop: 12, borderTop: "1px solid #262d3d" },
   modalSectionTitle: { display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12, fontWeight: 700, color: "#c8cddb", marginBottom: 8 },
