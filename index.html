@@ -694,6 +694,7 @@ function RaidBoard() {
   const [requestSaved, setRequestSaved] = useState(false);
   const [onlineNames, setOnlineNames] = useState([]);
   const [onlineGuesses, setOnlineGuesses] = useState([]);
+  const [onlineUnknownCount, setOnlineUnknownCount] = useState(0);
   const [calendarData, setCalendarData] = useState(null);
   const [nowTick, setNowTick] = useState(new Date());
   const [onlineCount, setOnlineCount] = useState(0);
@@ -924,6 +925,7 @@ function RaidBoard() {
             )
           )
         );
+        setOnlineUnknownCount(active.filter((p) => !p.name && !p.remembered).length);
       } catch (e) {}
     }
     poll();
@@ -1479,9 +1481,11 @@ function RaidBoard() {
         </div>
       )}
 
-      {isAdmin && onlineGuesses.length > 0 && (
+      {isAdmin && (onlineGuesses.length > 0 || onlineUnknownCount > 0) && (
         <div style={styles.adminGuessBar}>
-          관리자 전용 · 로그인 안 한 접속자 중 이 브라우저에서 마지막으로 로그인했던 이름 기준 추정: {onlineGuesses.join(", ")}
+          관리자 전용 · 로그인 안 한 접속자 중 이 브라우저에서 마지막으로 로그인했던 이름 기준 추정
+          {onlineGuesses.length > 0 ? `: ${onlineGuesses.join(", ")}` : ""}
+          {onlineUnknownCount > 0 ? ` · 추정 불가 ${onlineUnknownCount}명 (로그인 기록 없는 브라우저)` : ""}
         </div>
       )}
 
