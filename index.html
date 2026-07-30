@@ -961,7 +961,7 @@ function RaidBoard() {
   }, [loadBoard]);
 
   async function postToBoard() {
-    if (!loggedIn || !boardDraft.trim()) return;
+    if (!(loggedIn || isAdmin) || !boardDraft.trim()) return;
     setBoardError("");
     try {
       const r = await window.storage.get(BOARD_KEY, true).catch(() => null);
@@ -970,7 +970,7 @@ function RaidBoard() {
       const newPost = {
         id: uid(),
         authorId: loggedInId,
-        authorName: loggedIn.characters[0].name,
+        authorName: loggedIn ? loggedIn.characters[0].name : "관리자",
         text: boardDraft.trim(),
         createdAt: Date.now(),
       };
@@ -1356,8 +1356,14 @@ function RaidBoard() {
       `}</style>
 
       <div style={styles.hero}>
-        <div style={styles.heroEyebrow}>연고</div>
-        <h1 style={styles.heroTitle}>레이드 시간표</h1>
+        <div
+          style={{ cursor: "pointer" }}
+          onClick={() => window.location.reload()}
+          title="클릭하면 새로고침됩니다"
+        >
+          <div style={styles.heroEyebrow}>연고</div>
+          <h1 style={styles.heroTitle}>레이드 시간표</h1>
+        </div>
         <a
           href="https://discord.com/invite/Ng6QEKwdU"
           target="_blank"
@@ -1559,7 +1565,7 @@ function RaidBoard() {
                 ))}
               </div>
             )}
-            {loggedIn ? (
+            {loggedIn || isAdmin ? (
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                 <input
                   style={styles.input}
@@ -2266,9 +2272,18 @@ function RaidBoard() {
           <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div style={styles.modalTitle}>{detailFor}</div>
-              <button style={styles.modalClose} onClick={closeDetail}>
-                ✕
-              </button>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <button
+                  style={styles.ghostBtnSmall}
+                  onClick={() => openDetail(detailFor, detailMemberChars)}
+                  disabled={detailLoading}
+                >
+                  {detailLoading ? "불러오는 중..." : "로스트아크에서 새로고침"}
+                </button>
+                <button style={styles.modalClose} onClick={closeDetail}>
+                  ✕
+                </button>
+              </div>
             </div>
 
             {detailMemberChars && detailMemberChars.length > 1 && (
