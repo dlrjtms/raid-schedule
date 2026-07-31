@@ -79,6 +79,217 @@ function todayLabel() {
   return DAYS[(jsDay + 6) % 7];
 }
 
+// ============================================================
+// 아크그리드 정보 사전 (종족 → 직업 → 빌드 → 해/달/별 코어 3개)
+// 사용자가 캡쳐해서 준 정보를 그대로 옮겨 적은 것. 데이터 없는 직업은 목록에 있어도 "준비 중"으로 표시된다.
+// ============================================================
+const ARKGRID_SPECIES_TREE = {
+  슈사이어: ["버서커", "디스트로이어", "워로드", "슬레이어", "홀리나이트", "발키리"],
+  실린: ["아르카나", "서머너", "소서리스", "바드"],
+  애니츠: ["배틀마스터", "인파이터", "기공사", "창술사", "스트라이커", "브레이커"],
+  데런: ["블레이드", "데모닉", "리퍼", "소울이터"],
+  아르데타인: ["호크아이", "데빌헌터", "블래스터", "스카우터", "건슬링어"],
+  요즈: ["기상술사", "환수사", "차원술사", "도화가"],
+  가디언나이트: ["가디언나이트"],
+};
+
+function ce(order, name, tag, e10, e14, e17, e20) {
+  return {
+    order,
+    name,
+    tag: tag || null,
+    effects: [
+      { label: "10P", text: e10 },
+      { label: "14P", text: e14 },
+      { label: "17P", text: e17 },
+      { label: "~20P", text: e20 },
+    ],
+  };
+}
+
+const ARKGRID_INFO = {
+  버서커: {
+    광기: {
+      해: [
+        ce(
+          1,
+          "다크 파워",
+          "대세",
+          "다크 러쉬의 피해량이 15.0% 증가한다.",
+          "'운명' 발동 시 '운명: 다크 파워'를 획득한다. '운명: 다크 파워' : 다크 러쉬의 피해량이 40.0% 증가한다. 이 효과는 한 번 사용하면 사라진다.",
+          "'운명: 다크 파워' : 효과가 강화되어, 다크 러쉬가 항상 백 어택이 발생하고 증가되는 피해량이 70.0%(전설·유물) → 77.0%(고대)로 변경된다.",
+          "다크 러쉬의 피해량이 1.5% 증가한다."
+        ),
+        ce(
+          2,
+          "파워드라이브",
+          null,
+          "광기 상태에서 적에게 주는 피해가 1.5% 증가한다.",
+          "'운명' 발동 시 초각성 스킬을 제외한 일반 스킬의 재사용 대기시간이 0.3초 감소하고, 즉시 마나를 5.0% 회복한다.",
+          "'운명' 발동 시 30.0초 동안 최대 3중첩까지 가능한 '운명: 파워드라이브' 효과가 발동한다. '운명: 파워드라이브' : 중첩 당 오버드라이브의 피해량이 20.0%(전설·유물) → 22.0%(고대) 증가한다. 해당 효과는 오버드라이브 사용 시 제거된다.",
+          "광기 상태에서 적에게 주는 피해가 0.15% 증가한다."
+        ),
+        ce(
+          3,
+          "홀드 엣지",
+          null,
+          "홀딩 스킬의 피해량이 6.0% 증가한다.",
+          "'운명' 발동 시 20.0초 동안 '격노' 효과가 발동한다. '격노' : 공격력이 24.0% 증가한다.",
+          "'운명' 발동 시 '운명: 홀드 엣지' 효과를 획득한다. '운명: 홀드 엣지' : 홀딩 스킬의 피해량이 24.0%(전설·유물) → 27.0%(고대) 증가한다. 이 효과는 한 번 사용하면 사라진다.",
+          "홀딩 스킬의 피해량이 0.6% 증가한다."
+        ),
+      ],
+      달: [
+        ce(
+          1,
+          "어둠의 격류",
+          "대세",
+          "다크 러쉬의 재사용 대기시간이 9.0초 증가하지만, 피해량이 80.0% 증가한다.",
+          "레드 더스트 사용 시 '운명'이 발동한다.",
+          "다크 러쉬의 피해량이 50.0%(전설·유물) → 56.0%(고대) 증가한다.",
+          "다크 러쉬의 피해량이 1.5% 증가한다."
+        ),
+        ce(
+          2,
+          "래피드 슬래쉬",
+          null,
+          "더블 슬래쉬의 피해량이 5.0% 증가한다.",
+          "더블 슬래쉬 사용 시 '운명'이 발동한다.",
+          "더블 슬래쉬의 피해량이 8.0%(전설·유물) → 12.0%(고대) 증가하고, 일반 스킬 사용 시 더블 슬래쉬의 재사용 대기시간이 0.2초 감소한다.",
+          "오버드라이브의 피해량이 0.8% 증가한다."
+        ),
+        ce(
+          3,
+          "사이클론 슬래쉬",
+          null,
+          "홀딩 스킬의 피해량이 6.0% 증가한다.",
+          "마운틴 크래셔 사용 시 '운명'이 발동한다.",
+          "휠윈드의 재사용 대기시간이 30.0% 감소하고, 헬 블레이드의 피해량이 15.0%(전설·유물) → 20.0%(고대) 증가한다.",
+          "홀딩 스킬의 피해량이 0.6% 증가한다."
+        ),
+      ],
+      별: [
+        ce(
+          1,
+          "광란",
+          "대세",
+          "다크 러쉬의 시전 속도가 30.0% 증가하고, 레드 더스트의 마나 소모량이 70.0% 감소한다.",
+          "다크 러쉬의 치명타 피해량이 35.0% 증가한다.",
+          "다크 러쉬의 피해량이 20.0%(전설·유물) → 30.0%(고대) 증가한다.",
+          "다크 러쉬의 피해량이 1.5% 증가한다."
+        ),
+        ce(
+          2,
+          "연참",
+          null,
+          "더블 슬래쉬, 오버드라이브의 마나 소모량이 70.0% 감소한다. 또한, 더블 슬래쉬의 시전 속도가 30.0% 증가하고, 오버드라이브의 '돌풍베기' 트라이포드 적용 시 시전 속도가 20.0% 증가한다.",
+          "더블 슬래쉬의 '전진 베기' 트라이포드 적용 시 피해량이 110.0% 증가한다.",
+          "오버드라이브의 치명타 적중률이 10.0% 증가하고, 피해량이 12.0%(전설·유물) → 15.0%(고대) 증가한다.",
+          "오버드라이브의 피해량이 0.8% 증가한다."
+        ),
+        ce(
+          3,
+          "지옥 뒤집기",
+          null,
+          "휠윈드, 헬 블레이드의 시전 속도가 20.0% 증가한다.",
+          "휠윈드의 피해량이 40.0% 증가하고, 이동속도가 30.0% 증가한다.",
+          "헬 블레이드의 '대지 뒤집기' 트라이포드 적용 시 스킬 사용 중 피격 이상 면역 상태가 되고, 피해량이 30.0%(전설·유물) → 36.0%(고대) 증가한다.",
+          "휠윈드의 피해량이 1.6% 증가한다."
+        ),
+      ],
+    },
+    "광전사의 비기": {
+      해: [
+        ce(
+          1,
+          "콤비네이션",
+          "대세",
+          "초각성 스킬을 제외한 일반 스킬의 피해량이 4.0% 증가한다.",
+          "블러디 러쉬의 피해량이 30.0% 감소하지만, 재사용 대기시간이 35.0% 감소한다. '운명' 발동 시마다 파워 브레이크의 재사용 대기시간이 6.0초 감소하고, 마나를 15.0% 회복한다.",
+          "'운명' 발동 시 10.0초 동안 '운명: 콤비네이션' 효과가 발동한다. '운명: 콤비네이션' : 초각성 스킬을 제외한 일반 스킬의 피해량이 14.0%(전설·유물) → 16.0%(고대) 증가한다.",
+          "초각성 스킬을 제외한 일반 스킬의 피해량이 0.4% 증가한다."
+        ),
+        ce(
+          2,
+          "오버 파워",
+          null,
+          "폭주 상태에서 적에게 주는 피해가 1.6% 증가한다.",
+          "'운명' 발동 시 '운명: 파워 웨이브' 효과를 획득한다. '운명: 파워 웨이브' : 오버드라이브의 피해량이 15.0% 증가한다. 이 효과는 한 번 사용하면 사라진다.",
+          "'운명' 발동 시 20.0초 동안 '운명: 오버 파워' 효과를 획득한다. '운명: 오버 파워' : 적에게 주는 피해가 3.5%(전설·유물) → 4.5%(고대) 증가한다.",
+          "폭주 상태에서 적에게 주는 피해가 0.17% 증가한다."
+        ),
+        ce(
+          3,
+          "파워 코어",
+          null,
+          "스킬의 피해량이 1.5% 증가한다.",
+          "'운명' 발동 시 즉시 분노 게이지를 10.0% 획득한다.",
+          "'운명' 발동 시 10.0초 동안 '운명: 파워 코어' 효과가 발동한다. '운명: 파워 코어' : 스킬의 피해량이 2.0%(전설·유물) → 3.0%(고대) 증가한다.",
+          "스킬의 피해량이 0.15% 증가한다."
+        ),
+      ],
+      달: [
+        ce(
+          1,
+          "피의 순환",
+          "대세",
+          "초각성 스킬을 제외한 일반 스킬의 피해량이 4.0% 증가한다.",
+          "블러디 러쉬를 사용하면 '운명'이 발동한다.",
+          "파워 브레이크와 템페스트 슬래쉬 사용 시 초각성 스킬을 제외한 일반 스킬의 재사용 대기시간이 2.0초 감소하고, 초각성 스킬을 제외한 일반 스킬의 피해량이 2.0% 증가한다.",
+          "초각성 스킬을 제외한 일반 스킬의 피해량이 0.4% 증가한다."
+        ),
+        ce(
+          2,
+          "오버 버스트",
+          null,
+          "폭주 상태에서 적에게 주는 피해가 1.6% 증가한다.",
+          "폭주 시 '운명'이 발동한다.",
+          "오버드라이브의 피해량이 30.0%(전설·유물) → 35.0%(고대) 증가하고, 공격 적중 시 4.0초에 한번 오버드라이브의 재사용 대기시간이 3.0초 감소한다.",
+          "폭주 상태에서 적에게 주는 피해가 0.17% 증가한다."
+        ),
+        ce(
+          3,
+          "브레이크 대시",
+          null,
+          "스킬의 피해량이 1.5% 증가한다.",
+          "숄더 차지 사용 시 '운명'이 발동한다.",
+          "윈드 블레이드 사용 시 숄더 차지 재사용 대기시간이 4.0초 감소한다. 블러디 러쉬의 피해량이 2.0% 증가한다.",
+          "스킬의 피해량이 0.15% 증가한다."
+        ),
+      ],
+      별: [
+        ce(
+          1,
+          "분쇄 폭풍",
+          "대세",
+          "파워 브레이크, 템페스트 슬래쉬의 마나 소모량이 70.0% 감소한다.",
+          "파워 브레이크의 피해량이 18.0% 증가한다.",
+          "파워 브레이크의 '소용돌이' 트라이포드 적용 시 피해량이 24.0%(전설·유물) → 27.0%(고대) 증가한다.",
+          "파워 브레이크의 피해량이 0.6% 증가한다."
+        ),
+        ce(
+          2,
+          "오버플로우",
+          null,
+          "오버드라이브의 치명타 적중률이 10.0% 증가한다.",
+          "오버드라이브의 마나 소모량이 50.0% 감소하고 피해량이 15.0% 증가한다.",
+          "오버드라이브의 피해량이 20.0%(전설·유물) → 30.0%(고대) 증가한다.",
+          "오버드라이브의 피해량이 0.8% 증가한다."
+        ),
+        ce(
+          3,
+          "브레이크 아웃",
+          null,
+          "폭주 시 숄더 차지의 재사용 대기시간이 8.0초 감소된다.",
+          "윈드 블레이드의 재사용 대기시간이 30.0% 감소하고, 마나 소모량이 70.0% 감소한다.",
+          "헬 블레이드의 재사용 대기시간이 50.0% 증가하지만, 마나 소모량이 70.0% 감소하고 피해량이 30.0%(전설·유물) → 35.0%(고대) 증가한다.",
+          "헬 블레이드의 피해량이 1.6% 증가한다."
+        ),
+      ],
+    },
+  },
+};
+
 // 가디언 토벌(잔영) 주간 로테이션: 정해진 순서를 매주 수요일 오전 6시(KST)마다 한 칸씩 이동한다.
 // 기준점: 2026-07-29(수) 06:00 KST = "아카테스" 주간 (사용자 확인 기준).
 const GUARDIAN_ROTATION = [
@@ -751,6 +962,11 @@ function RaidBoard() {
   const hasLoggedAccessRef = useRef(false);
   const [showAccessLog, setShowAccessLog] = useState(false);
   const [accessLogEntries, setAccessLogEntries] = useState([]);
+  const [showArkgridInfo, setShowArkgridInfo] = useState(false);
+  const [arkgridSpecies, setArkgridSpecies] = useState(null);
+  const [arkgridClass, setArkgridClass] = useState(null);
+  const [arkgridBuild, setArkgridBuild] = useState(null);
+  const [arkgridOpenCores, setArkgridOpenCores] = useState({});
   if (!sessionIdRef.current) {
     try {
       let sid = localStorage.getItem("raidboard-session-id");
@@ -1529,6 +1745,34 @@ function RaidBoard() {
     return "#8b93a7";
   }
 
+  // 아크그리드 정보 사전 텍스트 안의 "(전설·유물)" / "(고대)" 같은 등급 표기에 등급 색을 입힌다.
+  function renderGradedText(text) {
+    const re = /\(((?:전설|유물|고대)(?:·(?:전설|유물|고대))*)\)/g;
+    const parts = [];
+    let last = 0;
+    let m;
+    let i = 0;
+    while ((m = re.exec(text))) {
+      if (m.index > last) parts.push(text.slice(last, m.index));
+      const grades = m[1].split("·");
+      parts.push(
+        <span key={i++}>
+          (
+          {grades.map((g, gi) => (
+            <React.Fragment key={gi}>
+              {gi > 0 && "·"}
+              <span style={{ color: gradeColor(g), fontWeight: 700 }}>{g}</span>
+            </React.Fragment>
+          ))}
+          )
+        </span>
+      );
+      last = re.lastIndex;
+    }
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  }
+
   // 아크그리드 코어/젬의 Tooltip 필드는 JSON 문자열이라 한 번 더 파싱이 필요하다.
   function parseTooltipJson(t) {
     if (typeof t !== "string") return null;
@@ -1724,14 +1968,20 @@ function RaidBoard() {
         <button style={styles.auctionCalcBtn} onClick={() => setShowSynergy(true)}>
           [직업시너지]
         </button>
-        <a
-          href="https://loaguard.com/arkgrid-cores/"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ ...styles.auctionCalcBtn, textDecoration: "none", display: "inline-block" }}
+        <button
+          style={styles.auctionCalcBtn}
+          onClick={() => {
+            setShowArkgridInfo(true);
+            if (!arkgridSpecies) {
+              const firstSpecies = Object.keys(ARKGRID_SPECIES_TREE)[0];
+              setArkgridSpecies(firstSpecies);
+              setArkgridClass(ARKGRID_SPECIES_TREE[firstSpecies][0]);
+              setArkgridBuild(null);
+            }
+          }}
         >
           [아크그리드 정보]
-        </a>
+        </button>
       </div>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18 }}>
@@ -2948,6 +3198,158 @@ function RaidBoard() {
                     <span style={{ color: "#5f6577" }}>{new Date(e.time).toLocaleString("ko-KR")}</span>
                   </div>
                 ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showArkgridInfo && (
+        <div style={styles.modalOverlay} onClick={() => setShowArkgridInfo(false)}>
+          <div style={{ ...styles.modalPanel, maxWidth: 900 }} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalTitle}>아크그리드 정보</div>
+              <button style={styles.modalClose} onClick={() => setShowArkgridInfo(false)}>
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: "0 20px 20px" }}>
+              {Object.keys(ARKGRID_SPECIES_TREE).map((sp) => (
+                <button
+                  key={sp}
+                  style={{
+                    ...styles.debugToggleBtn,
+                    marginRight: 6,
+                    marginBottom: 6,
+                    ...(arkgridSpecies === sp ? { borderColor: "#d9a94e", color: "#d9a94e" } : {}),
+                  }}
+                  onClick={() => {
+                    setArkgridSpecies(sp);
+                    setArkgridClass(ARKGRID_SPECIES_TREE[sp][0]);
+                    setArkgridBuild(null);
+                  }}
+                >
+                  {sp}
+                </button>
+              ))}
+              <div style={{ borderTop: "1px solid #262d3d", margin: "8px 0 10px" }} />
+              {arkgridSpecies &&
+                ARKGRID_SPECIES_TREE[arkgridSpecies].map((cls) => (
+                  <button
+                    key={cls}
+                    style={{
+                      ...styles.debugToggleBtn,
+                      marginRight: 6,
+                      marginBottom: 6,
+                      ...(arkgridClass === cls ? { borderColor: "#4fa8e0", color: "#4fa8e0" } : {}),
+                    }}
+                    onClick={() => {
+                      setArkgridClass(cls);
+                      setArkgridBuild(null);
+                    }}
+                  >
+                    {cls}
+                  </button>
+                ))}
+              <div style={{ borderTop: "1px solid #262d3d", margin: "8px 0 14px" }} />
+
+              {arkgridClass && ARKGRID_INFO[arkgridClass] ? (
+                (() => {
+                  const builds = ARKGRID_INFO[arkgridClass];
+                  const buildKeys = Object.keys(builds);
+                  const activeBuild = arkgridBuild && builds[arkgridBuild] ? arkgridBuild : buildKeys[0];
+                  const rows = builds[activeBuild];
+                  const slots = ["해", "달", "별"];
+                  const setCount = Math.max(...slots.map((s) => (rows[s] ? rows[s].length : 0)));
+                  return (
+                    <>
+                      {buildKeys.length > 1 && (
+                        <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                          {buildKeys.map((bk) => (
+                            <button
+                              key={bk}
+                              style={{
+                                ...styles.debugToggleBtn,
+                                ...(activeBuild === bk ? { borderColor: "#d9a94e", color: "#d9a94e" } : {}),
+                              }}
+                              onClick={() => setArkgridBuild(bk)}
+                            >
+                              {bk}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ display: "grid", gridTemplateColumns: `repeat(${setCount}, 1fr)`, gap: 8 }}>
+                        {Array.from({ length: setCount }).map((_, colIdx) => (
+                          <div key={colIdx} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, color: "#5f6577", textAlign: "center" }}>
+                              세트 {colIdx + 1}
+                            </div>
+                            {slots.map((slot) => {
+                              const core = rows[slot] && rows[slot][colIdx];
+                              if (!core) return <div key={slot} />;
+                              const key = `${arkgridClass}-${activeBuild}-${slot}-${colIdx}`;
+                              const isOpen = !!arkgridOpenCores[key];
+                              return (
+                                <div
+                                  key={slot}
+                                  style={{
+                                    border: "1px solid #262d3d",
+                                    borderRadius: 8,
+                                    padding: "8px 8px",
+                                  }}
+                                >
+                                  <div
+                                    style={{ cursor: "pointer" }}
+                                    onClick={() =>
+                                      setArkgridOpenCores((prev) => ({ ...prev, [key]: !prev[key] }))
+                                    }
+                                  >
+                                    <div style={{ fontSize: 10, color: "#5f6577", marginBottom: 2 }}>{slot} 코어</div>
+                                    <div style={{ fontSize: 12, fontWeight: 700 }}>
+                                      <span style={{ color: "#e8ebf0" }}>{core.name}</span>
+                                      {core.tag && (
+                                        <span
+                                          style={{
+                                            marginLeft: 5,
+                                            fontSize: 9,
+                                            color: "#0f1219",
+                                            background: "#d9a94e",
+                                            borderRadius: 4,
+                                            padding: "1px 4px",
+                                          }}
+                                        >
+                                          {core.tag}
+                                        </span>
+                                      )}
+                                      <span style={{ float: "right", color: "#5f6577", fontWeight: 400 }}>
+                                        {isOpen ? "▴" : "▾"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {isOpen && (
+                                    <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid #1c212c" }}>
+                                      {core.effects.map((ef, ei) => (
+                                        <div key={ei} style={{ fontSize: 10, color: "#c8cddb", padding: "2px 0" }}>
+                                          <span style={{ color: "#5ec9e8", fontWeight: 700 }}>{ef.label}</span>{" "}
+                                          {renderGradedText(ef.text)}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  );
+                })()
+              ) : (
+                <div style={styles.emptyHint}>
+                  이 직업은 아직 데이터가 없습니다. 스크린샷 주시면 추가해드릴게요.
+                </div>
               )}
             </div>
           </div>
