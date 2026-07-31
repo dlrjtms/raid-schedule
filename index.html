@@ -5511,7 +5511,8 @@ const ARKGRID_INFO = {
 };
 
 const ARKGRID_COMMON_INFO = {
-  혼돈: {
+  공용: {
+    혼돈: {
     해: [
       ce(
         1,
@@ -5680,6 +5681,7 @@ const ARKGRID_COMMON_INFO = {
         "물리 및 마법 방어력이 250 증가한다."
       ),
     ],
+  },
   },
 };
 
@@ -8643,11 +8645,11 @@ function RaidBoard() {
                   ...styles.debugToggleBtn,
                   marginRight: 6,
                   marginBottom: 6,
-                  ...(arkgridClass === "혼돈" && !arkgridSpecies ? { borderColor: "#d9a94e", color: "#d9a94e" } : {}),
+                  ...(arkgridClass === "공용" && !arkgridSpecies ? { borderColor: "#d9a94e", color: "#d9a94e" } : {}),
                 }}
                 onClick={() => {
                   setArkgridSpecies(null);
-                  setArkgridClass("혼돈");
+                  setArkgridClass("공용");
                   setArkgridBuild(null);
                 }}
               >
