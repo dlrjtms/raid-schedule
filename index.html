@@ -1796,7 +1796,9 @@ function RaidBoard() {
           </div>
 
           <div style={styles.panel}>
-            <div style={styles.panelTitle}>레이드 지원 요청 (최근 {BOARD_MAX}개만 유지)</div>
+            <div style={styles.panelTitle}>
+              레이드 모집 <span style={{ fontSize: 12, fontWeight: 400, color: "#5f6577" }}>(최근 {BOARD_MAX}개만 유지)</span>
+            </div>
             {boardPosts.length === 0 ? (
               <div style={styles.emptyHint}>등록된 요청이 없습니다.</div>
             ) : (
