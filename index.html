@@ -5952,6 +5952,7 @@ function RaidBoard() {
                     key={cls}
                     style={{
                       ...styles.debugToggleBtn,
+                      marginLeft: 0,
                       marginRight: 6,
                       marginBottom: 6,
                       ...(arkgridClass === cls ? { borderColor: "#4fa8e0", color: "#4fa8e0" } : {}),
@@ -5964,7 +5965,6 @@ function RaidBoard() {
                     {cls}
                   </button>
                 ))}
-              <div style={{ borderTop: "1px solid #262d3d", margin: "8px 0 14px" }} />
 
               {arkgridClass && ARKGRID_INFO[arkgridClass] ? (
                 (() => {
@@ -5977,12 +5977,13 @@ function RaidBoard() {
                   return (
                     <>
                       {buildKeys.length > 1 && (
-                        <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+                        <div style={{ display: "flex", gap: 6, marginBottom: 4, flexWrap: "wrap" }}>
                           {buildKeys.map((bk) => (
                             <button
                               key={bk}
                               style={{
                                 ...styles.debugToggleBtn,
+                                marginLeft: 0,
                                 ...(activeBuild === bk ? { borderColor: "#d9a94e", color: "#d9a94e" } : {}),
                               }}
                               onClick={() => setArkgridBuild(bk)}
@@ -5992,6 +5993,7 @@ function RaidBoard() {
                           ))}
                         </div>
                       )}
+                      <div style={{ borderTop: "1px solid #262d3d", margin: "10px 0 14px" }} />
                       <div
                         style={{
                           display: "grid",
