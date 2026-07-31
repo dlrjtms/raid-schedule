@@ -748,6 +748,9 @@ function RaidBoard() {
   const [userSearch, setUserSearch] = useState("");
   const [selectedRaid, setSelectedRaid] = useState(null);
   const sessionIdRef = useRef(null);
+  const hasLoggedAccessRef = useRef(false);
+  const [showAccessLog, setShowAccessLog] = useState(false);
+  const [accessLogEntries, setAccessLogEntries] = useState([]);
   if (!sessionIdRef.current) {
     try {
       let sid = localStorage.getItem("raidboard-session-id");
@@ -950,6 +953,29 @@ function RaidBoard() {
     // 한 번 더 채워지도록 !!loggedIn을 의존성에 포함한다.
   }, [loggedInId, !!loggedIn]);
 
+  // 접속 기록(관리자 전용)에 한 줄을 추가한다. 최근 200건만 유지.
+  async function logAccess(entry) {
+    try {
+      const r = await window.storage.get("meta:accessLog", true).catch(() => null);
+      const current = r && r.value ? JSON.parse(r.value) : { log: [] };
+      const log = Array.isArray(current.log) ? current.log : [];
+      const updated = [...log, entry].slice(-200);
+      await window.storage.set("meta:accessLog", JSON.stringify({ log: updated }), true);
+    } catch (e) {}
+  }
+
+  async function openAccessLog() {
+    setShowAccessLog(true);
+    try {
+      const r = await window.storage.get("meta:accessLog", true).catch(() => null);
+      const current = r && r.value ? JSON.parse(r.value) : { log: [] };
+      const log = Array.isArray(current.log) ? current.log : [];
+      setAccessLogEntries([...log].reverse());
+    } catch (e) {
+      setAccessLogEntries([]);
+    }
+  }
+
   // 내 접속 상태를 주기적으로 기록 (하트비트) - 관리자 모드일 땐 숨김
   useEffect(() => {
     if (isAdmin) {
@@ -962,6 +988,11 @@ function RaidBoard() {
     try {
       remembered = localStorage.getItem("raidboard-known-name");
     } catch (e) {}
+    // 회원 목록이 로드된(이름을 정확히 알 수 있는) 시점에 세션당 한 번만 접속 기록을 남긴다.
+    if (!hasLoggedAccessRef.current && members.length > 0) {
+      hasLoggedAccessRef.current = true;
+      logAccess({ time: Date.now(), name: myName, remembered });
+    }
     async function beat() {
       try {
         await window.storage.set(
@@ -1898,6 +1929,9 @@ function RaidBoard() {
             {isAdmin ? (
               <div style={styles.adminBadgeRow}>
                 <span style={styles.adminBadge}>관리자 모드</span>
+                <button style={styles.ghostBtnSmall} onClick={openAccessLog}>
+                  접속 기록
+                </button>
                 <button style={styles.ghostBtnSmall} onClick={logoutAdmin}>
                   관리자 로그아웃
                 </button>
@@ -2880,6 +2914,42 @@ function RaidBoard() {
                 )}
               </>
             ) : null}
+          </div>
+        </div>
+      )}
+
+      {showAccessLog && (
+        <div style={styles.modalOverlay} onClick={() => setShowAccessLog(false)}>
+          <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalTitle}>접속 기록 (최근 200건)</div>
+              <button style={styles.modalClose} onClick={() => setShowAccessLog(false)}>
+                ✕
+              </button>
+            </div>
+            <div style={{ padding: "0 20px 20px" }}>
+              {accessLogEntries.length === 0 ? (
+                <div style={styles.emptyHint}>기록이 없습니다.</div>
+              ) : (
+                accessLogEntries.map((e, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 12,
+                      padding: "4px 0",
+                      borderBottom: "1px solid #1c212c",
+                    }}
+                  >
+                    <span style={{ color: e.name ? "#e8ebf0" : e.remembered ? "#8b93a7" : "#5f6577" }}>
+                      {e.name ? e.name : e.remembered ? `추정: ${e.remembered}` : "익명"}
+                    </span>
+                    <span style={{ color: "#5f6577" }}>{new Date(e.time).toLocaleString("ko-KR")}</span>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}
