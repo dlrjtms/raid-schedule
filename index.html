@@ -6207,6 +6207,197 @@ const RAID_REWARDS = [
   { name: "베히모스", level: 1640, gates: "2관문", gold: 7200, extra: 2350 },
 ];
 
+// 레이드 관문별 상세 보상 (사용자가 캡쳐해서 준 정보를 그대로 옮겨 적은 것)
+// 재료: destiny=운명의 파편, destruction=운명의 파괴석(획득 보상)/운명의 파괴석 결정(더보기),
+// guardian=운명의 수호석(획득 보상)/운명의 수호석 결정(더보기), breakthrough=운명의 돌파석(획득 보상)/운명의 돌파석 결정(더보기),
+// grace=은총의 파편(지평의 성당 전용). thorn=세르카 하드/나이트메어 전용 재료(고통의 가시).
+const RAID_REWARD_DETAILS = {
+  "4막 하드": {
+    label: "4막 : 파멸의 성채 · 하드",
+    gates: [
+      {
+        gate: "1관문",
+        trade: 13500,
+        base: { destiny: 6800, destruction: 980, guardian: 1960, breakthrough: 11 },
+        extra: { pay: 4320, destiny: 14250, destruction: 1680, guardian: 3360, breakthrough: 53 },
+      },
+      {
+        gate: "2관문",
+        trade: 24500,
+        base: { destiny: 8600, destruction: 1150, guardian: 2300, breakthrough: 16 },
+        extra: { pay: 7840, destiny: 24200, destruction: 2880, guardian: 5760, breakthrough: 94 },
+      },
+    ],
+  },
+  "4막 노말": {
+    label: "4막 : 파멸의 성채 · 노말",
+    gates: [
+      {
+        gate: "1관문",
+        trade: 5000,
+        bound: 5000,
+        base: { destiny: 5400, destruction: 820, guardian: 1640, breakthrough: 9 },
+        extra: { pay: 3200, destiny: 11880, destruction: 1400, guardian: 2800, breakthrough: 44 },
+      },
+      {
+        gate: "2관문",
+        trade: 8500,
+        bound: 8500,
+        base: { destiny: 6800, destruction: 960, guardian: 1920, breakthrough: 12 },
+        extra: { pay: 5440, destiny: 20160, destruction: 2400, guardian: 4800, breakthrough: 78 },
+      },
+    ],
+  },
+  "종막 하드": {
+    label: "종막 : 최후의 날 · 하드",
+    gates: [
+      {
+        gate: "1관문",
+        trade: 16000,
+        base: { destiny: 8300, destruction: 385, guardian: 770, breakthrough: 7 },
+        extra: { pay: 5120, destiny: 17500, destruction: 750, guardian: 1500, breakthrough: 30 },
+      },
+      {
+        gate: "2관문",
+        trade: 32000,
+        base: { destiny: 10100, destruction: 475, guardian: 950, breakthrough: 10 },
+        extra: { pay: 10240, destiny: 29800, destruction: 1320, guardian: 2640, breakthrough: 50 },
+      },
+    ],
+  },
+  "종막 노말": {
+    label: "종막 : 최후의 날 · 노말",
+    gates: [
+      {
+        gate: "1관문",
+        trade: 5500,
+        bound: 5500,
+        base: { destiny: 6200, destruction: 880, guardian: 1760, breakthrough: 12 },
+        extra: { pay: 3520, destiny: 13650, destruction: 1610, guardian: 3220, breakthrough: 50 },
+      },
+      {
+        gate: "2관문",
+        trade: 10500,
+        bound: 10500,
+        base: { destiny: 7900, destruction: 1100, guardian: 2200, breakthrough: 15 },
+        extra: { pay: 6720, destiny: 23200, destruction: 2760, guardian: 5520, breakthrough: 90 },
+      },
+    ],
+  },
+  "세르카 노말": {
+    label: "고통의 마녀, 세르카 · 노말",
+    gates: [
+      {
+        gate: "1관문",
+        trade: 6500,
+        bound: 6500,
+        base: { destiny: 6200, destruction: 880, guardian: 1760, breakthrough: 12 },
+        extra: { pay: 4160, destiny: 13650, destruction: 1610, guardian: 3220, breakthrough: 50 },
+      },
+      {
+        gate: "2관문",
+        trade: 9500,
+        bound: 9500,
+        base: { destiny: 7900, destruction: 1100, guardian: 2200, breakthrough: 15 },
+        extra: { pay: 6080, destiny: 20880, destruction: 2480, guardian: 4960, breakthrough: 82 },
+      },
+    ],
+  },
+  "세르카 하드": {
+    label: "고통의 마녀, 세르카 · 하드",
+    gates: [
+      {
+        gate: "1관문",
+        trade: 17500,
+        base: { destiny: 8300, destruction: 385, guardian: 770, breakthrough: 7, thorn: 10 },
+        extra: { pay: 5600, destiny: 17500, destruction: 750, guardian: 1500, breakthrough: 30, thorn: 10 },
+      },
+      {
+        gate: "2관문",
+        trade: 26500,
+        base: { destiny: 10100, destruction: 475, guardian: 950, breakthrough: 10, thorn: 15 },
+        extra: { pay: 8480, destiny: 26820, destruction: 1130, guardian: 2260, breakthrough: 45, thorn: 15 },
+      },
+    ],
+  },
+  "세르카 나메": {
+    label: "고통의 마녀, 세르카 · 나이트메어",
+    gates: [
+      {
+        gate: "1관문",
+        trade: 21000,
+        base: { destiny: 9100, destruction: 405, guardian: 810, breakthrough: 8, thorn: 10 },
+        extra: { pay: 6720, destiny: 19000, destruction: 860, guardian: 1720, breakthrough: 36, thorn: 10 },
+      },
+      {
+        gate: "2관문",
+        trade: 33000,
+        base: { destiny: 11000, destruction: 500, guardian: 1000, breakthrough: 12, thorn: 15 },
+        extra: { pay: 10560, destiny: 32200, destruction: 1430, guardian: 2860, breakthrough: 60, thorn: 15 },
+      },
+    ],
+  },
+  "성당 1단계": {
+    label: "지평의 성당 · 1단계",
+    gates: [
+      {
+        gate: "1관문",
+        bound: 13500,
+        base: { destiny: 5400, destruction: 820, guardian: 1640, breakthrough: 9, grace: 4 },
+        extra: { pay: 4320, destiny: 11800, destruction: 1400, guardian: 2800, breakthrough: 44, grace: 4 },
+      },
+      {
+        gate: "2관문",
+        bound: 16500,
+        base: { destiny: 6800, destruction: 960, guardian: 1920, breakthrough: 12, grace: 6 },
+        extra: { pay: 5280, destiny: 20160, destruction: 2400, guardian: 4800, breakthrough: 78, grace: 6 },
+      },
+    ],
+  },
+  "성당 2단계": {
+    label: "지평의 성당 · 2단계",
+    gates: [
+      {
+        gate: "1관문",
+        bound: 16000,
+        base: { destiny: 6800, destruction: 980, guardian: 1960, breakthrough: 11, grace: 12 },
+        extra: { pay: 5120, destiny: 14250, destruction: 1680, guardian: 3360, breakthrough: 53, grace: 12 },
+      },
+      {
+        gate: "2관문",
+        bound: 24000,
+        base: { destiny: 8600, destruction: 1150, guardian: 2300, breakthrough: 16, grace: 18 },
+        extra: { pay: 7680, destiny: 24200, destruction: 2880, guardian: 5760, breakthrough: 94, grace: 18 },
+      },
+    ],
+  },
+  "성당 3단계": {
+    label: "지평의 성당 · 3단계",
+    gates: [
+      {
+        gate: "1관문",
+        bound: 20000,
+        base: { destiny: 9100, destruction: 405, guardian: 810, breakthrough: 8, grace: 24 },
+        extra: { pay: 6400, destiny: 19000, destruction: 860, guardian: 1720, breakthrough: 36, grace: 24 },
+      },
+      {
+        gate: "2관문",
+        bound: 30000,
+        base: { destiny: 11000, destruction: 500, guardian: 1000, breakthrough: 12, grace: 36 },
+        extra: { pay: 9600, destiny: 32200, destruction: 1430, guardian: 2860, breakthrough: 60, grace: 36 },
+      },
+    ],
+  },
+};
+const REWARD_MAT_LABELS = {
+  destiny: { base: "운명의 파편", extra: "운명의 파편", color: "#e05fa8" },
+  destruction: { base: "운명의 파괴석", extra: "운명의 파괴석 결정", color: "#e2593f" },
+  guardian: { base: "운명의 수호석", extra: "운명의 수호석 결정", color: "#4fa8e0" },
+  breakthrough: { base: "운명의 돌파석", extra: "운명의 돌파석 결정", color: "#e0529c" },
+  grace: { base: "은총의 파편", extra: "은총의 파편", color: "#d9a94e" },
+  thorn: { base: "고통의 가시", extra: "고통의 가시", color: "#c85f5f" },
+};
+
 // 직업 시너지 (그룹은 원본 정리 순서를 그대로 구분선으로 유지)
 const SYNERGY_GLOSSARY = {
   방깎: "방어력 감소",
@@ -6353,6 +6544,7 @@ function RaidBoard() {
   const [auctionCopied, setAuctionCopied] = useState(null);
   const [showCheatSheet, setShowCheatSheet] = useState(false);
   const [showRaidRewards, setShowRaidRewards] = useState(false);
+  const [raidRewardOpen, setRaidRewardOpen] = useState({});
   const [showSynergy, setShowSynergy] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [selectedRaid, setSelectedRaid] = useState(null);
@@ -8218,19 +8410,89 @@ function RaidBoard() {
                 <span>총 클리어 골드</span>
                 <span>총 더보기 비용</span>
               </div>
-              {RAID_REWARDS.map((r, i) => (
-                <div key={i} style={styles.rewardRow}>
-                  <span style={{ color: "#e8ebf0" }}>{r.name}</span>
-                  <span className="rb-num">{r.level}</span>
-                  <span>{r.gates}</span>
-                  <span className="rb-num" style={{ color: "#d9a94e" }}>
-                    {r.gold.toLocaleString("ko-KR")}
-                  </span>
-                  <span className="rb-num" style={{ color: "#8b93a7" }}>
-                    {r.extra.toLocaleString("ko-KR")}
-                  </span>
-                </div>
-              ))}
+              {RAID_REWARDS.map((r, i) => {
+                const detail = RAID_REWARD_DETAILS[r.name];
+                const isOpen = !!raidRewardOpen[r.name];
+                return (
+                  <React.Fragment key={i}>
+                    <div
+                      style={{ ...styles.rewardRow, cursor: detail ? "pointer" : "default" }}
+                      onClick={() =>
+                        detail && setRaidRewardOpen((prev) => ({ ...prev, [r.name]: !prev[r.name] }))
+                      }
+                    >
+                      <span style={{ color: "#e8ebf0" }}>
+                        {r.name}
+                        {detail && (
+                          <span style={{ marginLeft: 5, fontSize: 10, color: "#5f6577" }}>{isOpen ? "▲" : "▼"}</span>
+                        )}
+                      </span>
+                      <span className="rb-num">{r.level}</span>
+                      <span>{r.gates}</span>
+                      <span className="rb-num" style={{ color: "#d9a94e" }}>
+                        {r.gold.toLocaleString("ko-KR")}
+                      </span>
+                      <span className="rb-num" style={{ color: "#8b93a7" }}>
+                        {r.extra.toLocaleString("ko-KR")}
+                      </span>
+                    </div>
+                    {isOpen && detail && (
+                      <div style={{ padding: "6px 2px 14px", borderBottom: "1px solid #1e2430", minWidth: 480 }}>
+                        {detail.gates.map((g, gi) => (
+                          <div
+                            key={gi}
+                            style={{
+                              marginBottom: gi < detail.gates.length - 1 ? 10 : 0,
+                              border: "1px solid #262d3d",
+                              borderRadius: 8,
+                              padding: "8px 10px",
+                            }}
+                          >
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#d9a94e", marginBottom: 6 }}>
+                              {g.gate}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#8b93a7", marginBottom: 3 }}>
+                              획득 보상
+                              {g.trade != null && (
+                                <span style={{ color: "#e8ebf0" }}> · 거래 {g.trade.toLocaleString("ko-KR")}G</span>
+                              )}
+                              {g.bound != null && (
+                                <span style={{ color: "#e8ebf0" }}> · 귀속 {g.bound.toLocaleString("ko-KR")}G</span>
+                              )}
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: 11, marginBottom: 8 }}>
+                              {Object.entries(g.base).map(([k, v]) => (
+                                <span key={k}>
+                                  <span style={{ color: REWARD_MAT_LABELS[k].color, fontWeight: 700 }}>
+                                    {REWARD_MAT_LABELS[k].base}
+                                  </span>{" "}
+                                  <span style={{ color: "#e8ebf0" }}>{v.toLocaleString("ko-KR")}</span>
+                                </span>
+                              ))}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#8b93a7", marginBottom: 3 }}>
+                              더보기
+                              <span style={{ color: "#e8ebf0" }}> · 지불 {g.extra.pay.toLocaleString("ko-KR")}G</span>
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "3px 12px", fontSize: 11 }}>
+                              {Object.entries(g.extra)
+                                .filter(([k]) => k !== "pay")
+                                .map(([k, v]) => (
+                                  <span key={k}>
+                                    <span style={{ color: REWARD_MAT_LABELS[k].color, fontWeight: 700 }}>
+                                      {REWARD_MAT_LABELS[k].extra}
+                                    </span>{" "}
+                                    <span style={{ color: "#e8ebf0" }}>{v.toLocaleString("ko-KR")}</span>
+                                  </span>
+                                ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
         </div>
