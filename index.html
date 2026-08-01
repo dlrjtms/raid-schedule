@@ -7285,6 +7285,35 @@ function RaidBoard() {
     }
   }
 
+  // 대표 캐릭터 이름 하나로 원정대 전체(레벨/전투력/특성 포함)를 불러온다.
+  async function fetchRosterChars(repName) {
+    const list = await safeFetchJson("siblings", repName);
+    if (!Array.isArray(list) || list.length === 0) return [];
+    const sorted = [...list].sort(
+      (a, b) =>
+        (parseFloat(String(b.ItemAvgLevel || "0").replace(/,/g, "")) || 0) -
+        (parseFloat(String(a.ItemAvgLevel || "0").replace(/,/g, "")) || 0)
+    );
+    return Promise.all(
+      sorted.map(async (c) => {
+        const name = c.CharacterName;
+        const level = parseFloat(String(c.ItemAvgLevel || "0").replace(/,/g, "")) || 0;
+        const className = c.CharacterClassName;
+        try {
+          const [profile, arkpassive] = await Promise.all([
+            safeFetchJson("profile", name),
+            safeFetchJson("arkpassive", name),
+          ]);
+          const combatPower =
+            profile && profile.CombatPower ? parseFloat(String(profile.CombatPower).replace(/,/g, "")) : null;
+          return { name, className, level, combatPower, spec: extractSpecName(arkpassive) };
+        } catch (e) {
+          return { name, className, level, combatPower: null, spec: null };
+        }
+      })
+    );
+  }
+
   // "정보" 버튼: 등록된 6슬롯이 아니라 실제 로스트아크 원정대 전체 캐릭터를 불러와 보여준다.
   async function openRosterView(m) {
     setRosterView(m);
@@ -7296,37 +7325,25 @@ function RaidBoard() {
       return;
     }
     try {
-      const list = await safeFetchJson("siblings", repChar.name);
-      if (!Array.isArray(list) || list.length === 0) {
-        setRosterLoading(false);
-        return;
-      }
-      const sorted = [...list].sort(
-        (a, b) =>
-          (parseFloat(String(b.ItemAvgLevel || "0").replace(/,/g, "")) || 0) -
-          (parseFloat(String(a.ItemAvgLevel || "0").replace(/,/g, "")) || 0)
-      );
-      const withExtra = await Promise.all(
-        sorted.map(async (c) => {
-          const name = c.CharacterName;
-          const level = parseFloat(String(c.ItemAvgLevel || "0").replace(/,/g, "")) || 0;
-          const className = c.CharacterClassName;
-          try {
-            const [profile, arkpassive] = await Promise.all([
-              safeFetchJson("profile", name),
-              safeFetchJson("arkpassive", name),
-            ]);
-            const combatPower =
-              profile && profile.CombatPower ? parseFloat(String(profile.CombatPower).replace(/,/g, "")) : null;
-            return { name, className, level, combatPower, spec: extractSpecName(arkpassive) };
-          } catch (e) {
-            return { name, className, level, combatPower: null, spec: null };
-          }
-        })
-      );
-      setRosterChars(withExtra);
+      setRosterChars(await fetchRosterChars(repChar.name));
     } catch (e) {
       // 조용히 실패 — 목록이 비어있는 채로 남는다.
+    } finally {
+      setRosterLoading(false);
+    }
+  }
+
+  // 캐릭터 상세보기에서 "원정대로 돌아가기": 지금 보고 있는 캐릭터를 대표로 삼아 원정대 요약을 다시 연다.
+  async function backToRosterFromDetail() {
+    const repName = detailFor;
+    closeDetail();
+    setRosterView({ id: repName, characters: [{ name: repName }] });
+    setRosterChars([]);
+    setRosterLoading(true);
+    try {
+      setRosterChars(await fetchRosterChars(repName));
+    } catch (e) {
+      // 조용히 실패
     } finally {
       setRosterLoading(false);
     }
@@ -8747,6 +8764,11 @@ function RaidBoard() {
             <div style={styles.modalHeader}>
               <div style={styles.modalTitle}>{detailFor}</div>
               <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {detailMemberChars && detailMemberChars.length > 1 && (
+                  <button style={styles.ghostBtnSmall} onClick={backToRosterFromDetail}>
+                    ← 원정대로 돌아가기
+                  </button>
+                )}
                 <button
                   style={styles.refreshBtn}
                   onClick={() => openDetail(detailFor, detailMemberChars)}
@@ -8759,23 +8781,6 @@ function RaidBoard() {
                 </button>
               </div>
             </div>
-
-            {detailMemberChars && detailMemberChars.length > 1 && (
-              <div style={styles.charSwitchRow}>
-                {detailMemberChars.map((c) => (
-                  <button
-                    key={c.id}
-                    style={{
-                      ...styles.charSwitchBtn,
-                      ...(c.name === detailFor ? styles.charSwitchBtnActive : {}),
-                    }}
-                    onClick={() => openDetail(c.name, detailMemberChars)}
-                  >
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            )}
 
             {detailLoading ? (
               <div style={styles.emptyHint}>불러오는 중...</div>
