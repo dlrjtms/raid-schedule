@@ -6534,8 +6534,8 @@ function RaidBoard() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState("");
   const [rosterView, setRosterView] = useState(null);
-  const [rosterSpecCache, setRosterSpecCache] = useState({});
-  const [rosterCaptionDraft, setRosterCaptionDraft] = useState({});
+  const [rosterChars, setRosterChars] = useState([]);
+  const [rosterLoading, setRosterLoading] = useState(false);
   const [debugOpenIdx, setDebugOpenIdx] = useState(null);
   const [debugEngravingOpen, setDebugEngravingOpen] = useState(false);
   const [debugArkPassiveOpen, setDebugArkPassiveOpen] = useState(false);
@@ -7227,46 +7227,56 @@ function RaidBoard() {
     }
   }
 
-  function openRosterView(m) {
+  // "정보" 버튼: 등록된 6슬롯이 아니라 실제 로스트아크 원정대 전체 캐릭터를 불러와 보여준다.
+  async function openRosterView(m) {
     setRosterView(m);
+    setRosterChars([]);
+    setRosterLoading(true);
+    const repChar = (m.characters || []).find(Boolean);
+    if (!repChar) {
+      setRosterLoading(false);
+      return;
+    }
+    try {
+      const list = await safeFetchJson("siblings", repChar.name);
+      if (!Array.isArray(list) || list.length === 0) {
+        setRosterLoading(false);
+        return;
+      }
+      const sorted = [...list].sort(
+        (a, b) =>
+          (parseFloat(String(b.ItemAvgLevel || "0").replace(/,/g, "")) || 0) -
+          (parseFloat(String(a.ItemAvgLevel || "0").replace(/,/g, "")) || 0)
+      );
+      const withExtra = await Promise.all(
+        sorted.map(async (c) => {
+          const name = c.CharacterName;
+          const level = parseFloat(String(c.ItemAvgLevel || "0").replace(/,/g, "")) || 0;
+          const className = c.CharacterClassName;
+          try {
+            const [profile, arkpassive] = await Promise.all([
+              safeFetchJson("profile", name),
+              safeFetchJson("arkpassive", name),
+            ]);
+            const combatPower =
+              profile && profile.CombatPower ? parseFloat(String(profile.CombatPower).replace(/,/g, "")) : null;
+            return { name, className, level, combatPower, spec: extractSpecName(arkpassive) };
+          } catch (e) {
+            return { name, className, level, combatPower: null, spec: null };
+          }
+        })
+      );
+      setRosterChars(withExtra);
+    } catch (e) {
+      // 조용히 실패 — 목록이 비어있는 채로 남는다.
+    } finally {
+      setRosterLoading(false);
+    }
   }
 
   function closeRosterView() {
     setRosterView(null);
-  }
-
-  // 원정대 요약 뷰가 열리면, 아직 캐시에 없는 캐릭터들의 특성(아크패시브) 이름만 따로 불러온다.
-  useEffect(() => {
-    if (!rosterView) return;
-    const chars = (rosterView.characters || []).filter(Boolean);
-    const need = chars.filter((c) => !(c.name in rosterSpecCache));
-    if (need.length === 0) return;
-    let cancelled = false;
-    Promise.all(
-      need.map((c) =>
-        safeFetchJson("arkpassive", c.name).then((ap) => [c.name, extractSpecName(ap)])
-      )
-    ).then((pairs) => {
-      if (cancelled) return;
-      setRosterSpecCache((prev) => {
-        const next = { ...prev };
-        pairs.forEach(([name, spec]) => {
-          next[name] = spec || null;
-        });
-        return next;
-      });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [rosterView]);
-
-  async function saveRosterCaption(charId, text) {
-    if (!loggedIn || !rosterView || rosterView.id !== loggedIn.id) return;
-    const chars = loggedIn.characters.map((c) => (c && c.id === charId ? { ...c, caption: text } : c));
-    const updated = { ...loggedIn, characters: chars };
-    setRosterView(updated);
-    await saveMember(updated);
+    setRosterChars([]);
   }
 
   async function openDetail(name, memberChars) {
@@ -8626,62 +8636,44 @@ function RaidBoard() {
           <div style={{ ...styles.modalPanel, maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div style={styles.modalTitle}>
-                {(rosterView.characters[0] && rosterView.characters[0].name) || "원정대"}님의 원정대
+                {(rosterView.characters.find(Boolean) || {}).name || "원정대"}님의 원정대
               </div>
               <button style={styles.modalClose} onClick={closeRosterView}>
                 ✕
               </button>
             </div>
-            {(rosterView.characters || []).filter(Boolean).length === 0 ? (
-              <div style={styles.emptyHint}>등록된 캐릭터가 없습니다.</div>
+            {rosterLoading ? (
+              <div style={styles.emptyHint}>불러오는 중...</div>
+            ) : rosterChars.length === 0 ? (
+              <div style={styles.emptyHint}>캐릭터를 찾을 수 없습니다.</div>
             ) : (
               <div>
-                {[...rosterView.characters]
-                  .filter(Boolean)
-                  .sort((a, b) => (b.level || 0) - (a.level || 0))
-                  .map((c) => {
-                    const isMine = loggedIn && rosterView.id === loggedIn.id;
-                    const specKnown = c.name in rosterSpecCache;
-                    const spec = rosterSpecCache[c.name];
-                    return (
-                      <div
-                        key={c.id}
-                        style={styles.rosterRow}
-                        onClick={() => {
-                          closeRosterView();
-                          openDetail(c.name, rosterView.characters.filter(Boolean));
-                        }}
-                      >
-                        <ClassEmblem className={c.className} size={22} />
-                        <span style={{ color: "#e8ebf0", fontWeight: 700, minWidth: 78 }}>{c.className}</span>
-                        <span style={{ color: "#c48cf0", minWidth: 96, fontSize: 12 }}>
-                          {specKnown ? spec || "-" : "…"}
-                        </span>
-                        <span style={{ color: "#e2593f", fontWeight: 700, minWidth: 70, textAlign: "right" }}>
-                          {c.level != null ? c.level.toFixed(2) : "-"}
-                        </span>
-                        <span style={{ color: "#4fa8e0", minWidth: 84, textAlign: "right" }}>
-                          {c.combatPower != null
-                            ? c.combatPower.toLocaleString("ko-KR", { maximumFractionDigits: 2 })
-                            : "-"}
-                        </span>
-                        {isMine ? (
-                          <input
-                            style={{ ...styles.input, flex: 1, fontSize: 12, padding: "4px 8px" }}
-                            placeholder="한 줄 문구"
-                            defaultValue={c.caption || ""}
-                            onClick={(e) => e.stopPropagation()}
-                            onBlur={(e) => saveRosterCaption(c.id, e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") e.target.blur();
-                            }}
-                          />
-                        ) : (
-                          <span style={{ color: "#8b93a7", flex: 1, fontSize: 12 }}>{c.caption || ""}</span>
-                        )}
-                      </div>
-                    );
-                  })}
+                {rosterChars.map((c) => (
+                  <div
+                    key={c.name}
+                    style={styles.rosterRow}
+                    onClick={() => {
+                      closeRosterView();
+                      openDetail(
+                        c.name,
+                        rosterChars.map((rc) => ({ id: rc.name, name: rc.name }))
+                      );
+                    }}
+                  >
+                    <ClassEmblem className={c.className} size={22} />
+                    <span style={{ color: "#e8ebf0", fontWeight: 700, minWidth: 78 }}>{c.className}</span>
+                    <span style={{ color: "#c48cf0", minWidth: 96, fontSize: 12 }}>{c.spec || "-"}</span>
+                    <span style={{ color: "#e2593f", fontWeight: 700, minWidth: 70, textAlign: "right" }}>
+                      {c.level != null ? c.level.toFixed(2) : "-"}
+                    </span>
+                    <span style={{ color: "#4fa8e0", minWidth: 84, textAlign: "right" }}>
+                      {c.combatPower != null
+                        ? c.combatPower.toLocaleString("ko-KR", { maximumFractionDigits: 2 })
+                        : "-"}
+                    </span>
+                    <span style={{ color: "#8b93a7", flex: 1, fontSize: 12 }}>{c.name}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>
