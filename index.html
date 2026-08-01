@@ -6866,10 +6866,17 @@ function RaidBoard() {
       const r = await window.storage.get("meta:accessLog", true).catch(() => null);
       const current = r && r.value ? JSON.parse(r.value) : { log: [] };
       const log = Array.isArray(current.log) ? current.log : [];
-      setAccessLogEntries([...log].reverse());
+      setAccessLogEntries([...log].reverse().slice(0, 30));
     } catch (e) {
       setAccessLogEntries([]);
     }
+  }
+
+  async function clearAccessLog() {
+    try {
+      await window.storage.set("meta:accessLog", JSON.stringify({ log: [] }), true);
+    } catch (e) {}
+    setAccessLogEntries([]);
   }
 
   // 내 접속 상태를 주기적으로 기록 (하트비트) - 관리자 모드일 땐 숨김
@@ -6921,7 +6928,12 @@ function RaidBoard() {
         );
         const now = Date.now();
         const active = fetched.filter((p) => p && now - p.lastSeen < 60000);
-        setOnlineCount(active.length);
+        // 로그인 이름이 같거나, 로그인 안 했어도 "마지막으로 로그인했던 이름"이 같으면
+        // PC/모바일 등 세션이 여러 개여도 같은 사람으로 보고 1명으로 센다.
+        const identityKeys = new Set(
+          active.map((p, i) => (p.name ? "n:" + p.name : p.remembered ? "r:" + p.remembered : "s:" + i))
+        );
+        setOnlineCount(identityKeys.size);
         setOnlineNames(Array.from(new Set(active.map((p) => p.name).filter(Boolean))));
         setOnlineGuesses(
           Array.from(
@@ -9098,10 +9110,15 @@ function RaidBoard() {
         <div style={styles.modalOverlay} onClick={() => setShowAccessLog(false)}>
           <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
-              <div style={styles.modalTitle}>접속 기록 (최근 200건)</div>
-              <button style={styles.modalClose} onClick={() => setShowAccessLog(false)}>
-                ✕
-              </button>
+              <div style={styles.modalTitle}>접속 기록 (최근 30건)</div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                <button style={styles.dangerBtn} onClick={clearAccessLog}>
+                  기록 삭제
+                </button>
+                <button style={styles.modalClose} onClick={() => setShowAccessLog(false)}>
+                  ✕
+                </button>
+              </div>
             </div>
             <div style={{ padding: "0 20px 20px" }}>
               {accessLogEntries.length === 0 ? (
