@@ -6612,7 +6612,6 @@ function RaidBoard() {
   const [slotDraft, setSlotDraft] = useState({ name: "", className: "", role: "딜러", level: "" });
   const [confirmDelete, setConfirmDelete] = useState(false);
   // 로그인이 새로고침 후에도 유지되면서 모바일에서 내 정보 패널이 항상 펼쳐져 있으면 답답하니 기본은 접어둔다.
-  const [myPanelOpen, setMyPanelOpen] = useState(false);
   const [scheduleDraft, setScheduleDraft] = useState(null);
   const [scheduleSaved, setScheduleSaved] = useState(false);
   const [requestDraft, setRequestDraft] = useState("");
@@ -7680,10 +7679,15 @@ function RaidBoard() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700;900&family=Chakra+Petch:wght@500;600;700&display=swap');
         * { box-sizing: border-box; font-family: 'Noto Sans KR', sans-serif; }
+        html, body { overflow-x: hidden; max-width: 100%; }
         .rb-num { font-family: 'Chakra Petch', 'Noto Sans KR', sans-serif; }
         ::placeholder { color: #5f6577; }
         @media (max-width: 640px) {
           .my-info-grid { grid-template-columns: 1fr !important; }
+          .slot-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+        }
+        @media (max-width: 420px) {
+          .slot-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
 
@@ -8160,9 +8164,6 @@ function RaidBoard() {
                   <strong>{loggedIn.characters[0].name}</strong>님으로 로그인됨
                 </span>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  <button style={styles.ghostBtn} onClick={() => setMyPanelOpen((v) => !v)}>
-                    {myPanelOpen ? "내 정보 접기 ▴" : "내 정보 펼치기 ▾"}
-                  </button>
                   {confirmDelete ? (
                     <>
                       <span style={styles.errorText}>정말 삭제할까요? 내 캐릭터/일정이 모두 사라집니다.</span>
@@ -8184,8 +8185,6 @@ function RaidBoard() {
                 </div>
               </div>
 
-              {myPanelOpen && (
-                <>
               <div style={styles.grid} className="my-info-grid">
                 <div style={styles.panel}>
                   <div style={styles.panelTitleRow}>
@@ -8195,7 +8194,7 @@ function RaidBoard() {
                     </button>
                   </div>
                   {importError && <div style={styles.errorText}>{importError}</div>}
-                  <div style={styles.slotGrid}>
+                  <div style={styles.slotGrid} className="slot-grid">
                     {Array.from({ length: MAX_SLOTS }).map((_, idx) => {
                       const c = loggedIn.characters[idx];
                       const roleInfo = c ? ROLE[c.role] : null;
@@ -8408,8 +8407,6 @@ function RaidBoard() {
                   {requestSaved && <span style={styles.savedHint}>저장됨</span>}
                 </div>
               </div>
-                </>
-              )}
             </>
           )}
 
@@ -9372,7 +9369,7 @@ const styles = {
   panelTitle: { fontSize: 14, fontWeight: 700, color: "#c8cddb", marginBottom: 14, letterSpacing: 0.5 },
   panelTitleRow: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 },
   importBtn: { fontSize: 11, padding: "6px 10px", borderRadius: 8, border: "1px solid #378ade", color: "#378ade", background: "transparent", cursor: "pointer" },
-  slotGrid: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 },
+  slotGrid: { display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 },
   slot: { position: "relative", border: "1.5px solid #262d3d", borderRadius: 10, aspectRatio: "1", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 6, textAlign: "center" },
   raidCheck: { position: "absolute", top: 4, right: 4, lineHeight: 0, cursor: "pointer" },
   detailBtn: { position: "absolute", top: 3, left: 4, lineHeight: 1.1, cursor: "pointer", background: "transparent", border: "none", fontSize: 8, padding: 1, opacity: 1, color: "#5ec9e8", fontWeight: 700 },
