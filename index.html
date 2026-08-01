@@ -8474,7 +8474,7 @@ function RaidBoard() {
                               {Object.entries(g.base).map(([k, v]) => (
                                 <span key={k}>
                                   <span style={{ color: REWARD_MAT_LABELS[k].color, fontWeight: 700 }}>
-                                    {REWARD_MAT_LABELS[k].base}
+                                    {detail.crystal ? REWARD_MAT_LABELS[k].extra : REWARD_MAT_LABELS[k].base}
                                   </span>{" "}
                                   <span style={{ color: "#e8ebf0" }}>{v.toLocaleString("ko-KR")}</span>
                                 </span>
