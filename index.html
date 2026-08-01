@@ -7682,6 +7682,9 @@ function RaidBoard() {
         * { box-sizing: border-box; font-family: 'Noto Sans KR', sans-serif; }
         .rb-num { font-family: 'Chakra Petch', 'Noto Sans KR', sans-serif; }
         ::placeholder { color: #5f6577; }
+        @media (max-width: 640px) {
+          .my-info-grid { grid-template-columns: 1fr !important; }
+        }
       `}</style>
 
       <div style={styles.hero}>
@@ -8183,7 +8186,7 @@ function RaidBoard() {
 
               {myPanelOpen && (
                 <>
-              <div style={styles.grid}>
+              <div style={styles.grid} className="my-info-grid">
                 <div style={styles.panel}>
                   <div style={styles.panelTitleRow}>
                     <div style={styles.panelTitle}>내 캐릭터 슬롯 (딜러/서포터 · 레벨)</div>
