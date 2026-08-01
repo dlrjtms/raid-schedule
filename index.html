@@ -7989,7 +7989,10 @@ function RaidBoard() {
                     {m.id === "m05" && <span style={{ marginRight: 3 }}>👑</span>}
                     {main.name}
                   </div>
-                  <div style={styles.memberCardClass}>{main.className}</div>
+                  <div style={{ ...styles.memberCardClass, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}>
+                    {main.className && <ClassEmblem className={main.className} size={13} />}
+                    {main.className}
+                  </div>
                   <div style={styles.memberStatRow}>
                     {m.characters.filter(Boolean).map((c) => (
                       <div key={c.id} style={styles.memberStatCol}>
