@@ -5826,8 +5826,66 @@ function iconFor(className) {
   return { shape: FALLBACK_SHAPES[h % FALLBACK_SHAPES.length], color: FALLBACK_PALETTE[h % FALLBACK_PALETTE.length] };
 }
 
+// 실제 직업 마크 이미지 파일명 (icons/ 폴더, 검정 도형 위에 배경 투명 PNG).
+// mask-image로 불러와서 각 직업 고유 색(CLASS_ICON_MAP)으로 칠한다. 매핑에 없는 직업(가디언나이트 등)은
+// 이미지가 아직 없어서 기존 SVG 도형으로 대체 표시된다.
+const CLASS_ICON_FILE = {
+  창술사: "changsulsa",
+  홀리나이트: "holyknight",
+  발키리: "valkyrie",
+  인파이터: "infighter",
+  브레이커: "breaker",
+  스트라이커: "striker",
+  배틀마스터: "battlemaster",
+  아르카나: "arcana",
+  기공사: "gigongsa",
+  디스트로이어: "destroyer",
+  워로드: "warlord",
+  버서커: "berserker",
+  슬레이어: "slayer",
+  서머너: "summoner",
+  데빌헌터: "devilhunter",
+  블래스터: "blaster",
+  호크아이: "hawkeye",
+  스카우터: "scouter",
+  건슬링어: "gunslinger",
+  바드: "bard",
+  데모닉: "demonic",
+  소서리스: "sorceress",
+  블레이드: "blade",
+  환수사: "hwansusa",
+  기상술사: "gisangsulsa",
+  도화가: "dohwaga",
+  소울이터: "souleater",
+  리퍼: "reaper",
+  차원술사: "chawonsulsa",
+  가디언나이트: "guardianknight",
+};
+
 function ClassEmblem({ className, size = 30 }) {
   const info = iconFor(className);
+  const file = CLASS_ICON_FILE[className];
+  if (file) {
+    return (
+      <span
+        style={{
+          display: "inline-block",
+          width: size,
+          height: size,
+          flex: "0 0 auto",
+          backgroundColor: info.color,
+          WebkitMaskImage: `url(icons/${file}.png)`,
+          maskImage: `url(icons/${file}.png)`,
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+        }}
+      />
+    );
+  }
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={info.color} strokeWidth="1.4">
       {info.shape === "orb" ? (
