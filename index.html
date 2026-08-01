@@ -7270,22 +7270,37 @@ function RaidBoard() {
     }
   }
 
-  async function safeFetchJson(type, name) {
-    try {
-      const res = await fetch(LOSTARK_PROXY_URL + "?type=" + type + "&name=" + encodeURIComponent(name));
-      if (!res.ok) return null;
-      const text = await res.text();
+  async function safeFetchJson(type, name, retries = 1) {
+    for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        return JSON.parse(text);
+        const res = await fetch(LOSTARK_PROXY_URL + "?type=" + type + "&name=" + encodeURIComponent(name));
+        if (!res.ok) {
+          if (attempt < retries) {
+            await new Promise((r) => setTimeout(r, 400));
+            continue;
+          }
+          return null;
+        }
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch (e) {
+          return null;
+        }
       } catch (e) {
+        if (attempt < retries) {
+          await new Promise((r) => setTimeout(r, 400));
+          continue;
+        }
         return null;
       }
-    } catch (e) {
-      return null;
     }
+    return null;
   }
 
   // 대표 캐릭터 이름 하나로 원정대 전체(레벨/전투력/특성 포함)를 불러온다.
+  // 캐릭터가 많을 때 한꺼번에 다 쏘면(예: 30명 × 2요청) API가 순간적으로 밀려서 실패할 수 있어
+  // 5명씩 나눠서 순차적으로 불러온다.
   async function fetchRosterChars(repName) {
     const list = await safeFetchJson("siblings", repName);
     if (!Array.isArray(list) || list.length === 0) return [];
@@ -7294,24 +7309,31 @@ function RaidBoard() {
         (parseFloat(String(b.ItemAvgLevel || "0").replace(/,/g, "")) || 0) -
         (parseFloat(String(a.ItemAvgLevel || "0").replace(/,/g, "")) || 0)
     );
-    return Promise.all(
-      sorted.map(async (c) => {
-        const name = c.CharacterName;
-        const level = parseFloat(String(c.ItemAvgLevel || "0").replace(/,/g, "")) || 0;
-        const className = c.CharacterClassName;
-        try {
-          const [profile, arkpassive] = await Promise.all([
-            safeFetchJson("profile", name),
-            safeFetchJson("arkpassive", name),
-          ]);
-          const combatPower =
-            profile && profile.CombatPower ? parseFloat(String(profile.CombatPower).replace(/,/g, "")) : null;
-          return { name, className, level, combatPower, spec: extractSpecName(arkpassive) };
-        } catch (e) {
-          return { name, className, level, combatPower: null, spec: null };
-        }
-      })
-    );
+    const results = [];
+    const BATCH = 5;
+    for (let i = 0; i < sorted.length; i += BATCH) {
+      const batch = sorted.slice(i, i + BATCH);
+      const batchResults = await Promise.all(
+        batch.map(async (c) => {
+          const name = c.CharacterName;
+          const level = parseFloat(String(c.ItemAvgLevel || "0").replace(/,/g, "")) || 0;
+          const className = c.CharacterClassName;
+          try {
+            const [profile, arkpassive] = await Promise.all([
+              safeFetchJson("profile", name),
+              safeFetchJson("arkpassive", name),
+            ]);
+            const combatPower =
+              profile && profile.CombatPower ? parseFloat(String(profile.CombatPower).replace(/,/g, "")) : null;
+            return { name, className, level, combatPower, spec: extractSpecName(arkpassive) };
+          } catch (e) {
+            return { name, className, level, combatPower: null, spec: null };
+          }
+        })
+      );
+      results.push(...batchResults);
+    }
+    return results;
   }
 
   // "정보" 버튼: 등록된 6슬롯이 아니라 실제 로스트아크 원정대 전체 캐릭터를 불러와 보여준다.
@@ -8743,13 +8765,10 @@ function RaidBoard() {
                         color: "#f2ede0",
                         fontWeight: 700,
                         fontSize: 15,
-                        width: 132,
+                        minWidth: 132,
                         flexShrink: 0,
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
                       }}
-                      title={c.name}
                     >
                       {c.name}
                     </span>
@@ -9386,7 +9405,7 @@ const styles = {
   auctionBidBtn: { background: "transparent", border: "1px solid #2a3040", borderRadius: 6, color: "#e8ebf0", fontSize: 13, padding: "5px 8px", cursor: "pointer", textAlign: "left" },
   rewardHeaderRow: { display: "grid", gridTemplateColumns: "1.3fr 0.9fr 0.8fr 1.1fr 1.1fr", gap: 6, fontSize: 11, color: "#5f6577", padding: "4px 2px", borderBottom: "1px solid #262d3d", minWidth: 480 },
   rewardRow: { display: "grid", gridTemplateColumns: "1.3fr 0.9fr 0.8fr 1.1fr 1.1fr", gap: 6, fontSize: 12, padding: "7px 2px", borderBottom: "1px solid #1e2430", minWidth: 480 },
-  rosterRow: { display: "flex", alignItems: "center", gap: 10, padding: "8px 4px", borderBottom: "1px solid #1e2430", cursor: "pointer" },
+  rosterRow: { display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, padding: "8px 4px", borderBottom: "1px solid #1e2430", cursor: "pointer" },
   synergyLegendBox: { background: "#0f1219", border: "1px solid #262d3d", borderRadius: 8, padding: "10px 12px", marginBottom: 14, display: "flex", flexDirection: "column", gap: 3 },
   synergyLegendLine: { fontSize: 11, color: "#8b93a7" },
   synergyGroup: { marginBottom: 12, paddingBottom: 12, borderBottom: "1px solid #262d3d" },
