@@ -7300,9 +7300,15 @@ function RaidBoard() {
 
   // 대표 캐릭터 이름 하나로 원정대 전체(레벨/전투력/특성 포함)를 불러온다.
   // 캐릭터가 많을 때 한꺼번에 다 쏘면(예: 30명 × 2요청) API가 순간적으로 밀려서 실패할 수 있어
-  // 5명씩 나눠서 순차적으로 불러온다.
+  // 5명씩 나눠서 순차적으로 불러온다. 맨 처음 siblings 요청이 실패하면 통째로 빈 결과가 되므로
+  // 여기만 재시도를 3번(지수 백오프)까지 늘려서 좀 더 끈질기게 시도한다.
   async function fetchRosterChars(repName) {
-    const list = await safeFetchJson("siblings", repName);
+    let list = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      list = await safeFetchJson("siblings", repName, 0);
+      if (Array.isArray(list) && list.length > 0) break;
+      if (attempt < 3) await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+    }
     if (!Array.isArray(list) || list.length === 0) return [];
     const sorted = [...list].sort(
       (a, b) =>
@@ -8745,7 +8751,26 @@ function RaidBoard() {
             {rosterLoading ? (
               <div style={styles.emptyHint}>불러오는 중...</div>
             ) : rosterChars.length === 0 ? (
-              <div style={styles.emptyHint}>캐릭터를 찾을 수 없습니다.</div>
+              <div style={styles.emptyHint}>
+                캐릭터를 찾을 수 없습니다.
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    style={styles.ghostBtnSmall}
+                    onClick={async () => {
+                      const repName = (rosterView.characters.find(Boolean) || {}).name;
+                      if (!repName) return;
+                      setRosterLoading(true);
+                      try {
+                        setRosterChars(await fetchRosterChars(repName));
+                      } finally {
+                        setRosterLoading(false);
+                      }
+                    }}
+                  >
+                    다시 시도
+                  </button>
+                </div>
+              </div>
             ) : (
               <div>
                 {rosterChars.map((c) => (
