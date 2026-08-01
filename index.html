@@ -6214,6 +6214,7 @@ const RAID_REWARDS = [
 const RAID_REWARD_DETAILS = {
   "4막 하드": {
     label: "4막 : 파멸의 성채 · 하드",
+    crystal: false,
     gates: [
       {
         gate: "1관문",
@@ -6231,6 +6232,7 @@ const RAID_REWARD_DETAILS = {
   },
   "4막 노말": {
     label: "4막 : 파멸의 성채 · 노말",
+    crystal: false,
     gates: [
       {
         gate: "1관문",
@@ -6250,6 +6252,7 @@ const RAID_REWARD_DETAILS = {
   },
   "종막 하드": {
     label: "종막 : 최후의 날 · 하드",
+    crystal: true,
     gates: [
       {
         gate: "1관문",
@@ -6267,6 +6270,7 @@ const RAID_REWARD_DETAILS = {
   },
   "종막 노말": {
     label: "종막 : 최후의 날 · 노말",
+    crystal: false,
     gates: [
       {
         gate: "1관문",
@@ -6286,6 +6290,7 @@ const RAID_REWARD_DETAILS = {
   },
   "세르카 노말": {
     label: "고통의 마녀, 세르카 · 노말",
+    crystal: false,
     gates: [
       {
         gate: "1관문",
@@ -6305,6 +6310,7 @@ const RAID_REWARD_DETAILS = {
   },
   "세르카 하드": {
     label: "고통의 마녀, 세르카 · 하드",
+    crystal: true,
     gates: [
       {
         gate: "1관문",
@@ -6322,6 +6328,7 @@ const RAID_REWARD_DETAILS = {
   },
   "세르카 나메": {
     label: "고통의 마녀, 세르카 · 나이트메어",
+    crystal: true,
     gates: [
       {
         gate: "1관문",
@@ -6339,6 +6346,7 @@ const RAID_REWARD_DETAILS = {
   },
   "성당 1단계": {
     label: "지평의 성당 · 1단계",
+    crystal: false,
     gates: [
       {
         gate: "1관문",
@@ -6356,6 +6364,7 @@ const RAID_REWARD_DETAILS = {
   },
   "성당 2단계": {
     label: "지평의 성당 · 2단계",
+    crystal: false,
     gates: [
       {
         gate: "1관문",
@@ -6373,6 +6382,7 @@ const RAID_REWARD_DETAILS = {
   },
   "성당 3단계": {
     label: "지평의 성당 · 3단계",
+    crystal: true,
     gates: [
       {
         gate: "1관문",
@@ -8480,7 +8490,7 @@ function RaidBoard() {
                                 .map(([k, v]) => (
                                   <span key={k}>
                                     <span style={{ color: REWARD_MAT_LABELS[k].color, fontWeight: 700 }}>
-                                      {REWARD_MAT_LABELS[k].extra}
+                                      {detail.crystal ? REWARD_MAT_LABELS[k].extra : REWARD_MAT_LABELS[k].base}
                                     </span>{" "}
                                     <span style={{ color: "#e8ebf0" }}>{v.toLocaleString("ko-KR")}</span>
                                   </span>
