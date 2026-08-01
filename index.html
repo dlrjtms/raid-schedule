@@ -8711,7 +8711,7 @@ function RaidBoard() {
 
       {rosterView && (
         <div style={styles.modalOverlay} onClick={closeRosterView}>
-          <div style={{ ...styles.modalPanel, maxWidth: 640 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ ...styles.modalPanel, maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <div style={styles.modalTitle}>
                 {(rosterView.characters.find(Boolean) || {}).name || "원정대"}님의 원정대
@@ -8738,6 +8738,21 @@ function RaidBoard() {
                       );
                     }}
                   >
+                    <span
+                      style={{
+                        color: "#f2ede0",
+                        fontWeight: 700,
+                        fontSize: 15,
+                        width: 132,
+                        flexShrink: 0,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={c.name}
+                    >
+                      {c.name}
+                    </span>
                     <ClassEmblem className={c.className} size={22} />
                     <span style={{ color: "#e8ebf0", fontWeight: 700, minWidth: 78 }}>{c.className}</span>
                     <span style={{ color: "#c48cf0", minWidth: 96, fontSize: 12 }}>{c.spec || "-"}</span>
@@ -8749,7 +8764,6 @@ function RaidBoard() {
                         ? c.combatPower.toLocaleString("ko-KR", { maximumFractionDigits: 2 })
                         : "-"}
                     </span>
-                    <span style={{ color: "#8b93a7", flex: 1, fontSize: 12 }}>{c.name}</span>
                   </div>
                 ))}
               </div>
