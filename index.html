@@ -5888,7 +5888,7 @@ function toRange(start, end) {
   return [s, e];
 }
 
-function daySegments(members, day) {
+function dayIntervals(members, day) {
   const intervals = [];
   members.forEach((m) => {
     const s = m.schedule && m.schedule[day];
@@ -5897,6 +5897,10 @@ function daySegments(members, day) {
       intervals.push({ id: m.id, start, end });
     }
   });
+  return intervals;
+}
+
+function segmentsFromIntervals(intervals) {
   if (intervals.length === 0) return [];
   const points = Array.from(new Set(intervals.flatMap((iv) => [iv.start, iv.end]))).sort((a, b) => a - b);
   const segments = [];
@@ -5916,6 +5920,22 @@ function daySegments(members, day) {
     }
   });
   return blocks.sort((a, b) => a.start - b.start);
+}
+
+function daySegments(members, day) {
+  return segmentsFromIntervals(dayIntervals(members, day));
+}
+
+// "오늘의 시간표" 전용: 다음 요일 항목 중 00:00~06:00 사이에 시작하는 부분은
+// (레이드 하루가 아침 6시에 넘어가는 것과 같은 기준으로) 오늘 밤에서 이어지는 일정으로 보고 같이 끌어온다.
+// 06:00 이후로 넘어가는 부분은 진짜 다음 날 몫이라 잘라낸다. 요일별 편집 화면·주간 전체보기에는 적용하지 않는다.
+function todaySegmentsWithCarryover(members, day) {
+  const base = dayIntervals(members, day);
+  const nextDay = DAYS[(DAYS.indexOf(day) + 1) % 7];
+  const carried = dayIntervals(members, nextDay)
+    .filter((iv) => iv.start < 6 * 60)
+    .map((iv) => ({ id: iv.id, start: iv.start + 24 * 60, end: Math.min(iv.end, 6 * 60) + 24 * 60 }));
+  return segmentsFromIntervals([...base, ...carried]);
 }
 
 function fmt(mins) {
@@ -7462,7 +7482,7 @@ function RaidBoard() {
   }, [members]);
 
   const today = todayLabel();
-  const todaySegments = useMemo(() => daySegments(members, today), [members, today]);
+  const todaySegments = useMemo(() => todaySegmentsWithCarryover(members, today), [members, today]);
 
   const memberById = (id) => members.find((m) => m.id === id);
   const selectedMember = selectedId && selectedId !== "new" ? memberById(selectedId) : null;
