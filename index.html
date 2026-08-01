@@ -6243,6 +6243,8 @@ const LOGIN_TTL_MS = 4 * 60 * 60 * 1000; // 로그인 유지 시간: 4시간
 
 function isLoginExpired() {
   try {
+    // 관리자 로그인 상태는 4시간 제한 없이 직접 로그아웃하기 전까지 계속 유지된다.
+    if (localStorage.getItem("raidboard-is-admin") === "1") return false;
     const t = Number(localStorage.getItem("raidboard-login-time") || 0);
     return !t || Date.now() - t > LOGIN_TTL_MS;
   } catch (e) {
@@ -7094,6 +7096,11 @@ function RaidBoard() {
   function logoutAdmin() {
     setIsAdmin(false);
     logout();
+  }
+
+  // 완전 로그아웃 없이 관리자 모드 <-> 일반 로그인 모드만 전환한다.
+  function switchToNormalMode() {
+    setIsAdmin(false);
   }
 
   function rememberName(name) {
@@ -7983,6 +7990,9 @@ function RaidBoard() {
                 <button style={styles.ghostBtnSmall} onClick={openAccessLog}>
                   접속 기록
                 </button>
+                <button style={styles.ghostBtnSmall} onClick={switchToNormalMode}>
+                  일반 모드로 전환
+                </button>
                 <button style={styles.ghostBtnSmall} onClick={logoutAdmin}>
                   관리자 로그아웃
                 </button>
@@ -8007,7 +8017,7 @@ function RaidBoard() {
               </div>
             ) : loggedInId === ADMIN_MEMBER_ID ? (
               <button style={styles.ghostBtnSmall} onClick={() => setShowAdminLogin(true)}>
-                관리자 로그인
+                관리자 모드로 전환
               </button>
             ) : null}
           </div>
