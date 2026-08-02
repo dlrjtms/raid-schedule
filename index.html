@@ -6279,6 +6279,7 @@ const GUIDE_SECTIONS = [
   { img: "guide/guide-7.png", text: "[직업시너지]" },
   { img: "guide/guide-8.png", text: "[아크그리드]" },
   { img: "guide/guide-9.png", text: "캐릭터 검색 기능. 원정대 전체로 확인 가능한 편리한 시스템!" },
+  { img: "guide/guide-10.png", text: "개별 캐릭터 클릭 시 상세정보 확인" },
 ];
 
 // 레이드 보상 정보 (직접 입력한 데이터)
@@ -6650,6 +6651,7 @@ function RaidBoard() {
   const [boardEditDraft, setBoardEditDraft] = useState("");
   const [showAuctionCalc, setShowAuctionCalc] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [imageLightbox, setImageLightbox] = useState(null);
   const [auctionPrice, setAuctionPrice] = useState("");
   const [auctionParty, setAuctionParty] = useState(8);
   const [auctionPartyCustom, setAuctionPartyCustom] = useState("");
@@ -8600,7 +8602,9 @@ function RaidBoard() {
         <div style={styles.modalOverlay} onClick={() => setShowGuide(false)}>
           <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
-              <div style={styles.modalTitle}>사용설명서</div>
+              <div style={styles.modalTitle}>
+                사용설명서 <span style={styles.modalSubtitle}>(클릭하면 크게 보임)</span>
+              </div>
               <button style={styles.modalClose} onClick={() => setShowGuide(false)}>
                 ✕
               </button>
@@ -8611,7 +8615,8 @@ function RaidBoard() {
                   <img
                     src={sec.img}
                     alt={`사용설명서 ${i + 1}`}
-                    style={{ width: "100%", borderRadius: 8, border: "1px solid #262d3d", display: "block" }}
+                    style={{ width: "100%", borderRadius: 8, border: "1px solid #262d3d", display: "block", cursor: "zoom-in" }}
+                    onClick={() => setImageLightbox(sec.img)}
                   />
                   <div style={{ marginTop: 10, fontSize: 13, color: "#d9dde6", whiteSpace: "pre-line", lineHeight: 1.6 }}>
                     {sec.text}
@@ -8627,7 +8632,9 @@ function RaidBoard() {
         <div style={styles.modalOverlay} onClick={() => setShowCheatSheet(false)}>
           <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
-              <div style={styles.modalTitle}>컨닝페이퍼</div>
+              <div style={styles.modalTitle}>
+                컨닝페이퍼 <span style={styles.modalSubtitle}>(클릭하면 크게 보임)</span>
+              </div>
               <button style={styles.modalClose} onClick={() => setShowCheatSheet(false)}>
                 ✕
               </button>
@@ -8656,12 +8663,22 @@ function RaidBoard() {
                     key={i}
                     src={src}
                     alt={`${selectedRaid} 컨닝페이퍼 ${i + 1}`}
-                    style={{ width: "100%", borderRadius: 8, border: "1px solid #262d3d" }}
+                    style={{ width: "100%", borderRadius: 8, border: "1px solid #262d3d", cursor: "zoom-in" }}
+                    onClick={() => setImageLightbox(src)}
                   />
                 ))}
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {imageLightbox && (
+        <div style={styles.lightboxOverlay} onClick={() => setImageLightbox(null)}>
+          <img src={imageLightbox} alt="확대 이미지" style={styles.lightboxImg} />
+          <button style={styles.lightboxClose} onClick={() => setImageLightbox(null)}>
+            ✕
+          </button>
         </div>
       )}
 
@@ -9506,6 +9523,9 @@ const styles = {
   segmentNames: { fontSize: 12, color: "#e8ebf0", flex: 1 },
   overlapCount: { fontSize: 11, color: "#d9a94e", fontWeight: 700 },
   modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, zIndex: 100 },
+  lightboxOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 200, cursor: "zoom-out" },
+  lightboxImg: { maxWidth: "96vw", maxHeight: "92vh", objectFit: "contain", borderRadius: 6 },
+  lightboxClose: { position: "fixed", top: 18, right: 22, background: "transparent", border: "none", color: "#f2ede0", fontSize: 26, cursor: "pointer" },
   modalPanel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 14, padding: 20, maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto" },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   modalTitle: { fontSize: 17, fontWeight: 700, color: "#f2ede0" },
