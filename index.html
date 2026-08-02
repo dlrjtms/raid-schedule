@@ -6119,15 +6119,35 @@ const BRACELET_GRADE_TABLE = [
   { requires: ["아군 피해량 강화 효과"], unit: "%", tiers: [9, 7.5, 6] },
 ];
 
-function gradeFromBraceletText(text) {
+function gradeFromBraceletText(text, context) {
   if (!text) return null;
+  const ctx = context || text;
   for (const entry of BRACELET_GRADE_TABLE) {
-    if (!entry.requires.every((k) => text.includes(k))) continue;
+    if (!entry.requires.every((k) => ctx.includes(k))) continue;
     const m = entry.unit === "%" ? text.match(/(\d+(?:\.\d+)?)\s*%/) : text.match(/(\d{1,2},\d{3}|\d{3,6})/);
     if (!m) continue;
     const num = parseFloat(m[1].replace(/,/g, ""));
     const idx = entry.tiers.findIndex((v) => Math.abs(v - num) < 0.01);
     if (idx !== -1) return GRADE_LABELS[idx];
+  }
+  return null;
+}
+
+// 팔찌의 고정 스탯(힘/민첩/지능, 치명/특화/신속) 값 구간별 색상.
+function statLineColor(name, valueStr) {
+  const num = parseFloat((valueStr || "").replace(/[+,]/g, ""));
+  if (Number.isNaN(num)) return null;
+  if (["힘", "민첩", "지능"].includes(name)) {
+    if (num >= 16000) return "#f5d949";
+    if (num >= 14000) return "#b78cf5";
+    if (num >= 12000) return "#5ec9e8";
+    return "#7fbf5f";
+  }
+  if (["치명", "특화", "신속"].includes(name)) {
+    if (num >= 120) return "#f5d949";
+    if (num >= 101) return "#b78cf5";
+    if (num >= 85) return "#5ec9e8";
+    return "#7fbf5f";
   }
   return null;
 }
@@ -6226,12 +6246,27 @@ function extractTooltipOptionLines(tooltipRaw) {
     }
   }
 
-  // [3] 팔찌: "팔찌 효과" 구간. 옵션 하나가 한 줄로 오는 경우도, "이름 문구 | N% | 증가한다."처럼
+  // [3] 팔찌: "팔찌 효과" 구간. 힘/민첩/지능, 치명/특화/신속 같은 고정 스탯 줄은 별도로 추출하고,
+  // 나머지는 옵션 하나가 한 줄로 오는 경우도, "이름 문구 | N% | 증가한다."처럼
   // 퍼센트 값이 앞뒤 문구와 분리된 3줄로 오는 경우도 있어 앞뒤를 붙여서 완전한 문장으로 만든다.
   if (lines.length === 0) {
     chunk = sectionChunk("팔찌 효과");
     if (chunk) {
-      const filtered = chunk.filter((l) => !STAT_ONLY.test(l));
+      const STAT_LINE = /^(힘|민첩|지능|특화|치명|신속)\s*[+\-]?([\d,]+)$/;
+      const statLines = [];
+      const filtered = [];
+      chunk.forEach((l) => {
+        const sm = l.match(STAT_LINE);
+        if (sm) {
+          statLines.push({ name: sm[1], value: `+${sm[2]}`, statLine: true });
+        } else if (!STAT_ONLY.test(l)) {
+          filtered.push(l);
+        }
+      });
+      statLines.forEach((it) => {
+        lines.push(`${it.name} ${it.value}`);
+        items.push(it);
+      });
       const used = new Set();
       for (let i = 0; i < filtered.length; i++) {
         if (used.has(i)) continue;
@@ -6269,7 +6304,7 @@ function extractTooltipOptionLines(tooltipRaw) {
     }
   }
 
-  return { lines: lines.slice(0, 6), items: items.slice(0, 6), raw: rawLines.join(" | ") };
+  return { lines: lines.slice(0, 10), items: items.slice(0, 10), raw: rawLines.join(" | ") };
 }
 
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
@@ -9038,14 +9073,24 @@ function RaidBoard() {
                         {parsed.items.length > 0 && (
                           <div style={styles.modalOptionBox}>
                             {parsed.items.map((it, li) => {
-                              const grade = eq.Type === "팔찌" ? gradeFromBraceletText(it.name) : gradeFromValue(it.name, it.value);
+                              const statColor = it.statLine ? statLineColor(it.name, it.value) : null;
+                              const ctx = it.statLine
+                                ? ""
+                                : [parsed.items[li - 1] && parsed.items[li - 1].name, it.name, parsed.items[li + 1] && parsed.items[li + 1].name]
+                                    .filter(Boolean)
+                                    .join(" ");
+                              const grade = it.statLine
+                                ? null
+                                : eq.Type === "팔찌"
+                                ? gradeFromBraceletText(it.name, ctx)
+                                : gradeFromValue(it.name, it.value);
                               return (
                                 <div
                                   key={li}
                                   style={{
                                     ...styles.modalOptionLine,
-                                    color: grade ? GRADE_COLORS[grade] : styles.modalOptionLine.color,
-                                    fontWeight: grade ? 700 : 400,
+                                    color: grade ? GRADE_COLORS[grade] : statColor ? statColor : styles.modalOptionLine.color,
+                                    fontWeight: grade || statColor ? 700 : 400,
                                   }}
                                 >
                                   {it.name}
