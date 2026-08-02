@@ -7906,8 +7906,10 @@ function RaidBoard() {
         html, body { overflow-x: hidden; max-width: 100%; }
         .rb-num { font-family: 'Chakra Petch', 'Noto Sans KR', sans-serif; }
         ::placeholder { color: #5f6577; }
+        .rb-refbtn:hover { border-color: #d9a94e !important; color: #d9a94e !important; }
         @media (max-width: 640px) {
           .my-info-grid { grid-template-columns: 1fr !important; }
+          .hero-divider { display: none; }
         }
       `}</style>
 
@@ -7946,59 +7948,73 @@ function RaidBoard() {
         </div>
       )}
 
-      <div style={styles.liveClock} className="rb-num">
-        {nowTick.getFullYear()}-{pad2(nowTick.getMonth() + 1)}-{pad2(nowTick.getDate())} (
-        {DAYS[(nowTick.getDay() + 6) % 7]}){" "}
-        {pad2(nowTick.getHours())}:{pad2(nowTick.getMinutes())}:{pad2(nowTick.getSeconds())}
+      <div style={styles.heroInfoBar}>
+        <span style={styles.liveClock} className="rb-num">
+          {nowTick.getFullYear()}-{pad2(nowTick.getMonth() + 1)}-{pad2(nowTick.getDate())} (
+          {DAYS[(nowTick.getDay() + 6) % 7]}){" "}
+          {pad2(nowTick.getHours())}:{pad2(nowTick.getMinutes())}:{pad2(nowTick.getSeconds())}
+        </span>
+
+        <span style={styles.heroDivider} className="hero-divider">·</span>
+
+        <span style={styles.contentBadgeRow}>
+          <span style={hasTodayContent(calendarData, "카오스게이트") ? styles.contentBadgeOn : styles.contentBadgeOff}>
+            [카오스게이트]
+          </span>
+          <span style={hasTodayContent(calendarData, "필드보스") ? styles.contentBadgeOn : styles.contentBadgeOff}>
+            [필드보스]
+          </span>
+        </span>
+
+        <span style={styles.heroDivider} className="hero-divider">·</span>
+
+        <span style={styles.guardianRow}>이번 주 가디언 토벌(잔영) · {currentGuardianName(nowTick)}</span>
       </div>
 
-      <div style={styles.contentBadgeRow}>
-        <span style={hasTodayContent(calendarData, "카오스게이트") ? styles.contentBadgeOn : styles.contentBadgeOff}>
-          [카오스게이트]
-        </span>
-        <span style={hasTodayContent(calendarData, "필드보스") ? styles.contentBadgeOn : styles.contentBadgeOff}>
-          [필드보스]
-        </span>
-      </div>
-
-      <div style={styles.guardianRow}>이번 주 가디언 토벌(잔영) · {currentGuardianName(nowTick)}</div>
-
-      <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
-        <button style={styles.guideBtn} onClick={() => setShowGuide(true)}>
-          [사용설명서]
-        </button>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
         <button style={styles.auctionCalcBtn} onClick={() => setShowAuctionCalc(true)}>
           [경매계산기]
         </button>
-        <button
-          style={styles.auctionCalcBtn}
-          onClick={() => {
-            setSelectedRaid(null);
-            setShowCheatSheet(true);
-          }}
-        >
-          [컨닝페이퍼]
-        </button>
-        <button style={styles.auctionCalcBtn} onClick={() => setShowRaidRewards(true)}>
-          [레이드보상]
-        </button>
-        <button style={styles.auctionCalcBtn} onClick={() => setShowSynergy(true)}>
-          [직업시너지]
-        </button>
-        <button
-          style={styles.auctionCalcBtn}
-          onClick={() => {
-            setShowArkgridInfo(true);
-            if (!arkgridSpecies) {
-              const firstSpecies = Object.keys(ARKGRID_SPECIES_TREE)[0];
-              setArkgridSpecies(firstSpecies);
-              setArkgridClass(ARKGRID_SPECIES_TREE[firstSpecies][0]);
-              setArkgridBuild(null);
-            }
-          }}
-        >
-          [아크그리드]
-        </button>
+      </div>
+
+      <div style={styles.refBtnGroup}>
+        <span style={styles.refBtnLabel}>참고자료</span>
+        <div style={styles.refBtnRow}>
+          <button className="rb-refbtn" style={styles.refBtn} onClick={() => setShowGuide(true)}>
+            [사용설명서]
+          </button>
+          <button
+            className="rb-refbtn"
+            style={styles.refBtn}
+            onClick={() => {
+              setSelectedRaid(null);
+              setShowCheatSheet(true);
+            }}
+          >
+            [컨닝페이퍼]
+          </button>
+          <button className="rb-refbtn" style={styles.refBtn} onClick={() => setShowRaidRewards(true)}>
+            [레이드보상]
+          </button>
+          <button className="rb-refbtn" style={styles.refBtn} onClick={() => setShowSynergy(true)}>
+            [직업시너지]
+          </button>
+          <button
+            className="rb-refbtn"
+            style={styles.refBtn}
+            onClick={() => {
+              setShowArkgridInfo(true);
+              if (!arkgridSpecies) {
+                const firstSpecies = Object.keys(ARKGRID_SPECIES_TREE)[0];
+                setArkgridSpecies(firstSpecies);
+                setArkgridClass(ARKGRID_SPECIES_TREE[firstSpecies][0]);
+                setArkgridBuild(null);
+              }
+            }}
+          >
+            [아크그리드]
+          </button>
+        </div>
       </div>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18 }}>
@@ -9591,6 +9607,15 @@ function RaidBoard() {
   );
 }
 
+// 로스트아크 각인 카드 느낌의 골드 코너 브라켓 장식(패널 배경에 얇은 그라디언트로 표현)
+const CORNER_BRACKET = {
+  backgroundImage:
+    "linear-gradient(#d9a94e,#d9a94e), linear-gradient(#d9a94e,#d9a94e), linear-gradient(#d9a94e,#d9a94e), linear-gradient(#d9a94e,#d9a94e)",
+  backgroundPosition: "left 6px top 6px, left 6px top 6px, right 6px bottom 6px, right 6px bottom 6px",
+  backgroundSize: "16px 2px, 2px 16px, 16px 2px, 2px 16px",
+  backgroundRepeat: "no-repeat",
+};
+
 const styles = {
   page: { background: "#0f1219", color: "#e8ebf0", minHeight: "100vh", padding: "28px 20px 60px", maxWidth: 980, margin: "0 auto" },
   hero: { textAlign: "center", padding: "10px 0 24px" },
@@ -9601,11 +9626,26 @@ const styles = {
   presenceDot: { color: "#639922", fontSize: 8 },
   presenceNames: { color: "#c8cddb" },
   adminGuessBar: { textAlign: "center", fontSize: 11, color: "#d9a94e", marginBottom: 8, padding: "0 12px" },
-  liveClock: { textAlign: "center", fontSize: 13, color: "#639922", marginBottom: 12, letterSpacing: 1 },
-  contentBadgeRow: { display: "flex", justifyContent: "center", gap: 14, marginBottom: 18 },
+  heroInfoBar: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "wrap",
+    gap: 14,
+    background: "#12161f",
+    border: "1px solid rgba(217,169,78,0.35)",
+    borderRadius: 14,
+    padding: "14px 22px",
+    marginBottom: 20,
+    position: "relative",
+    ...CORNER_BRACKET,
+  },
+  heroDivider: { color: "#3a4152", fontSize: 12 },
+  liveClock: { fontSize: 13, color: "#639922", letterSpacing: 1 },
+  contentBadgeRow: { display: "flex", alignItems: "center", gap: 14 },
   contentBadgeOn: { fontSize: 13, fontWeight: 700, color: "#f5d949", textShadow: "0 0 8px rgba(245,217,73,0.6)" },
   contentBadgeOff: { fontSize: 13, fontWeight: 700, color: "#4a5065" },
-  guardianRow: { textAlign: "center", fontSize: 13, fontWeight: 700, color: "#8ea1ff", marginBottom: 14, wordBreak: "break-all", padding: "0 12px" },
+  guardianRow: { fontSize: 13, fontWeight: 700, color: "#8ea1ff", wordBreak: "break-all" },
   sectionTitle: { fontSize: 15, fontWeight: 700, color: "#c8cddb", marginBottom: 12 },
   sectionHeaderRow: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   adminBadgeRow: { display: "flex", alignItems: "center", gap: 8 },
@@ -9614,6 +9654,10 @@ const styles = {
   refreshBtn: { fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 6, border: "1px solid #5ec9e8", background: "#0f2b33", color: "#5ec9e8", cursor: "pointer" },
   arkNavBtn: { fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 6, border: "1px solid #8f7ff0", background: "#221d3d", color: "#b7a6ff", cursor: "pointer" },
   auctionCalcBtn: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #d9a94e", background: "#2a2210", color: "#d9a94e", cursor: "pointer" },
+  refBtnGroup: { display: "flex", flexDirection: "column", alignItems: "center", gap: 8, marginBottom: 18 },
+  refBtnLabel: { fontSize: 11, letterSpacing: 2, color: "#5f6577", fontWeight: 700 },
+  refBtnRow: { display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" },
+  refBtn: { fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 7, border: "1px solid #2a3040", background: "transparent", color: "#9aa1b5", cursor: "pointer" },
   guideBtn: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #7fbf5f", background: "#152110", color: "#9fdd7f", cursor: "pointer" },
   discordLink: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #5865F2", background: "#1d1f33", color: "#8ea1ff", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center" },
   adminLoginRow: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" },
@@ -9633,7 +9677,7 @@ const styles = {
   claimBtnActive: { border: "1px solid #d9a94e", color: "#d9a94e", background: "#2a2210" },
   claimNames: { fontSize: 9, color: "#8b93a7", textAlign: "center", whiteSpace: "normal", wordBreak: "break-word" },
   plusIcon: { fontSize: 26, color: "#3a4152" },
-  authPanel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 12, padding: 18, marginBottom: 18, maxWidth: 480 },
+  authPanel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 12, padding: 18, marginBottom: 18, maxWidth: 480, position: "relative", ...CORNER_BRACKET },
   authTitle: { fontSize: 13, color: "#c8cddb", marginBottom: 10 },
   authRow: { display: "flex", gap: 8, marginBottom: 8 },
   input: { background: "#0f1219", border: "1px solid #2a3040", borderRadius: 8, padding: "10px 12px", color: "#e8ebf0", fontSize: 14, outline: "none", width: "100%" },
@@ -9643,7 +9687,7 @@ const styles = {
   errorText: { color: "#e2593f", fontSize: 12, margin: "6px 0" },
   loggedInBar: { display: "flex", justifyContent: "space-between", alignItems: "center", background: "#171c26", border: "1px solid #262d3d", borderRadius: 10, padding: "10px 16px", marginBottom: 16, fontSize: 13, color: "#c8cddb" },
   grid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 },
-  panel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 14, padding: 20, marginBottom: 16 },
+  panel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 14, padding: 20, marginBottom: 16, position: "relative", ...CORNER_BRACKET },
   panelTitle: { fontSize: 14, fontWeight: 700, color: "#c8cddb", marginBottom: 14, letterSpacing: 0.5 },
   panelTitleRow: { display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 },
   importBtn: { fontSize: 11, padding: "6px 10px", borderRadius: 8, border: "1px solid #378ade", color: "#378ade", background: "transparent", cursor: "pointer" },
@@ -9689,7 +9733,7 @@ const styles = {
   lightboxOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.92)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, zIndex: 200, cursor: "zoom-out" },
   lightboxImg: { maxWidth: "96vw", maxHeight: "92vh", objectFit: "contain", borderRadius: 6 },
   lightboxClose: { position: "fixed", top: 18, right: 22, background: "transparent", border: "none", color: "#f2ede0", fontSize: 26, cursor: "pointer" },
-  modalPanel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 14, padding: 20, maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto" },
+  modalPanel: { background: "#171c26", border: "1px solid #262d3d", borderRadius: 14, padding: 20, maxWidth: 480, width: "100%", maxHeight: "85vh", overflowY: "auto", position: "relative", ...CORNER_BRACKET },
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   modalTitle: { fontSize: 17, fontWeight: 700, color: "#f2ede0" },
   modalClose: { background: "transparent", border: "none", color: "#8b93a7", fontSize: 16, cursor: "pointer" },
