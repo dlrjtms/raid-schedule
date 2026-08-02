@@ -67,6 +67,13 @@ const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
 const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
 
+// 이미지 캐시 무효화용: 페이지를 새로 열 때마다 값이 바뀌어서, guide/cheatsheets/icons 폴더의
+// 이미지 파일을 같은 파일명으로 교체해도 브라우저/CDN 캐시 없이 항상 최신 파일을 받아온다.
+const ASSET_V = Date.now();
+function withV(path) {
+  return `${path}?v=${ASSET_V}`;
+}
+
 // "레이드 하루"는 자정이 아니라 아침 6시에 넘어간다.
 // 예: 수요일 새벽 3시는 아직 "화요일"로 취급한다.
 function raidDate(d) {
@@ -5874,8 +5881,8 @@ function ClassEmblem({ className, size = 30 }) {
           height: size,
           flex: "0 0 auto",
           backgroundColor: info.color,
-          WebkitMaskImage: `url(icons/${file}.png)`,
-          maskImage: `url(icons/${file}.png)`,
+          WebkitMaskImage: `url(${withV(`icons/${file}.png`)})`,
+          maskImage: `url(${withV(`icons/${file}.png`)})`,
           WebkitMaskSize: "contain",
           maskSize: "contain",
           WebkitMaskRepeat: "no-repeat",
@@ -6415,13 +6422,13 @@ const GUIDE_SECTIONS = [
     img: "guide/guide-3.png",
     text: "[카오스게이트] [필드보스] 해당 요일에 노란색으로 표시\n\n게임 진행 시 필요한 각종 정보들과 경매계산기 기능 탑재",
   },
-  { img: "guide/guide-4.png?v=2", text: "[경매계산기]" },
+  { img: "guide/guide-4.png", text: "[경매계산기]" },
   { img: "guide/guide-5.png", text: "[컨닝페이퍼]" },
   { img: "guide/guide-6.png", text: "[레이드보상]" },
   { img: "guide/guide-7.png", text: "[직업시너지]" },
   { img: "guide/guide-8.png", text: "[아크그리드]" },
   { img: "guide/guide-9.png", text: "캐릭터 검색 기능. 원정대 전체로 확인 가능한 편리한 시스템!" },
-  { img: "guide/guide-10.png?v=2", text: "개별 캐릭터 클릭 시 상세정보 확인" },
+  { img: "guide/guide-10.png", text: "개별 캐릭터 클릭 시 상세정보 확인" },
 ];
 
 // 레이드 보상 정보 (직접 입력한 데이터)
@@ -8776,10 +8783,10 @@ function RaidBoard() {
               {GUIDE_SECTIONS.map((sec, i) => (
                 <div key={i}>
                   <img
-                    src={sec.img}
+                    src={withV(sec.img)}
                     alt={`사용설명서 ${i + 1}`}
                     style={{ width: "100%", borderRadius: 8, border: "1px solid #262d3d", display: "block", cursor: "zoom-in" }}
-                    onClick={() => setImageLightbox(sec.img)}
+                    onClick={() => setImageLightbox(withV(sec.img))}
                   />
                   <div style={{ marginTop: 10, fontSize: 13, color: "#d9dde6", whiteSpace: "pre-line", lineHeight: 1.6 }}>
                     {sec.text}
@@ -8824,10 +8831,10 @@ function RaidBoard() {
                 {RAID_CHEATSHEETS[selectedRaid].map((src, i) => (
                   <img
                     key={i}
-                    src={src}
+                    src={withV(src)}
                     alt={`${selectedRaid} 컨닝페이퍼 ${i + 1}`}
                     style={{ width: "100%", borderRadius: 8, border: "1px solid #262d3d", cursor: "zoom-in" }}
-                    onClick={() => setImageLightbox(src)}
+                    onClick={() => setImageLightbox(withV(src))}
                   />
                 ))}
               </div>
