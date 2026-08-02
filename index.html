@@ -6262,6 +6262,25 @@ const RAID_CHEATSHEETS = {
   성당: ["cheatsheets/cathedral-1.png"],
 };
 
+// 사이트 사용 설명서: 스크린샷 + 설명 텍스트를 순서대로 보여준다.
+const GUIDE_SECTIONS = [
+  { img: "guide/guide-1.png", text: "대표 캐릭터 이름 입력 후 비밀번호 설정" },
+  {
+    img: "guide/guide-2.png",
+    text: "로그인 후 \"로스트아크에서 자동 불러오기\" 클릭 시 원정대 자동 생성\n\n요일별 게임 가능 시간 설정 및 레이드 완료 캐릭 체크 기능",
+  },
+  {
+    img: "guide/guide-3.png",
+    text: "[카오스게이트] [필드보스] 해당 요일에 노란색으로 표시\n\n게임 진행 시 필요한 각종 정보들과 경매계산기 기능 탑재",
+  },
+  { img: "guide/guide-4.png", text: "[경매계산기]" },
+  { img: "guide/guide-5.png", text: "[컨닝페이퍼]" },
+  { img: "guide/guide-6.png", text: "[레이드보상]" },
+  { img: "guide/guide-7.png", text: "[직업시너지]" },
+  { img: "guide/guide-8.png", text: "[아크그리드]" },
+  { img: "guide/guide-9.png", text: "캐릭터 검색 기능. 원정대 전체로 확인 가능한 편리한 시스템!" },
+];
+
 // 레이드 보상 정보 (직접 입력한 데이터)
 const RAID_REWARDS = [
   { name: "벨가르딘 나메", level: 1780, gates: "2관문", gold: 75000, extra: 24000 },
@@ -6630,6 +6649,7 @@ function RaidBoard() {
   const [boardEditId, setBoardEditId] = useState(null);
   const [boardEditDraft, setBoardEditDraft] = useState("");
   const [showAuctionCalc, setShowAuctionCalc] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
   const [auctionPrice, setAuctionPrice] = useState("");
   const [auctionParty, setAuctionParty] = useState(8);
   const [auctionPartyCustom, setAuctionPartyCustom] = useState("");
@@ -7771,6 +7791,9 @@ function RaidBoard() {
       <div style={styles.guardianRow}>이번 주 가디언 토벌(잔영) · {currentGuardianName(nowTick)}</div>
 
       <div style={{ display: "flex", justifyContent: "center", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
+        <button style={styles.guideBtn} onClick={() => setShowGuide(true)}>
+          [사용설명서]
+        </button>
         <button style={styles.auctionCalcBtn} onClick={() => setShowAuctionCalc(true)}>
           [경매계산기]
         </button>
@@ -8569,6 +8592,33 @@ function RaidBoard() {
                 </div>
               );
             })()}
+          </div>
+        </div>
+      )}
+
+      {showGuide && (
+        <div style={styles.modalOverlay} onClick={() => setShowGuide(false)}>
+          <div style={styles.modalPanel} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <div style={styles.modalTitle}>사용설명서</div>
+              <button style={styles.modalClose} onClick={() => setShowGuide(false)}>
+                ✕
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 26, marginTop: 8 }}>
+              {GUIDE_SECTIONS.map((sec, i) => (
+                <div key={i}>
+                  <img
+                    src={sec.img}
+                    alt={`사용설명서 ${i + 1}`}
+                    style={{ width: "100%", borderRadius: 8, border: "1px solid #262d3d", display: "block" }}
+                  />
+                  <div style={{ marginTop: 10, fontSize: 13, color: "#d9dde6", whiteSpace: "pre-line", lineHeight: 1.6 }}>
+                    {sec.text}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -9384,6 +9434,7 @@ const styles = {
   refreshBtn: { fontSize: 11, fontWeight: 700, padding: "5px 10px", borderRadius: 6, border: "1px solid #5ec9e8", background: "#0f2b33", color: "#5ec9e8", cursor: "pointer" },
   arkNavBtn: { fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 6, border: "1px solid #8f7ff0", background: "#221d3d", color: "#b7a6ff", cursor: "pointer" },
   auctionCalcBtn: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #d9a94e", background: "#2a2210", color: "#d9a94e", cursor: "pointer" },
+  guideBtn: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #7fbf5f", background: "#152110", color: "#9fdd7f", cursor: "pointer" },
   discordLink: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #5865F2", background: "#1d1f33", color: "#8ea1ff", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center" },
   adminLoginRow: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" },
   adminPwInput: { background: "#0f1219", border: "1px solid #2a3040", borderRadius: 6, padding: "5px 8px", color: "#e8ebf0", fontSize: 12, width: 140 },
