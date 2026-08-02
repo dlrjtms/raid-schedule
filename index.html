@@ -6249,24 +6249,39 @@ function extractTooltipOptionLines(tooltipRaw) {
   // [3] 팔찌: "팔찌 효과" 구간. 힘/민첩/지능, 치명/특화/신속 같은 고정 스탯 줄은 별도로 추출하고,
   // 나머지는 옵션 하나가 한 줄로 오는 경우도, "이름 문구 | N% | 증가한다."처럼
   // 퍼센트 값이 앞뒤 문구와 분리된 3줄로 오는 경우도 있어 앞뒤를 붙여서 완전한 문장으로 만든다.
+  // [3] 팔찌: "팔찌 효과" 구간. 힘/민첩/지능, 치명/특화/신속 같은 고정 스탯 줄은
+  // 툴팁 전체(rawLines)에서 별도로 찾고, 나머지는 옵션 하나가 한 줄로 오는 경우도, "이름 문구 | N% | 증가한다."처럼
+  // 퍼센트 값이 앞뒤 문구와 분리된 3줄로 오는 경우도 있어 앞뒤를 붙여서 완전한 문장으로 만든다.
   if (lines.length === 0) {
+    const STAT_NAMES = ["힘", "민첩", "지능", "특화", "치명", "신속"];
+    const STAT_LINE_COMBINED = /^(힘|민첩|지능|특화|치명|신속)\s*[+\-]?([\d,]+)$/;
+    const NUM_ONLY = /^[+\-]?[\d,]+$/;
+    const statLines = [];
+    const seenStat = new Set();
+    for (let idx = 0; idx < rawLines.length; idx++) {
+      const l = rawLines[idx];
+      const cm = l.match(STAT_LINE_COMBINED);
+      if (cm && !seenStat.has(cm[1])) {
+        statLines.push({ name: cm[1], value: `+${cm[2].replace(/,/g, "")}`, statLine: true });
+        seenStat.add(cm[1]);
+        continue;
+      }
+      // 이름과 값이 "힘" / "+10,944"처럼 서로 다른 줄로 나뉘어 오는 경우도 처리
+      if (STAT_NAMES.includes(l) && !seenStat.has(l) && rawLines[idx + 1] && NUM_ONLY.test(rawLines[idx + 1])) {
+        const raw = rawLines[idx + 1].replace(/,/g, "");
+        const val = raw.startsWith("+") || raw.startsWith("-") ? raw : `+${raw}`;
+        statLines.push({ name: l, value: val, statLine: true });
+        seenStat.add(l);
+      }
+    }
+
     chunk = sectionChunk("팔찌 효과");
-    if (chunk) {
-      const STAT_LINE = /^(힘|민첩|지능|특화|치명|신속)\s*[+\-]?([\d,]+)$/;
-      const statLines = [];
-      const filtered = [];
-      chunk.forEach((l) => {
-        const sm = l.match(STAT_LINE);
-        if (sm) {
-          statLines.push({ name: sm[1], value: `+${sm[2]}`, statLine: true });
-        } else if (!STAT_ONLY.test(l)) {
-          filtered.push(l);
-        }
-      });
+    if (chunk || statLines.length > 0) {
       statLines.forEach((it) => {
         lines.push(`${it.name} ${it.value}`);
         items.push(it);
       });
+      const filtered = (chunk || []).filter((l) => !STAT_ONLY.test(l) && !STAT_NAMES.includes(l) && !NUM_ONLY.test(l));
       const used = new Set();
       for (let i = 0; i < filtered.length; i++) {
         if (used.has(i)) continue;
