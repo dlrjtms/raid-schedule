@@ -6618,8 +6618,6 @@ function RaidBoard() {
   const [rosterLoading, setRosterLoading] = useState(false);
   const [debugOpenIdx, setDebugOpenIdx] = useState(null);
   const [debugEngravingOpen, setDebugEngravingOpen] = useState(false);
-  const [debugArkPassiveOpen, setDebugArkPassiveOpen] = useState(false);
-  const [debugArkGridOpen, setDebugArkGridOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(() => {
     try {
       if (isLoginExpired()) return false;
@@ -8949,91 +8947,7 @@ function RaidBoard() {
                   )}
                   {detailData.profile.Title ? ` · ${detailData.profile.Title}` : ""}
                   {detailData.profile.GuildName ? ` · ${detailData.profile.GuildName}` : ""}
-                  {" "}
-                  <button
-                    style={{
-                      ...styles.arkNavBtn,
-                      ...(debugArkPassiveOpen ? { background: "#8f7ff0", color: "#171225" } : {}),
-                    }}
-                    onClick={() => setDebugArkPassiveOpen((v) => !v)}
-                  >
-                    아크패시브
-                  </button>{" "}
-                  <button
-                    style={{
-                      ...styles.arkNavBtn,
-                      ...(debugArkGridOpen ? { background: "#8f7ff0", color: "#171225" } : {}),
-                    }}
-                    onClick={() => setDebugArkGridOpen((v) => !v)}
-                  >
-                    아크그리드
-                  </button>
                 </div>
-                {debugArkPassiveOpen && (
-                  <div style={styles.modalSection}>
-                    <div style={styles.modalSectionTitle}>아크패시브</div>
-                    {arkPassiveTrees.length > 0 ? (
-                      arkPassiveTrees.map((t, ti) => (
-                        <div key={ti} style={{ marginBottom: 10 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: "#d9a94e", marginBottom: 4 }}>
-                            {t.tree} · {t.value}P{t.desc ? ` (${t.desc})` : ""}
-                          </div>
-                          {t.nodes.length > 0 ? (
-                            t.nodes.map((n, ni) => (
-                              <div key={ni} style={{ fontSize: 11, color: "#c8cddb", padding: "2px 0 2px 8px" }}>
-                                {n}
-                              </div>
-                            ))
-                          ) : (
-                            <div style={styles.emptyHint}>투자된 노드가 없습니다.</div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div style={styles.emptyHint}>아크패시브 정보를 가져오지 못했습니다.</div>
-                    )}
-                  </div>
-                )}
-                {debugArkGridOpen && (
-                  <div style={styles.modalSection}>
-                    <div style={styles.modalSectionTitle}>아크그리드</div>
-                    {arkGridCores.length > 0 ? (
-                      <>
-                        {arkGridCores.map((c, ci) => (
-                          <div
-                            key={ci}
-                            style={{
-                              display: "flex",
-                              justifyContent: "space-between",
-                              alignItems: "baseline",
-                              fontSize: 12,
-                              padding: "3px 0",
-                            }}
-                          >
-                            <span style={{ color: "#c8cddb" }}>{c.name}</span>
-                            <span style={{ color: gradeColor(c.grade), fontWeight: 700, whiteSpace: "nowrap", marginLeft: 8 }}>
-                              {c.grade} · {c.point}P
-                            </span>
-                          </div>
-                        ))}
-                        {arkGridEffects.length > 0 && (
-                          <>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#d9a94e", marginTop: 10 }}>
-                              옵션 합계
-                            </div>
-                            {arkGridEffects.map((e, ei) => (
-                              <div key={ei} style={{ fontSize: 11, color: "#c8cddb", padding: "2px 0 2px 8px" }}>
-                                {e.name} Lv.{e.level} · {e.text}
-                              </div>
-                            ))}
-                          </>
-                        )}
-                      </>
-                    ) : (
-                      <div style={styles.emptyHint}>아크그리드 정보를 가져오지 못했습니다.</div>
-                    )}
-                  </div>
-                )}
                 <div style={styles.modalStatRow}>
                   <span>아이템 Lv.{detailData.profile.ItemAvgLevel}</span>
                   {detailData.profile.CombatPower && <span>⚔ {detailData.profile.CombatPower}</span>}
@@ -9052,96 +8966,116 @@ function RaidBoard() {
                   </div>
                 )}
 
-                {detailEquipList.length > 0 && (
-                  <div style={styles.modalSection}>
-                    <div style={styles.modalSectionTitle}>장비</div>
-                    {detailEquipList.map((eq, i) => {
-                      const isAccessory = ["목걸이", "귀걸이", "반지", "팔찌", "어빌리티 스톤"].includes(eq.Type);
-                      const parsed = isAccessory ? extractTooltipOptionLines(eq.Tooltip) : { lines: [], items: [], raw: "" };
-                      return (
-                        <div key={i} style={styles.modalEquipBlock}>
-                          <div style={styles.modalListRow}>
-                            <span style={styles.modalListType}>{eq.Type}</span>
-                            <span style={styles.modalListName}>{(eq.Name || "").replace(/<[^>]+>/g, "")}</span>
-                            {isAccessory && (
-                              <button
-                                style={styles.debugToggleBtn}
-                                onClick={() => setDebugOpenIdx(debugOpenIdx === i ? null : i)}
-                              >
-                                {debugOpenIdx === i ? "원본 닫기" : "원본 보기"}
-                              </button>
-                            )}
-                          </div>
-                          {parsed.items.length > 0 && (
-                            <div style={styles.modalOptionBox}>
-                              {parsed.items.map((it, li) => {
-                                const grade = gradeFromValue(it.name, it.value);
-                                return (
-                                  <div
-                                    key={li}
-                                    style={{
-                                      ...styles.modalOptionLine,
-                                      color: grade ? GRADE_COLORS[grade] : styles.modalOptionLine.color,
-                                      fontWeight: grade ? 700 : 400,
-                                    }}
-                                  >
-                                    {it.name}
-                                    {it.value ? ` ${it.value}` : ""}
-                                    {grade ? ` (${grade})` : ""}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                          {debugOpenIdx === i && (
-                            <div style={styles.debugBox}>
-                              [파싱 결과] {JSON.stringify(parsed.lines)}
-                              {"\n\n"}
-                              [원본] {parsed.raw || "(원본 데이터 없음)"}
-                            </div>
+                {(() => {
+                  const ACCESSORY_TYPES = ["목걸이", "귀걸이", "반지", "팔찌", "어빌리티 스톤"];
+                  const renderEquipRow = (eq, i) => {
+                    const isAccessory = ACCESSORY_TYPES.includes(eq.Type);
+                    const parsed = isAccessory ? extractTooltipOptionLines(eq.Tooltip) : { lines: [], items: [], raw: "" };
+                    return (
+                      <div key={i} style={styles.modalEquipBlock}>
+                        <div style={styles.modalListRow}>
+                          <span style={styles.modalListType}>{eq.Type}</span>
+                          <span style={styles.modalListName}>{(eq.Name || "").replace(/<[^>]+>/g, "")}</span>
+                          {isAccessory && (
+                            <button
+                              style={styles.debugToggleBtn}
+                              onClick={() => setDebugOpenIdx(debugOpenIdx === i ? null : i)}
+                            >
+                              {debugOpenIdx === i ? "원본 닫기" : "원본 보기"}
+                            </button>
                           )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                        {parsed.items.length > 0 && (
+                          <div style={styles.modalOptionBox}>
+                            {parsed.items.map((it, li) => {
+                              const grade = gradeFromValue(it.name, it.value);
+                              return (
+                                <div
+                                  key={li}
+                                  style={{
+                                    ...styles.modalOptionLine,
+                                    color: grade ? GRADE_COLORS[grade] : styles.modalOptionLine.color,
+                                    fontWeight: grade ? 700 : 400,
+                                  }}
+                                >
+                                  {it.name}
+                                  {it.value ? ` ${it.value}` : ""}
+                                  {grade ? ` (${grade})` : ""}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                        {debugOpenIdx === i && (
+                          <div style={styles.debugBox}>
+                            [파싱 결과] {JSON.stringify(parsed.lines)}
+                            {"\n\n"}
+                            [원본] {parsed.raw || "(원본 데이터 없음)"}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
+                  const gearRows = detailEquipList
+                    .map((eq, i) => ({ eq, i }))
+                    .filter(({ eq }) => !ACCESSORY_TYPES.includes(eq.Type));
+                  const accessoryRows = detailEquipList
+                    .map((eq, i) => ({ eq, i }))
+                    .filter(({ eq }) => ACCESSORY_TYPES.includes(eq.Type));
+                  return (
+                    <>
+                      {gearRows.length > 0 && (
+                        <div style={styles.modalSection}>
+                          <div style={styles.modalSectionTitle}>장비</div>
+                          {gearRows.map(({ eq, i }) => renderEquipRow(eq, i))}
+                        </div>
+                      )}
+                      {accessoryRows.length > 0 && (
+                        <div style={styles.modalSection}>
+                          <div style={styles.modalSectionTitle}>악세사리</div>
+                          {accessoryRows.map(({ eq, i }) => renderEquipRow(eq, i))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
 
                 <div style={styles.modalSection}>
-                  <div style={styles.modalSectionTitle}>
-                    각인
-                    <button
-                      style={styles.debugToggleBtn}
-                      onClick={() => setDebugEngravingOpen((v) => !v)}
-                    >
-                      {debugEngravingOpen ? "원본 닫기" : "원본 보기"}
-                    </button>
-                  </div>
-                  {detailEngravingList.length > 0 ? (
-                    <div style={styles.modalChipRow}>
-                      {detailEngravingList.map((e, i) => {
-                        const name = (e.Name || "").replace(/<[^>]+>/g, "");
-                        let lvl = null;
-                        if (typeof e.Level === "number") lvl = e.Level;
-                        else {
-                          const m = (name + " " + (e.Description || "")).match(/Lv\.?\s*(\d+)/i);
-                          if (m) lvl = m[1];
-                        }
-                        return (
-                          <span
-                            key={i}
-                            style={{ ...styles.modalChip, color: engravingLevelColor(lvl), fontWeight: 700 }}
-                          >
-                            {name}
-                            {lvl ? ` Lv.${lvl}` : ""}
+                  <div style={styles.modalSectionTitle}>아크그리드</div>
+                  {arkGridCores.length > 0 ? (
+                    <>
+                      {arkGridCores.map((c, ci) => (
+                        <div
+                          key={ci}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "baseline",
+                            fontSize: 12,
+                            padding: "3px 0",
+                          }}
+                        >
+                          <span style={{ color: "#c8cddb" }}>{c.name}</span>
+                          <span style={{ color: gradeColor(c.grade), fontWeight: 700, whiteSpace: "nowrap", marginLeft: 8 }}>
+                            {c.grade} · {c.point}P
                           </span>
-                        );
-                      })}
-                    </div>
+                        </div>
+                      ))}
+                      {arkGridEffects.length > 0 && (
+                        <>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#d9a94e", marginTop: 10 }}>
+                            옵션 합계
+                          </div>
+                          {arkGridEffects.map((e, ei) => (
+                            <div key={ei} style={{ fontSize: 11, color: "#c8cddb", padding: "2px 0 2px 8px" }}>
+                              {e.name} Lv.{e.level} · {e.text}
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </>
                   ) : (
-                    <div style={styles.emptyHint}>각인 정보를 가져오지 못했습니다.</div>
-                  )}
-                  {debugEngravingOpen && (
-                    <div style={styles.debugBox}>{JSON.stringify(detailData.engravings)}</div>
+                    <div style={styles.emptyHint}>아크그리드 정보를 가져오지 못했습니다.</div>
                   )}
                 </div>
 
@@ -9186,6 +9120,69 @@ function RaidBoard() {
                     })()}
                   </div>
                 )}
+
+                <div style={styles.modalSection}>
+                  <div style={styles.modalSectionTitle}>
+                    각인
+                    <button
+                      style={styles.debugToggleBtn}
+                      onClick={() => setDebugEngravingOpen((v) => !v)}
+                    >
+                      {debugEngravingOpen ? "원본 닫기" : "원본 보기"}
+                    </button>
+                  </div>
+                  {detailEngravingList.length > 0 ? (
+                    <div style={styles.modalChipRow}>
+                      {detailEngravingList.map((e, i) => {
+                        const name = (e.Name || "").replace(/<[^>]+>/g, "");
+                        let lvl = null;
+                        if (typeof e.Level === "number") lvl = e.Level;
+                        else {
+                          const m = (name + " " + (e.Description || "")).match(/Lv\.?\s*(\d+)/i);
+                          if (m) lvl = m[1];
+                        }
+                        return (
+                          <span
+                            key={i}
+                            style={{ ...styles.modalChip, color: engravingLevelColor(lvl), fontWeight: 700 }}
+                          >
+                            {name}
+                            {lvl ? ` Lv.${lvl}` : ""}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={styles.emptyHint}>각인 정보를 가져오지 못했습니다.</div>
+                  )}
+                  {debugEngravingOpen && (
+                    <div style={styles.debugBox}>{JSON.stringify(detailData.engravings)}</div>
+                  )}
+                </div>
+
+                <div style={styles.modalSection}>
+                  <div style={styles.modalSectionTitle}>아크패시브</div>
+                  {arkPassiveTrees.length > 0 ? (
+                    arkPassiveTrees.map((t, ti) => (
+                      <div key={ti} style={{ marginBottom: 10 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#d9a94e", marginBottom: 4 }}>
+                          {t.tree} · {t.value}P{t.desc ? ` (${t.desc})` : ""}
+                        </div>
+                        {t.nodes.length > 0 ? (
+                          t.nodes.map((n, ni) => (
+                            <div key={ni} style={{ fontSize: 11, color: "#c8cddb", padding: "2px 0 2px 8px" }}>
+                              {n}
+                            </div>
+                          ))
+                        ) : (
+                          <div style={styles.emptyHint}>투자된 노드가 없습니다.</div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div style={styles.emptyHint}>아크패시브 정보를 가져오지 못했습니다.</div>
+                  )}
+                </div>
 
                 {detailEquipList.length === 0 && detailEngravingList.length === 0 && detailGemList.length === 0 && (
                   <div style={styles.emptyHint}>장비/각인/보석 정보를 가져오지 못했습니다 (프로필 정보만 표시).</div>
