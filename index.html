@@ -6081,6 +6081,57 @@ const GRADE_TABLE = [
 const GRADE_LABELS = ["상", "중", "하"];
 const GRADE_COLORS = { 상: "#f5d949", 중: "#c58cf5", 하: "#5b9bd5" };
 
+// 무기/방어구 이름 앞의 "+N" 강화 단계에 따른 강조 색상. 25강=빨강, 24강=보라, 23강=노랑, 그 이하는 기존 색 유지(null).
+function enhanceLevelColor(name) {
+  const m = (name || "").match(/^\+(\d+)/);
+  if (!m) return null;
+  const lvl = Number(m[1]);
+  if (lvl === 25) return "#ff5c5c";
+  if (lvl === 24) return "#b78cf5";
+  if (lvl === 23) return "#f5d949";
+  return null;
+}
+
+// 사용자가 제공한 팔찌 옵션 상/중/하 수치표(딜러용 표 + 서포터용 문구 스크린샷)를 그대로 반영.
+// requires의 모든 키워드가 옵션 문장에 포함돼야 매치되며, 더 구체적인(키워드가 많은) 항목을 먼저 검사한다.
+const BRACELET_GRADE_TABLE = [
+  { requires: ["추가 피해", "악마"], unit: "%", tiers: [3.5, 3, 2.5] },
+  { requires: ["추가 피해"], unit: "%", tiers: [4, 3.5, 3] },
+  { requires: ["치명타 피해"], unit: "%", tiers: [10, 8.4, 6.8] },
+  { requires: ["치명타 적중률"], unit: "%", tiers: [5, 4.2, 3.4] },
+  { requires: ["무기 공격력", "30초"], unit: "+", tiers: [8700, 7800, 6900] },
+  { requires: ["무기 공격력", "중첩"], unit: "+", tiers: [1480, 1320, 1160] },
+  { requires: ["무기 공격력"], unit: "+", tiers: [9000, 8100, 7200] },
+  { requires: ["적에게 주는 피해", "재사용"], unit: "%", tiers: [5.5, 5, 4.5] },
+  { requires: ["보호 효과", "적에게 주는 피해가"], unit: "%", tiers: [1.3, 1.1, 0.9] },
+  { requires: ["적에게 주는 피해"], unit: "%", tiers: [3, 2.5, 2] },
+  { requires: ["방향성"], unit: "%", tiers: [3.5, 3, 2.5] },
+  { requires: ["백어택"], unit: "%", tiers: [3.5, 3, 2.5] },
+  { requires: ["헤드어택"], unit: "%", tiers: [3.5, 3, 2.5] },
+  { requires: ["무력화 상태"], unit: "%", tiers: [5, 4.5, 4] },
+  { requires: ["지능"], unit: "+", tiers: [16000, 13000, 10000] },
+  { requires: ["공격 및 이동 속도"], unit: "%", tiers: [6, 5, 4] },
+  { requires: ["치명타 피해 저항을"], unit: "%", tiers: [4.8, 4.2, 3.6] },
+  { requires: ["치명타 저항을"], unit: "%", tiers: [2.5, 2.1, 1.8] },
+  { requires: ["방어력을"], unit: "%", tiers: [2.5, 2.1, 1.8] },
+  { requires: ["보호 및 회복 효과"], unit: "%", tiers: [3.5, 3, 2.5] },
+  { requires: ["아군 공격력 강화 효과"], unit: "%", tiers: [6, 5, 4] },
+  { requires: ["아군 피해량 강화 효과"], unit: "%", tiers: [9, 7.5, 6] },
+];
+
+function gradeFromBraceletText(text) {
+  if (!text) return null;
+  for (const entry of BRACELET_GRADE_TABLE) {
+    if (!entry.requires.every((k) => text.includes(k))) continue;
+    const m = entry.unit === "%" ? text.match(/(\d+(?:\.\d+)?)\s*%/) : text.match(/(\d{1,2},\d{3}|\d{3,6})/);
+    if (!m) continue;
+    const num = parseFloat(m[1].replace(/,/g, ""));
+    const idx = entry.tiers.findIndex((v) => Math.abs(v - num) < 0.01);
+    if (idx !== -1) return GRADE_LABELS[idx];
+  }
+  return null;
+}
+
 function gradeFromValue(name, valueStr) {
   if (!name || !valueStr) return null;
   const unit = valueStr.includes("%") ? "%" : "+";
@@ -6616,8 +6667,6 @@ function RaidBoard() {
   const [rosterView, setRosterView] = useState(null);
   const [rosterChars, setRosterChars] = useState([]);
   const [rosterLoading, setRosterLoading] = useState(false);
-  const [debugOpenIdx, setDebugOpenIdx] = useState(null);
-  const [debugEngravingOpen, setDebugEngravingOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(() => {
     try {
       if (isLoginExpired()) return false;
@@ -8971,24 +9020,25 @@ function RaidBoard() {
                   const renderEquipRow = (eq, i) => {
                     const isAccessory = ACCESSORY_TYPES.includes(eq.Type);
                     const parsed = isAccessory ? extractTooltipOptionLines(eq.Tooltip) : { lines: [], items: [], raw: "" };
+                    const cleanName = (eq.Name || "").replace(/<[^>]+>/g, "");
+                    const lvlColor = enhanceLevelColor(cleanName);
                     return (
                       <div key={i} style={styles.modalEquipBlock}>
                         <div style={styles.modalListRow}>
                           <span style={styles.modalListType}>{eq.Type}</span>
-                          <span style={styles.modalListName}>{(eq.Name || "").replace(/<[^>]+>/g, "")}</span>
-                          {isAccessory && (
-                            <button
-                              style={styles.debugToggleBtn}
-                              onClick={() => setDebugOpenIdx(debugOpenIdx === i ? null : i)}
-                            >
-                              {debugOpenIdx === i ? "원본 닫기" : "원본 보기"}
-                            </button>
-                          )}
+                          <span
+                            style={{
+                              ...styles.modalListName,
+                              ...(lvlColor ? { color: lvlColor, fontWeight: 700 } : {}),
+                            }}
+                          >
+                            {cleanName}
+                          </span>
                         </div>
                         {parsed.items.length > 0 && (
                           <div style={styles.modalOptionBox}>
                             {parsed.items.map((it, li) => {
-                              const grade = gradeFromValue(it.name, it.value);
+                              const grade = eq.Type === "팔찌" ? gradeFromBraceletText(it.name) : gradeFromValue(it.name, it.value);
                               return (
                                 <div
                                   key={li}
@@ -9004,13 +9054,6 @@ function RaidBoard() {
                                 </div>
                               );
                             })}
-                          </div>
-                        )}
-                        {debugOpenIdx === i && (
-                          <div style={styles.debugBox}>
-                            [파싱 결과] {JSON.stringify(parsed.lines)}
-                            {"\n\n"}
-                            [원본] {parsed.raw || "(원본 데이터 없음)"}
                           </div>
                         )}
                       </div>
@@ -9122,15 +9165,7 @@ function RaidBoard() {
                 )}
 
                 <div style={styles.modalSection}>
-                  <div style={styles.modalSectionTitle}>
-                    각인
-                    <button
-                      style={styles.debugToggleBtn}
-                      onClick={() => setDebugEngravingOpen((v) => !v)}
-                    >
-                      {debugEngravingOpen ? "원본 닫기" : "원본 보기"}
-                    </button>
-                  </div>
+                  <div style={styles.modalSectionTitle}>각인</div>
                   {detailEngravingList.length > 0 ? (
                     <div style={styles.modalChipRow}>
                       {detailEngravingList.map((e, i) => {
@@ -9154,9 +9189,6 @@ function RaidBoard() {
                     </div>
                   ) : (
                     <div style={styles.emptyHint}>각인 정보를 가져오지 못했습니다.</div>
-                  )}
-                  {debugEngravingOpen && (
-                    <div style={styles.debugBox}>{JSON.stringify(detailData.engravings)}</div>
                   )}
                 </div>
 
