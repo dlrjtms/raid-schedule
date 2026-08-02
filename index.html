@@ -7947,7 +7947,8 @@ function RaidBoard() {
       )}
 
       <div style={styles.liveClock} className="rb-num">
-        {nowTick.getFullYear()}-{pad2(nowTick.getMonth() + 1)}-{pad2(nowTick.getDate())}{" "}
+        {nowTick.getFullYear()}-{pad2(nowTick.getMonth() + 1)}-{pad2(nowTick.getDate())} (
+        {DAYS[(nowTick.getDay() + 6) % 7]}){" "}
         {pad2(nowTick.getHours())}:{pad2(nowTick.getMinutes())}:{pad2(nowTick.getSeconds())}
       </div>
 
