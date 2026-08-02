@@ -6881,6 +6881,19 @@ function RaidBoard() {
     setAccessLogEntries([]);
   }
 
+  // 접속 기록 한 건만 삭제한다. time+name 조합으로 원본 로그에서 해당 항목을 찾아 제거한다.
+  async function deleteAccessLogEntry(entry) {
+    const matches = (e) => e.time === entry.time && e.name === entry.name && e.remembered === entry.remembered;
+    setAccessLogEntries((prev) => prev.filter((e) => !matches(e)));
+    try {
+      const r = await window.storage.get("meta:accessLog", true).catch(() => null);
+      const current = r && r.value ? JSON.parse(r.value) : { log: [] };
+      const log = Array.isArray(current.log) ? current.log : [];
+      const updated = log.filter((e) => !matches(e));
+      await window.storage.set("meta:accessLog", JSON.stringify({ log: updated }), true);
+    } catch (e) {}
+  }
+
   // 내 접속 상태를 주기적으로 기록 (하트비트) - 관리자 모드일 땐 숨김
   useEffect(() => {
     if (isAdmin) {
@@ -9140,15 +9153,26 @@ function RaidBoard() {
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
+                      alignItems: "center",
                       fontSize: 12,
                       padding: "4px 0",
                       borderBottom: "1px solid #1c212c",
+                      gap: 8,
                     }}
                   >
                     <span style={{ color: e.name ? "#e8ebf0" : e.remembered ? "#8b93a7" : "#5f6577" }}>
                       {e.name ? e.name : e.remembered ? `추정: ${e.remembered}` : "익명"}
                     </span>
-                    <span style={{ color: "#5f6577" }}>{new Date(e.time).toLocaleString("ko-KR")}</span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ color: "#5f6577" }}>{new Date(e.time).toLocaleString("ko-KR")}</span>
+                      <button
+                        style={styles.accessLogDeleteBtn}
+                        onClick={() => deleteAccessLogEntry(e)}
+                        title="이 기록만 삭제"
+                      >
+                        ✕
+                      </button>
+                    </span>
                   </div>
                 ))
               )}
@@ -9435,6 +9459,7 @@ const styles = {
   modalHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   modalTitle: { fontSize: 17, fontWeight: 700, color: "#f2ede0" },
   modalClose: { background: "transparent", border: "none", color: "#8b93a7", fontSize: 16, cursor: "pointer" },
+  accessLogDeleteBtn: { background: "transparent", border: "none", color: "#5f6577", fontSize: 13, cursor: "pointer", padding: "2px 4px", lineHeight: 1 },
   modalSubtitle: { fontSize: 12, color: "#8b93a7", marginBottom: 8 },
   specName: { color: "#f5d949", fontWeight: 700 },
   modalStatRow: { display: "flex", gap: 14, fontSize: 13, color: "#d9a94e", fontWeight: 700, marginBottom: 14 },
