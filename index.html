@@ -6100,6 +6100,7 @@ const BRACELET_GRADE_TABLE = [
   { requires: ["치명타 피해"], unit: "%", tiers: [10, 8.4, 6.8] },
   { requires: ["치명타 적중률"], unit: "%", tiers: [5, 4.2, 3.4] },
   { requires: ["무기 공격력", "30초"], unit: "+", tiers: [8700, 7800, 6900] },
+  { requires: ["무기 공격력", "30초", "중첩"], unit: "+", tiers: [150, 140, 130] },
   { requires: ["무기 공격력", "중첩"], unit: "+", tiers: [1480, 1320, 1160] },
   { requires: ["무기 공격력"], unit: "+", tiers: [9000, 8100, 7200] },
   { requires: ["적에게 주는 피해", "재사용"], unit: "%", tiers: [5.5, 5, 4.5] },
@@ -6124,16 +6125,25 @@ function gradeFromBraceletText(text, context) {
   const ctx = context || text;
   for (const entry of BRACELET_GRADE_TABLE) {
     if (!entry.requires.every((k) => ctx.includes(k))) continue;
-    const m = entry.unit === "%" ? text.match(/(\d+(?:\.\d+)?)\s*%/) : text.match(/(\d{1,2},\d{3}|\d{3,6})/);
-    if (!m) continue;
-    const num = parseFloat(m[1].replace(/,/g, ""));
+    let num = null;
+    if (entry.unit === "%") {
+      // 한 문장에 다른 %가 섞여 있을 수 있어 마지막 % 매치를 사용한다.
+      const matches = [...text.matchAll(/(\d+(?:\.\d+)?)\s*%/g)];
+      if (matches.length === 0) continue;
+      num = parseFloat(matches[matches.length - 1][1].replace(/,/g, ""));
+    } else {
+      // "30초마다", "(최대 N중첩)" 등 다른 숫자가 섞일 수 있어, "증가/감소" 동사 바로 앞 숫자만 집는다.
+      const m = text.match(/(\d{1,2},\d{3}|\d{3,6})\s*(?:이|가|씩)?\s*(?:증가|감소)/);
+      if (!m) continue;
+      num = parseFloat(m[1].replace(/,/g, ""));
+    }
     const idx = entry.tiers.findIndex((v) => Math.abs(v - num) < 0.01);
     if (idx !== -1) return GRADE_LABELS[idx];
   }
   return null;
 }
 
-// 팔찌의 고정 스탯(힘/민첩/지능, 치명/특화/신속) 값 구간별 색상.
+// 팔찌의 고정 스탯(힘/민첩/지능, 제압/특화/신속/치명/인내/숙련) 값 구간별 색상.
 function statLineColor(name, valueStr) {
   const num = parseFloat((valueStr || "").replace(/[+,]/g, ""));
   if (Number.isNaN(num)) return null;
@@ -6143,7 +6153,7 @@ function statLineColor(name, valueStr) {
     if (num >= 12000) return "#5ec9e8";
     return "#7fbf5f";
   }
-  if (["치명", "특화", "신속"].includes(name)) {
+  if (["치명", "특화", "신속", "제압", "인내", "숙련"].includes(name)) {
     if (num >= 120) return "#f5d949";
     if (num >= 101) return "#b78cf5";
     if (num >= 85) return "#5ec9e8";
@@ -6252,59 +6262,89 @@ function extractTooltipOptionLines(tooltipRaw) {
   // [3] 팔찌: "팔찌 효과" 구간. 힘/민첩/지능, 치명/특화/신속 같은 고정 스탯 줄은
   // 툴팁 전체(rawLines)에서 별도로 찾고, 나머지는 옵션 하나가 한 줄로 오는 경우도, "이름 문구 | N% | 증가한다."처럼
   // 퍼센트 값이 앞뒤 문구와 분리된 3줄로 오는 경우도 있어 앞뒤를 붙여서 완전한 문장으로 만든다.
+  // [3] 팔찌: "팔찌 효과" 구간. 힘/민첩/지능, 제압/특화/신속/치명/인내/숙련 같은 고정 스탯 줄은
+  // 툴팁 전체(rawLines)에서 별도로 찾고, 나머지 옵션은 "%"가 있는 줄뿐 아니라 "N 증가한다"처럼
+  // %없이 순수 수치로만 오는 줄(예: 무기 공격력)도 포함해서, 앞뒤 문구와 분리된 경우 이어 붙여 완전한 문장으로 만든다.
   if (lines.length === 0) {
-    const STAT_NAMES = ["힘", "민첩", "지능", "특화", "치명", "신속"];
-    const STAT_LINE_COMBINED = /^(힘|민첩|지능|특화|치명|신속)\s*[+\-]?([\d,]+)$/;
+    const STAT_NAMES = ["힘", "민첩", "지능", "특화", "치명", "신속", "제압", "인내", "숙련"];
+    const STAT_LINE_COMBINED = /^(힘|민첩|지능|특화|치명|신속|제압|인내|숙련)\s*[+\-]?([\d,]+)$/;
     const NUM_ONLY = /^[+\-]?[\d,]+$/;
-    const statLines = [];
-    const seenStat = new Set();
-    for (let idx = 0; idx < rawLines.length; idx++) {
-      const l = rawLines[idx];
-      const cm = l.match(STAT_LINE_COMBINED);
-      if (cm && !seenStat.has(cm[1])) {
-        statLines.push({ name: cm[1], value: `+${cm[2].replace(/,/g, "")}`, statLine: true });
-        seenStat.add(cm[1]);
-        continue;
+    const FLAT_EFFECT = /\d[\d,]*\s*(증가|감소)/; // "N 증가한다"류: %없이 숫자+증가/감소가 한 줄에 붙어오는 경우
+    // "이름 +N%"처럼 그 자체로 이미 완결된 한 줄(뒤에 다른 옵션 문구를 잘못 이어붙이지 않기 위해 구분)
+    const SELF_CONTAINED_PAIR = /^[가-힣()·\s]+[+]?[\d,]+(?:\.\d+)?%$/;
+
+    function extractStatLines(arr) {
+      const found = [];
+      const seen = new Set();
+      for (let idx = 0; idx < arr.length; idx++) {
+        const l = arr[idx];
+        const cm = l.match(STAT_LINE_COMBINED);
+        if (cm && !seen.has(cm[1])) {
+          found.push({ name: cm[1], value: `+${cm[2].replace(/,/g, "")}`, statLine: true, idx });
+          seen.add(cm[1]);
+          continue;
+        }
+        if (STAT_NAMES.includes(l) && !seen.has(l) && arr[idx + 1] && NUM_ONLY.test(arr[idx + 1])) {
+          const raw = arr[idx + 1].replace(/,/g, "");
+          const val = raw.startsWith("+") || raw.startsWith("-") ? raw : `+${raw}`;
+          found.push({ name: l, value: val, statLine: true, idx, idx2: idx + 1 });
+          seen.add(l);
+        }
       }
-      // 이름과 값이 "힘" / "+10,944"처럼 서로 다른 줄로 나뉘어 오는 경우도 처리
-      if (STAT_NAMES.includes(l) && !seenStat.has(l) && rawLines[idx + 1] && NUM_ONLY.test(rawLines[idx + 1])) {
-        const raw = rawLines[idx + 1].replace(/,/g, "");
-        const val = raw.startsWith("+") || raw.startsWith("-") ? raw : `+${raw}`;
-        statLines.push({ name: l, value: val, statLine: true });
-        seenStat.add(l);
-      }
+      return found;
     }
 
     chunk = sectionChunk("팔찌 효과");
+    let statLines = [];
+    const consumedIdx = new Set();
+    if (chunk) {
+      statLines = extractStatLines(chunk);
+      statLines.forEach((s) => {
+        consumedIdx.add(s.idx);
+        if (s.idx2 != null) consumedIdx.add(s.idx2);
+      });
+    }
+    // "팔찌 효과" 구간 안에서 못 찾았으면 툴팁 전체에서 한 번 더 찾아본다 (안전망).
+    if (statLines.length === 0) {
+      statLines = extractStatLines(rawLines);
+    }
+
     if (chunk || statLines.length > 0) {
       statLines.forEach((it) => {
         lines.push(`${it.name} ${it.value}`);
-        items.push(it);
+        items.push({ name: it.name, value: it.value, statLine: true });
       });
-      const filtered = (chunk || []).filter((l) => !STAT_ONLY.test(l) && !STAT_NAMES.includes(l) && !NUM_ONLY.test(l));
+      const filtered = (chunk || []).filter((l, idx) => !consumedIdx.has(idx) && !STAT_ONLY.test(l));
       const used = new Set();
       for (let i = 0; i < filtered.length; i++) {
         if (used.has(i)) continue;
         const l = filtered[i];
-        if (!l.includes("%")) continue;
+        const isCore = l.includes("%") || FLAT_EFFECT.test(l) || NUM_ONLY.test(l);
+        if (!isCore) continue;
+        const selfContained = SELF_CONTAINED_PAIR.test(l);
         let prefix = "";
-        if (
-          i > 0 &&
-          !used.has(i - 1) &&
-          !filtered[i - 1].includes("%") &&
-          !/^[+\-]?[\d,.]+$/.test(filtered[i - 1])
-        ) {
-          prefix = filtered[i - 1];
-          used.add(i - 1);
-        }
         let suffix = "";
-        if (
-          i + 1 < filtered.length &&
-          !filtered[i + 1].includes("%") &&
-          !/^[+\-]?[\d,.]+$/.test(filtered[i + 1])
-        ) {
-          suffix = filtered[i + 1];
-          used.add(i + 1);
+        if (!selfContained) {
+          if (
+            i > 0 &&
+            !used.has(i - 1) &&
+            !filtered[i - 1].includes("%") &&
+            !FLAT_EFFECT.test(filtered[i - 1]) &&
+            !/^[+\-]?[\d,.]+$/.test(filtered[i - 1])
+          ) {
+            prefix = filtered[i - 1];
+            used.add(i - 1);
+          }
+          if (
+            i + 1 < filtered.length &&
+            !used.has(i + 1) &&
+            !filtered[i + 1].includes("%") &&
+            !FLAT_EFFECT.test(filtered[i + 1]) &&
+            !/^[+\-]?[\d,.]+$/.test(filtered[i + 1])
+          ) {
+            suffix = filtered[i + 1];
+            used.add(i + 1);
+          }
         }
         used.add(i);
         const combined = [prefix, l, suffix]
