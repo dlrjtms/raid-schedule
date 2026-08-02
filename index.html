@@ -6339,6 +6339,7 @@ function extractTooltipOptionLines(tooltipRaw) {
             i + 1 < filtered.length &&
             !used.has(i + 1) &&
             !filtered[i + 1].includes("%") &&
+            /증가|감소/.test(filtered[i + 1]) &&
             !FLAT_EFFECT.test(filtered[i + 1]) &&
             !/^[+\-]?[\d,.]+$/.test(filtered[i + 1])
           ) {
@@ -7640,8 +7641,6 @@ function RaidBoard() {
     setDetailMemberChars(null);
     setDetailData(null);
     setDetailError("");
-    setDebugOpenIdx(null);
-    setDebugEngravingOpen(false);
   }
 
   async function deleteSlot(idx) {
