@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-app-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-firestore-compat.js"></script>
 </head>
-<body style="margin:0;background:#0f1219;">
+<body style="margin:0;background:linear-gradient(rgba(15,18,25,0.93),rgba(15,18,25,0.97)), #0f1219 url('bg_event1.webp') center/cover no-repeat;">
 <div id="root"></div>
 
 <script>
@@ -6372,13 +6372,14 @@ function extractTooltipOptionLines(tooltipRaw) {
 
 const MINUTE_OPTIONS = [0, 10, 20, 30, 40, 50];
 
-// 가장 최근에 지나간 "수요일 06:00"(레이드 하루 초기화 시점)을 구한다 (0=일 ... 3=수)
-function lastWednesday6am(now) {
+// 주간 시간설정 리셋 시간: 매주 화요일 20:00
+// 가장 최근에 지나간 "화요일 20:00"(요일별 게임 가능 시간 초기화 시점)을 구한다 (0=일 ... 2=화)
+function lastScheduleReset(now) {
   const d = new Date(now);
   const day = d.getDay();
-  const diff = (day - 3 + 7) % 7;
+  const diff = (day - 2 + 7) % 7;
   d.setDate(d.getDate() - diff);
-  d.setHours(6, 0, 0, 0);
+  d.setHours(20, 0, 0, 0);
   if (d.getTime() > now.getTime()) {
     d.setDate(d.getDate() - 7);
   }
@@ -6416,7 +6417,7 @@ const GUIDE_SECTIONS = [
   { img: "guide/guide-1.png", text: "대표 캐릭터 이름 입력 후 비밀번호 설정" },
   {
     img: "guide/guide-2.png",
-    text: "로그인 후 \"로스트아크에서 자동 불러오기\" 클릭 시 원정대 자동 생성\n\n요일별 게임 가능 시간 설정 및 레이드 완료 캐릭 체크 기능",
+    text: "로그인 후 \"로스트아크에서 자동 불러오기\" 클릭 시 원정대 자동 생성\n\n요일별 게임 가능 시간 설정 및 레이드 완료 캐릭 체크 기능\n\n※ 요일별 시간 설정과 레이드 완료 체크는 매주 화요일 20:00에 초기화됩니다",
   },
   {
     img: "guide/guide-3.png",
@@ -6905,9 +6906,9 @@ function RaidBoard() {
           }
         } catch (e) {}
 
-        // 매주 수요일 오전 6시가 지난 뒤 첫 접속에서 전체 요일별 시간/레이드 완료 체크를 초기화
+        // 매주 화요일 20시(주간 시간설정 리셋 시간)가 지난 뒤 첫 접속에서 전체 요일별 시간/레이드 완료 체크를 초기화
         try {
-          const target = lastWednesday6am(new Date()).getTime();
+          const target = lastScheduleReset(new Date()).getTime();
           let lastReset = null;
           try {
             const r = await window.storage.get("meta:lastReset", true);
@@ -8492,7 +8493,7 @@ function RaidBoard() {
                       );
                     })}
                   </div>
-                  <div style={styles.emptyHint}>체크박스: 이번 주 레이드 완료 표시 (매주 수요일 아침 6시 초기화)</div>
+                  <div style={styles.emptyHint}>체크박스: 이번 주 레이드 완료 표시 (매주 화요일 20시 초기화)</div>
                   {editSlot !== null && (
                     <div style={styles.editorBox}>
                       <input
@@ -9617,10 +9618,22 @@ const CORNER_BRACKET = {
 };
 
 const styles = {
-  page: { background: "#0f1219", color: "#e8ebf0", minHeight: "100vh", padding: "28px 20px 60px", maxWidth: 980, margin: "0 auto" },
-  hero: { textAlign: "center", padding: "10px 0 24px" },
-  heroEyebrow: { fontFamily: "'Chakra Petch', sans-serif", letterSpacing: 4, fontSize: 12, color: "#d9a94e", marginBottom: 8 },
-  heroTitle: { fontFamily: "'Black Han Sans', sans-serif", fontSize: 32, margin: 0, color: "#f2ede0" },
+  page: { background: "transparent", color: "#e8ebf0", minHeight: "100vh", padding: "28px 20px 60px", maxWidth: 980, margin: "0 auto" },
+  hero: {
+    textAlign: "center",
+    padding: "64px 20px 36px",
+    marginBottom: 4,
+    borderRadius: 16,
+    border: "1px solid rgba(217,169,78,0.35)",
+    backgroundImage:
+      "linear-gradient(180deg, rgba(10,12,18,0.25) 0%, rgba(10,12,18,0.55) 60%, rgba(15,18,25,0.92) 100%), url('bg_index.webp')",
+    backgroundSize: "cover",
+    backgroundPosition: "center 20%",
+    backgroundRepeat: "no-repeat",
+    position: "relative",
+  },
+  heroEyebrow: { fontFamily: "'Chakra Petch', sans-serif", letterSpacing: 4, fontSize: 12, color: "#d9a94e", marginBottom: 8, textShadow: "0 2px 10px rgba(0,0,0,0.85)" },
+  heroTitle: { fontFamily: "'Black Han Sans', sans-serif", fontSize: 32, margin: 0, color: "#f2ede0", textShadow: "0 2px 14px rgba(0,0,0,0.85)" },
   loadingBox: { textAlign: "center", color: "#8b93a7", padding: 40 },
   presenceBar: { display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 12, color: "#8b93a7", marginBottom: 18 },
   presenceDot: { color: "#639922", fontSize: 8 },
