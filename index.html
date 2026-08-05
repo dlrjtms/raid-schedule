@@ -9126,9 +9126,10 @@ function RaidBoard() {
                               fontSize: 11,
                               color: "#5f6577",
                               fontWeight: 700,
-                              textAlign: "left",
+                              textAlign: i === 0 ? "left" : "right",
                               padding: "4px 8px",
-                              borderBottom: "1px solid #262d3d",
+                              borderBottom: "1px solid #3a4152",
+                              borderRight: i < table.columns.length - 1 ? "1px solid #3a4152" : "none",
                               whiteSpace: "nowrap",
                             }}
                           >
@@ -9146,8 +9147,10 @@ function RaidBoard() {
                               className={ci > 0 ? "rb-num" : undefined}
                               style={{
                                 fontSize: 12,
-                                padding: "6px 8px",
-                                borderBottom: "1px solid #1e2430",
+                                padding: "8px 8px",
+                                borderBottom: "1px solid #3a4152",
+                                borderRight: ci < row.length - 1 ? "1px solid #3a4152" : "none",
+                                textAlign: ci === 0 ? "left" : "right",
                                 color: ci === 0 ? "#d9a94e" : "#e8ebf0",
                                 fontWeight: ci === 0 ? 700 : 400,
                                 whiteSpace: "nowrap",
