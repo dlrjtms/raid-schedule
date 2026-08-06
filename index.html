@@ -6462,6 +6462,60 @@ const RAID_REWARDS = [
 // guardian=운명의 수호석(획득 보상)/운명의 수호석 결정(더보기), breakthrough=운명의 돌파석(획득 보상)/운명의 돌파석 결정(더보기),
 // grace=은총의 파편(지평의 성당 전용). thorn=세르카 하드/나이트메어 전용 재료(고통의 가시).
 const RAID_REWARD_DETAILS = {
+  "벨가르딘 노말": {
+    label: "그림자 레이드 : 죽음의 계율자, 벨가르딘 · 노말",
+    crystal: true,
+    gates: [
+      {
+        gate: "1관문",
+        bound: 20000,
+        base: { destruction: 405, guardian: 810, destiny: 9100, breakthrough: 8, grace: 3, shadow: 12 },
+        extra: { pay: 6400, destruction: 860, guardian: 1720, destiny: 19000, breakthrough: 36, grace: 3, shadow: 12 },
+      },
+      {
+        gate: "2관문",
+        bound: 30000,
+        base: { destruction: 500, guardian: 1000, destiny: 11000, breakthrough: 12, grace: 4, transferBreak: 6, shadow: 18 },
+        extra: { pay: 9600, destruction: 1430, guardian: 2860, destiny: 32200, breakthrough: 60, grace: 4, transferBreak: 5, shadow: 18 },
+      },
+    ],
+  },
+  "벨가르딘 하드": {
+    label: "그림자 레이드 : 죽음의 계율자, 벨가르딘 · 하드",
+    crystal: true,
+    gates: [
+      {
+        gate: "1관문",
+        bound: 25000,
+        base: { destruction: 490, guardian: 980, destiny: 10920, breakthrough: 10, grace: 4, deathhand: 12 },
+        extra: { pay: 8000, destruction: 1130, guardian: 2260, destiny: 22800, breakthrough: 43, grace: 4, deathhand: 12 },
+      },
+      {
+        gate: "2관문",
+        bound: 37000,
+        base: { destruction: 600, guardian: 1200, destiny: 13200, breakthrough: 15, grace: 5, transferBreak: 9, deathhand: 18 },
+        extra: { pay: 11840, destruction: 1720, guardian: 3440, destiny: 38640, breakthrough: 72, grace: 5, transferBreak: 6, deathhand: 18 },
+      },
+    ],
+  },
+  "벨가르딘 나메": {
+    label: "그림자 레이드 : 죽음의 계율자, 벨가르딘 · 나이트메어",
+    crystal: true,
+    gates: [
+      {
+        gate: "1관문",
+        bound: 30000,
+        base: { destruction: 565, guardian: 1130, destiny: 12550, breakthrough: 12, grace: 5, deathhand: 12 },
+        extra: { pay: 9600, destruction: 1300, guardian: 2600, destiny: 26220, breakthrough: 49, grace: 5, deathhand: 12 },
+      },
+      {
+        gate: "2관문",
+        bound: 45000,
+        base: { destruction: 690, guardian: 1380, destiny: 15180, breakthrough: 18, grace: 6, transferBreak: 10, deathhand: 18 },
+        extra: { pay: 14400, destruction: 1980, guardian: 3960, destiny: 44440, breakthrough: 83, grace: 6, transferBreak: 7, deathhand: 18 },
+      },
+    ],
+  },
   "4막 하드": {
     label: "4막 : 파멸의 성채 · 하드",
     crystal: false,
@@ -6657,6 +6711,9 @@ const REWARD_MAT_LABELS = {
   breakthrough: { base: "운명의 돌파석", extra: "운명의 돌파석 결정", color: "#e0529c" },
   grace: { base: "은총의 파편", extra: "은총의 파편", color: "#d9a94e" },
   thorn: { base: "고통의 가시", extra: "고통의 가시", color: "#c85f5f" },
+  shadow: { base: "사령의 잔영", extra: "사령의 잔영", color: "#9b6fe0" },
+  deathhand: { base: "죽음의 손", extra: "죽음의 손", color: "#c9c2b0" },
+  transferBreak: { base: "전이 돌파석", extra: "전이 돌파석", color: "#4fd6c0" },
 };
 
 // 낙원 시즌 2 지옥/나락 보상표 (사용자가 캡쳐해서 준 표를 그대로 옮겨 적은 것)
