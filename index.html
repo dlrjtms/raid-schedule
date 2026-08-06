@@ -6650,6 +6650,15 @@ const RAID_REWARD_DETAILS = {
   },
 };
 
+const REWARD_MAT_LABELS = {
+  destiny: { base: "운명의 파편", extra: "운명의 파편", color: "#e05fa8" },
+  destruction: { base: "운명의 파괴석", extra: "운명의 파괴석 결정", color: "#e2593f" },
+  guardian: { base: "운명의 수호석", extra: "운명의 수호석 결정", color: "#4fa8e0" },
+  breakthrough: { base: "운명의 돌파석", extra: "운명의 돌파석 결정", color: "#e0529c" },
+  grace: { base: "은총의 파편", extra: "은총의 파편", color: "#d9a94e" },
+  thorn: { base: "고통의 가시", extra: "고통의 가시", color: "#c85f5f" },
+};
+
 // 낙원 시즌 2 지옥/나락 보상표 (사용자가 캡쳐해서 준 표를 그대로 옮겨 적은 것)
 const HELL_NARAK_REWARDS = {
   hell: {
@@ -9163,6 +9172,7 @@ function RaidBoard() {
                               borderBottom: "1px solid #3a4152",
                               borderRight: i < table.columns.length - 1 ? "1px solid #3a4152" : "none",
                               whiteSpace: "nowrap",
+                              ...(i === 0 ? { position: "sticky", left: 0, background: "#171c26", zIndex: 2 } : null),
                             }}
                           >
                             {c}
@@ -9186,6 +9196,7 @@ function RaidBoard() {
                                 color: ci === 0 ? "#d9a94e" : "#e8ebf0",
                                 fontWeight: ci === 0 ? 700 : 400,
                                 whiteSpace: "nowrap",
+                                ...(ci === 0 ? { position: "sticky", left: 0, background: "#171c26", zIndex: 1 } : null),
                               }}
                             >
                               {cell || "-"}
