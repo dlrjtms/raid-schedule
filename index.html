@@ -6963,6 +6963,7 @@ function RaidBoard() {
   const [rosterView, setRosterView] = useState(null);
   const [rosterChars, setRosterChars] = useState([]);
   const [rosterLoading, setRosterLoading] = useState(false);
+  const [rosterImportLoading, setRosterImportLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(() => {
     try {
       if (isLoginExpired()) return false;
@@ -7694,6 +7695,28 @@ function RaidBoard() {
     } finally {
       setImportLoading(false);
     }
+  }
+
+  // 원정대 팝업(fetchRosterChars로 이미 불러온 실시간 전투력/레벨)을
+  // 해당 멤버가 등록해둔 캐릭터 슬롯(최대 6개)에 그대로 반영한다.
+  // 기존 슬롯과 이름이 같으면 id/레이드 완료 체크는 유지하고 레벨·전투력만 갱신한다.
+  async function importRosterIntoMember(member, chars) {
+    if (!member || !Array.isArray(chars) || chars.length === 0) return;
+    const oldByName = {};
+    (member.characters || []).forEach((c) => {
+      if (c) oldByName[c.name] = c;
+    });
+    const top = [...chars].sort((a, b) => (b.level || 0) - (a.level || 0)).slice(0, MAX_SLOTS);
+    const newChars = top.map((c) => ({
+      id: oldByName[c.name] ? oldByName[c.name].id : uid(),
+      name: c.name,
+      className: c.className,
+      role: roleOf(c.className),
+      level: c.level,
+      combatPower: c.combatPower,
+      raidDone: oldByName[c.name] ? !!oldByName[c.name].raidDone : false,
+    }));
+    await saveMember({ ...member, characters: newChars });
   }
 
   async function safeFetchJson(type, name, retries = 1) {
@@ -9326,9 +9349,28 @@ function RaidBoard() {
               <div style={styles.modalTitle}>
                 {(rosterView.characters.find(Boolean) || {}).name || "원정대"}님의 원정대
               </div>
-              <button style={styles.modalClose} onClick={closeRosterView}>
-                ✕
-              </button>
+              <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                {rosterChars.length > 0 && (isAdmin || rosterView.id === loggedInId) && (
+                  <button
+                    style={styles.refreshBtn}
+                    disabled={rosterImportLoading}
+                    onClick={async () => {
+                      setRosterImportLoading(true);
+                      try {
+                        await importRosterIntoMember(rosterView, rosterChars);
+                      } finally {
+                        setRosterImportLoading(false);
+                      }
+                    }}
+                    title="지금 보이는 전투력/레벨을 이 멤버가 등록해둔 캐릭터 슬롯에 반영합니다"
+                  >
+                    {rosterImportLoading ? "불러오는 중..." : "로스트아크에서 불러오기"}
+                  </button>
+                )}
+                <button style={styles.modalClose} onClick={closeRosterView}>
+                  ✕
+                </button>
+              </div>
             </div>
             {rosterLoading ? (
               <div style={styles.emptyHint}>불러오는 중...</div>
