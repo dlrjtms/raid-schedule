@@ -6387,7 +6387,8 @@ function lastScheduleReset(now) {
 }
 
 const LOSTARK_PROXY_URL = "https://raid-sch.mr88sws.workers.dev/";
-const ADMIN_PASSWORD = "146325";
+// 관리자 비밀번호는 클라이언트에 두지 않는다 — Cloudflare Worker(raid-sch.mr88sws.workers.dev)의
+// ADMIN_PASSWORD 시크릿과 서버에서 직접 대조한다 (attemptAdminLogin 참고).
 const ADMIN_MEMBER_ID = "m01"; // 이거슨의문사를피하는무빙 계정으로 로그인했을 때만 관리자 로그인 노출
 const LOGIN_TTL_MS = 4 * 60 * 60 * 1000; // 로그인 유지 시간: 4시간
 
@@ -6975,6 +6976,7 @@ function RaidBoard() {
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminPwInput, setAdminPwInput] = useState("");
   const [adminError, setAdminError] = useState("");
+  const [adminLoginLoading, setAdminLoginLoading] = useState(false);
   const [slotDraft, setSlotDraft] = useState({ name: "", className: "", role: "딜러", level: "" });
   const [confirmDelete, setConfirmDelete] = useState(false);
   // 로그인이 새로고침 후에도 유지되면서 모바일에서 내 정보 패널이 항상 펼쳐져 있으면 답답하니 기본은 접어둔다.
@@ -7487,18 +7489,36 @@ function RaidBoard() {
     }
   }
 
-  function attemptAdminLogin() {
+  async function attemptAdminLogin() {
     if (loggedInId !== ADMIN_MEMBER_ID) {
       setAdminError("이 계정으로는 관리자 로그인을 할 수 없습니다.");
       return;
     }
-    if (adminPwInput === ADMIN_PASSWORD) {
-      setIsAdmin(true);
-      setShowAdminLogin(false);
-      setAdminPwInput("");
-      setAdminError("");
-    } else {
-      setAdminError("비밀번호가 일치하지 않습니다.");
+    if (!adminPwInput) {
+      setAdminError("비밀번호를 입력해주세요.");
+      return;
+    }
+    setAdminLoginLoading(true);
+    setAdminError("");
+    try {
+      const res = await fetch(LOSTARK_PROXY_URL + "?type=admin_login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: adminPwInput }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        setIsAdmin(true);
+        setShowAdminLogin(false);
+        setAdminPwInput("");
+        setAdminError("");
+      } else {
+        setAdminError("비밀번호가 일치하지 않습니다.");
+      }
+    } catch (e) {
+      setAdminError("서버에 연결하지 못했습니다. 잠시 후 다시 시도해주세요.");
+    } finally {
+      setAdminLoginLoading(false);
     }
   }
 
@@ -8456,11 +8476,12 @@ function RaidBoard() {
                   type="password"
                   placeholder="관리자 비밀번호"
                   value={adminPwInput}
+                  disabled={adminLoginLoading}
                   onChange={(e) => setAdminPwInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && attemptAdminLogin()}
                 />
-                <button style={styles.ghostBtnSmall} onClick={attemptAdminLogin}>
-                  확인
+                <button style={styles.ghostBtnSmall} onClick={attemptAdminLogin} disabled={adminLoginLoading}>
+                  {adminLoginLoading ? "확인 중..." : "확인"}
                 </button>
                 <button style={styles.ghostBtnSmall} onClick={() => setShowAdminLogin(false)}>
                   취소
