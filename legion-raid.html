@@ -2236,7 +2236,7 @@ function updVoids(dt){if(stageIx!==8)return;const b=B,p=P;
   if(p.push){p.x+=p.push.vx*dt;p.y+=p.push.vy*dt;p.push.t-=dt;const out=!inArena(p.x,p.y,p.r);if(out)clampArena(p,p.r+4);if(inVoid(p.x,p.y))startFall();else if(p.push.t<=0||out)p.push=null}
   if(p.fallT){p.fallT+=dt;p.jz=-Math.min(170,p.fallT*p.fallT*700);if(p.fallT>0.7){const sp=safePoint();p.fallT=0;p.jz=0;p.x=sp.x;p.y=sp.y;hurtP(99999,true)}}
   if(b.dead||b.noCollapse)return;const r=b.hp/b.maxHp,k=voids.length+(voidWarn?1:0);
-  if(!voidWarn&&((k===0&&r<=0.75)||(k===1&&r<=0.5)||(k===2&&r<=0.25))){const iq=intactQ();const q=iq[Math.floor(Math.random()*iq.length)];const T=hard?3:3.6;
+  if(!voidWarn&&((k===0&&r<=0.75)||(k===1&&r<=0.5)||(k===2&&r<=0.25))){const iq=intactQ();const q=[0,1,2].find(x=>iq.includes(x))??iq[0];/* 1시 → 11시 → 5시 순서, 아래 왼쪽(7시)이 마지막까지 남음 */const T=hard?3:3.6;
     voidWarn={q,t:T,max:T};b.act=null;b.counterable=false;b.cool=Math.max(b.cool,T+0.7);axeTo(-2.8,0.6);b.armB=-2.8;banner('경기장이 무너진다! 노란 구역에서 벗어나라',2.2);sfx('roar');shake(8)}
   if(voidWarn){voidWarn.t-=dt;if(Math.random()<0.25)shake(3);if(Math.random()<0.4){const m=quadMid(voidWarn.q,rnd(0.2,0.9));sparksAt(m.x+rnd(-80,80),m.y+rnd(-30,30),2,'255,224,96',120)}
     if(voidWarn.t<=0){const q=voidWarn.q;voidWarn=null;voids.push(q);axeTo(1.4,0.1);b.armB=1.6;shake(22);sfx('slam');flash(0.3,'255,230,140');
