@@ -135,6 +135,12 @@ button:focus-visible,.card:focus-visible{outline:2px solid var(--rune);outline-o
 #touch{color:var(--gold)}
 #wrap.mob{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 #tc{position:absolute;inset:0;pointer-events:none;touch-action:none}
+.tguard{right:20cqw;bottom:19.5cqw;width:13cqw;height:13cqw;border-radius:50% !important;border:3px solid #ffd84a;background:radial-gradient(circle at 50% 40%,rgba(255,216,74,.55),rgba(90,60,6,.85));color:#fff6d0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.2cqw;animation:tgPop .18s ease-out,tgPulse .7s ease-in-out infinite;box-shadow:0 0 2.4cqw rgba(255,210,60,.7)}
+.tguard b{font-size:4.2cqw;line-height:1;text-shadow:0 0 1cqw rgba(0,0,0,.8)}.tguard span{font-size:1.25cqw;font-weight:800}
+.tguard.now{background:radial-gradient(circle at 50% 40%,#fff3a0,#ffb81c);color:#3a2400;border-color:#fff;box-shadow:0 0 4cqw rgba(255,230,90,1);transform:scale(1.12)}.tguard.now b{text-shadow:none}
+.tguard.cool{opacity:.55}.tguard.down{transform:scale(.92)}
+@keyframes tgPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}@keyframes tgPulse{50%{box-shadow:0 0 3.6cqw rgba(255,210,60,1)}}
+
 #tzone{position:absolute;left:0;bottom:0;width:40%;height:78%;pointer-events:auto;touch-action:none}
 #tbase{position:absolute;width:13cqw;height:13cqw;margin:-6.5cqw 0 0 -6.5cqw;border-radius:50%;background:rgba(255,255,255,.06);border:2px solid rgba(255,235,210,.3);pointer-events:none}
 #tknob{position:absolute;left:50%;top:50%;width:6cqw;height:6cqw;margin:-3cqw 0 0 -3cqw;border-radius:50%;background:rgba(255,235,210,.32);border:2px solid rgba(255,235,210,.65)}
@@ -3059,7 +3065,7 @@ const TBTN=[
   {k:'E',code:'KeyQ',key:'Q',c:0,row:0},{k:'W',code:'KeyW',key:'W',c:1,row:0},{k:'E2',code:'KeyE',key:'E',c:2,row:0},{k:'R',code:'KeyR',key:'R',c:3,row:0},
   {k:'A2',code:'KeyA',key:'A',c:0,row:1},{k:'S',code:'KeyS',key:'S',c:1,row:1},{k:'D',code:'KeyD',key:'D',c:2,row:1,ctr:1},{k:'A',code:'KeyF',key:'F',c:3,row:1},
   {k:'Q',code:'KeyC',key:'C',big:1},{k:'SP',code:'Space',key:'Space',bar:1}];
-const TEXTRA=[{k:'V',code:'KeyV',key:'V'},{k:'G',code:'KeyG',key:'G'},{k:'F',code:'KeyZ',key:'Z'},{k:'Z',code:'Digit1',key:'1'},{k:'B2',code:'Digit2',key:'2'},{k:'K',code:'KeyZ',ctrl:1,key:'^Z'},{k:'X',code:'KeyX',ctrl:1,key:'^X'},{k:'MG',code:'KeyC',ctrl:1,key:'^C'}];
+const TEXTRA=[{k:'V',code:'KeyV',key:'V'},{k:'F',code:'KeyZ',key:'Z'},{k:'Z',code:'Digit1',key:'1'},{k:'B2',code:'Digit2',key:'2'},{k:'K',code:'KeyZ',ctrl:1,key:'^Z'},{k:'X',code:'KeyX',ctrl:1,key:'^X'},{k:'MG',code:'KeyC',ctrl:1,key:'^C'}];
 const tEls={};
 function vkey(type,code,ctrl){try{dispatchEvent(new KeyboardEvent(type,{code,ctrlKey:!!ctrl,bubbles:true}))}catch(e){}}
 function buildTouch(){const tc=$('tc');tc.innerHTML='<div id="tzone"></div><div id="tbase" hidden><div id="tknob"></div></div><button class="tb" id="tpause" aria-label="일시정지">II</button><div id="tex"></div>';
@@ -3074,6 +3080,9 @@ function buildTouch(){const tc=$('tc');tc.innerHTML='<div id="tzone"></div><div 
     el.addEventListener('pointerdown',down);el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);el.addEventListener('lostpointercapture',up);
     el.addEventListener('contextmenu',e=>e.preventDefault());tEls[def.k]={el,gauge:el.querySelector('.gauge'),cd:el.querySelector('.cd'),cnt:el.querySelector('.cnt'),n:el.querySelector('.n')}};
   for(const d of TBTN)mk(d,tc,false);const ex=$('tex');for(const d of TEXTRA)mk(d,ex,true);
+  {const g=document.createElement('button');g.className='tb tguard';g.id='tguard';g.hidden=true;g.innerHTML='<b>G</b><span>저스트 가드</span>';tc.appendChild(g);
+    const gd=e=>{e.preventDefault();g.classList.add('down');vkey('keydown','KeyG')},gu=()=>{if(!g.classList.contains('down'))return;g.classList.remove('down');vkey('keyup','KeyG')};
+    g.addEventListener('pointerdown',gd);g.addEventListener('pointerup',gu);g.addEventListener('pointercancel',gu);g.addEventListener('contextmenu',e=>e.preventDefault())}
   $('tpause').addEventListener('pointerdown',e=>{e.preventDefault();vkey('keydown','Escape')});
   // 조이스틱
   const zone=$('tzone'),base=$('tbase'),knob=$('tknob');let jid=null,ox=0,oy=0;const dirs={ArrowLeft:false,ArrowRight:false,ArrowUp:false,ArrowDown:false};
@@ -3094,6 +3103,7 @@ function chkRot(){const r=$('rot');if(r)r.hidden=!(ctl==='mobile'&&innerHeight>i
 addEventListener('resize',chkRot);
 function updTouch(){if(ctl!=='mobile')return;const tc=$('tc');const on=!$('hud').hidden&&(state==='fight');tc.hidden=!on;if(!on)return;const p=P;
   tc.classList.toggle('scroll',mode==='scroll');
+  {const g=$('tguard');if(g){const show=!!(B&&B.tintC==='yellow'&&!B.dead);if(g.hidden===show)g.hidden=!show;g.classList.toggle('now',show&&!!cueO&&cueO.txt==='지금!');g.classList.toggle('cool',(p.cds.G||0)>0.05)}}
   for(const k in tEls){const t=tEls[k];if(!t)continue;let tot=1,c=0;
     if(SK[k]&&k!=='F'&&k!=='K'&&k!=='X'&&k!=='MG'){tot=k==='SP'?SK.SP.cd*S.dodgeCd:SK[k].cd*(k==='Z'||k==='B2'?1:S.cd);c=p.cds[k]||0}
     const cool=c>0.05&&k!=='Q';t.cd.style.height=cool?Math.min(100,c/tot*100)+'%':'0';t.n.textContent=cool?(c<1?c.toFixed(1):Math.ceil(c)):'';t.el.classList.toggle('cool',cool);
