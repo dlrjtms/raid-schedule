@@ -258,7 +258,7 @@ function touches(s,x,y,r){
 
 /* ───── 데이터 ───── */
 const STAGES=[
-  {legion:'야수군단장',title:'불타는 산맥의 폭군',name:'그라브나크'},
+  {legion:'마수군단장',title:'불타는 산맥의 폭군',name:'그라브나크'},
   {legion:'욕망군단장',title:'붉은 입맞춤',name:'벨리시아'},
   {legion:'광기군단장',title:'금 간 거울',name:'셀레스크'},
   {legion:'몽환군단장',title:'꿈을 엮는 자',name:'이벨나르'},
@@ -541,7 +541,7 @@ function hurtP(dmg,ignoreInv){
 }
 
 /* ───── 기둥 ───── */
-function makePillars(){pillars=[];for(let i=0;i<8;i++){const a=i/8*TAU;pillars.push({x:AR.x+Math.cos(a)*AR.rx*0.84,y:AR.y+Math.sin(a)*AR.ry*0.78,r:26,alive:true,boom:0})}}
+function makePillars(){pillars=[];for(let i=0;i<8;i++){const a=i/8*TAU;pillars.push({x:AR.x+Math.cos(a)*AR.rx*0.72,y:AR.y+Math.sin(a)*AR.ry*0.62,r:26,alive:true,boom:0})}}
 function pillarSprite(broken){const w=90,h=190,cv2=document.createElement('canvas');cv2.width=w;cv2.height=h;const c=cv2.getContext('2d',{willReadFrequently:true});c.translate(45,180);
   c.fillStyle='#1e1a20';c.fillRect(-30,-20,60,20);c.fillStyle='#4a4450';c.beginPath();c.ellipse(0,-20,30,8,0,0,TAU);c.fill();c.fillStyle='#2e2a32';c.fillRect(-30,-6,60,6);
   const top=broken?-58:-150;
@@ -3189,7 +3189,7 @@ function updP(dt){
     if(keys.KeyC&&!keys.ControlLeft&&!keys.ControlRight&&!keys.MetaLeft)useSkill('Q')}
   clampArena(p,p.r+6);
   if(B.throne){const cx=AR.x,cy=AR.y-30,d=dist(cx,cy,p.x,p.y),mn=150+p.r;if(d<mn){const a=d>0.01?ang(cx,cy,p.x,p.y):Math.PI/2;p.x=cx+Math.cos(a)*mn;p.y=cy+Math.sin(a)*mn}}
-  for(const pl of pillars){const d=dist(pl.x,pl.y,p.x,p.y),mn=pl.r+p.r;if(d<mn&&d>0.01){p.x=pl.x+(p.x-pl.x)/d*mn;p.y=pl.y+(p.y-pl.y)/d*mn}}
+  for(let it=0;it<2;it++){for(const pl of pillars){const d=dist(pl.x,pl.y,p.x,p.y),mn=pl.r+p.r;if(d<mn&&d>0.01){p.x=pl.x+(p.x-pl.x)/d*mn;p.y=pl.y+(p.y-pl.y)/d*mn}}clampArena(p,p.r+6)}
   const b=B;if(!b.dead&&b.z<40){const d=dist(b.x,b.y,p.x,p.y),mn=b.r+p.r;if(d<mn&&d>0.01){p.x=b.x+(p.x-b.x)/d*mn;p.y=b.y+(p.y-b.y)/d*mn;clampArena(p,p.r+6)}}
 }
 function updB(dt){
