@@ -124,6 +124,11 @@ button{pointer-events:auto;font-family:var(--ui);font-size:1.2cqw;font-weight:70
 button.ghost{background:transparent;color:var(--bone);border:1px solid #5a4a44}
 button:focus-visible,.card:focus-visible{outline:2px solid var(--rune);outline-offset:3px}
 .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1cqw}
+.lgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:.55cqw}.lcard{pointer-events:auto;cursor:pointer;text-align:left;background:linear-gradient(#251a1a,#141012);border:1px solid #5a4236;padding:.75cqw .8cqw;border-radius:3px;display:flex;flex-direction:column;gap:.3cqw;color:var(--bone);font-weight:400;transition:transform .12s,border-color .12s}
+.lcard .cn{font-family:var(--display);font-size:1.25cqw;color:#f2e6d0}.lcard .cd2{font-size:.82cqw;color:#bfae98;line-height:1.35}.lcard:hover{border-color:#a8805a}
+.lcard.on{border-color:var(--gold);background:linear-gradient(#4a3418,#21170c);box-shadow:0 0 1.2cqw rgba(255,190,90,.35);transform:translateY(-.15cqw)}.lcard.on .cn{color:var(--gold)}
+#wrap.mob .lcard .cn{font-size:1.7cqw}#wrap.mob .lcard .cd2{font-size:1.15cqw}#lgo:disabled{opacity:.4;cursor:default}
+
 .card{pointer-events:auto;cursor:pointer;text-align:left;background:linear-gradient(#251a1a,#141012);border:1px solid #5a4236;padding:1.4cqw;border-radius:3px;display:flex;flex-direction:column;gap:.6cqw;color:var(--bone);font-weight:400}
 .card:hover{border-color:var(--gold)}
 .card .ix{font-size:.9cqw;color:var(--gold);font-weight:700}
@@ -355,11 +360,12 @@ addEventListener('keydown',e=>{
   if(c==='KeyM'){muted=!muted;banner(muted?'소리 끔':'소리 켬',0.9);return}
   if(state==='title'&&ovl.querySelector('.stages')&&false){}
   if(state==='title'&&ovl.querySelector('.stages')){const mv={ArrowRight:1,ArrowLeft:-1,ArrowDown:5,ArrowUp:-5}[c];
-    if(mv!==undefined){e.preventDefault();let n=selSt+mv;if(n>=0&&n<STAGES.length&&stageOpen(n)){selSt=n;ovl.querySelectorAll('.stage').forEach((el,i)=>el.classList.toggle('sel',i===selSt))}return}
+    if(mv!==undefined){e.preventDefault();let n=selSt+mv;if(n>=0&&n<STAGES.length&&stageOpen(n)){selSt=n;ovl.querySelectorAll('.stage').forEach((el,i)=>el.classList.toggle('sel',i===selSt));syncGo()}return}
     const dg=/^(Digit|Numpad)([1-9])$/.exec(c);if(dg){const n=+dg[2]-1;if(stageOpen(n)){selSt=n;startRun(n)}return}}
   if(state==='title'&&ovl.querySelector('.pgrid')){if(c==='Escape')toTitle();return}
   if(state==='title'&&ovl.querySelector('.hof-screen')){if(c==='Escape')toTitle();return}
   if(state==='title'){if(c==='Enter'||c==='Space'){if(!stageOpen(selSt))selSt=0;startRun(selSt)}if(c==='KeyH'){hard=!hard;if(window.__syncD)window.__syncD();toTitle()}return}
+  if(state==='pick'&&ovl.querySelector('.lgrid')){if(c==='Enter')confirmLoadout();if(c==='Escape')toTitle();return}
   if(state==='pick'){const n={Digit1:0,Digit2:1,Digit3:2,Numpad1:0,Numpad2:1,Numpad3:2}[c];if(n!==undefined&&pickChoices[n])choose(pickChoices[n].id);return}
   if(state==='dead'||state==='clear'){if(c==='Enter'){if(practice)startPractice(practice.st,practice.j);else if(state==='clear'&&stageIx+1<BOSSDEF.length)nextStage();else startRun(runStart)}if(c==='Escape')toTitle();return}
   if(state==='pause'){if(c==='Escape')resume();return}
@@ -679,7 +685,7 @@ function endRoar(ok){const b=B;b.staggerMax=0;b.phase=b.trans;b.trans=0;b.act=nu
   $('phase').textContent=phaseLabel();armorUp();
   if(ok){b.groggy=4.5;banner('무력화 성공',1.6);sfx('counter');shake(10);burst(b.x,b.y,40,'95,224,230',300,0.7)}
   else{flash(0.8,'255,90,40');banner('저지 실패',1.6);shake(26);sfx('slam');hurtP(maxHp()*0.7,true)}}
-function startTrans(n){const b=B;b.trans=n;b.act=null;aims=[];swordE=null;b.throne=false;b.seated=false;b.gun=false;b.flag=null;door=null;beams=[];flipT=0;orbs=[];visionT=0;eclipseT=0;shards=[];b.pull=0;b.noAxe=0;b.groggy=0;b.bracing=false;b.bowing=false;b.mask=null;clones=[];crystals=[];pools=[];gasC=[];darkT=0;spots=[];if(pip){pip.state='sh';pip.cd=4;pip.fired=false}b.fadeOut=0;b.fadeIn=0;b.counterable=false;b.slide=null;b.jump=null;b.z=0;teles=[];rings=[];proj=[];openPick(n,()=>startAct('roar'))}
+function startTrans(n){const b=B;b.trans=n;b.act=null;aims=[];swordE=null;b.throne=false;b.seated=false;b.gun=false;b.flag=null;door=null;beams=[];flipT=0;orbs=[];visionT=0;eclipseT=0;shards=[];b.pull=0;b.noAxe=0;b.groggy=0;b.bracing=false;b.bowing=false;b.mask=null;clones=[];crystals=[];pools=[];gasC=[];darkT=0;spots=[];if(pip){pip.state='sh';pip.cd=4;pip.fired=false}b.fadeOut=0;b.fadeIn=0;b.counterable=false;b.slide=null;b.jump=null;b.z=0;teles=[];rings=[];proj=[];startAct('roar')}
 function chooseAct(){
   const b=B;const d=dist(b.x,b.y,P.x,P.y)-b.r;const near=d<170;
   if(b.phase>=3&&b.t-b.lastCollapse>26)return 'collapse';
@@ -2956,6 +2962,8 @@ function drawShield(){const p=P;if(!(p.shield>0)||p.dead)return;const t=performa
 const ovl=$('ovl');
 let selSt=0;
 function stageOpen(i){return i<BOSSDEF.length&&(i<=unlocked||!hard)}
+function goLabel(){const st=STAGES[selSt]||STAGES[0];return '토벌 시작 ('+(ctl==='mobile'?'':'Enter · ')+st.legion+')'}
+function syncGo(){const g=$('go');if(g)g.textContent=goLabel()}
 function stageCards(click){return STAGES.map((s2,i)=>{const made=i<BOSSDEF.length,open=made&&(i<=unlocked||!hard);const st=!made?'준비 중':!open?'하드: 이전 군단장 토벌 시 열림':(bests[i]||bests[i+'h'])?'토벌 완료'+(bests[i]?' · 노말 '+fmt(bests[i]):'')+(bests[i+'h']?' · 하드 '+fmt(bests[i+'h']):''):'도전 가능';
   return `<${open&&click?'button':'div'} class="stage ${open?'open':'lock'}${click&&i===selSt?' sel':''}${(bests[i]||bests[i+'h'])?' done':''}"${open&&click?` data-st="${i}"`:''}><span class="no">STAGE ${i+1}</span><span class="ti">${s2.legion} · ${s2.title}</span><span class="na">${s2.name}</span><span class="st">${st}</span></${open&&click?'button':'div'}>`}).join('')}
 function toTitle(){
@@ -2963,7 +2971,7 @@ function toTitle(){
   ovl.hidden=false;ovl.innerHTML=`<div class="screen">
     <span class="eyebrow">ROGUELITE BOSS RUSH</span>
     <h1>군단장 토벌전</h1>
-    <p class="lede">대검을 든 광전사 카이른이 마왕군 여섯 군단장과 세 심연의 군주, 그리고 그들의 주인인 죽음의 신까지 차례로 베어 나간다. 관문을 넘을 때마다 각인을 하나씩 골라 빌드를 쌓고, 쓰러지면 처음부터 다시.</p>
+    <p class="lede">대검을 든 광전사 카이른이 마왕군 여섯 군단장과 세 심연의 군주, 그리고 그들의 주인인 죽음의 신까지 차례로 베어 나간다. 출정 전에 각인 3개를 골라 빌드를 짜고, 쓰러지면 처음부터 다시.</p>
     <div class="stages">${stageCards(true)}</div>
     ${ctl==='mobile'?`<p class="hint"><b style="color:var(--bone)">모바일 조작</b> · 왼쪽을 끌어 이동, 오른쪽 버튼으로 공격<span hidden> · 화면 왼쪽을 누르고 끌면 이동 · 오른쪽 아래 Q·W·E·R / A·S·D·F 스킬판 · 그 왼쪽 큰 동그라미는 평타(누르고 있으면 연속) · 가운데 아래 넓은 버튼은 구르기 · 스킬판 위 줄은 광폭화·회복약·피의 맹세·소환 · 왼쪽 위 II는 일시정지.</span></p><p class="hint" style="color:var(--gold)">${fsOn?'전체화면에 들어갈 때 뜨는 브라우저 안내는 보안상 끌 수 없고 몇 초 뒤 사라져요.':'전체화면이 꺼져 있어요.'}</p>`:''}
     <div class="keys"${ctl==='mobile'?' hidden':''}>
@@ -2972,13 +2980,13 @@ function toTitle(){
       <span><b>S</b>피의 갈증</span><span><b>D</b>반격</span><span><b>F</b>전투 함성</span><span><b>Z</b>광폭화</span><span><b>1</b>회복약</span><span><b>2</b>피의 맹세</span><span><b>Ctrl+Z</b>황금 기사</span><span><b>Ctrl+X</b>요정 궁수 (2스테이지~)</span><span><b>Ctrl+C</b>수호 마법사 (4스테이지~)</span><span><b>V</b>각성기 · 버서커 퓨리</span><span><b>G</b>저스트 가드 (6스테이지~)</span>
     </div>
     <p class="hint"${ctl==='mobile'?' hidden':''}>스킬은 이동 중이면 그 방향으로, 서 있으면 보스를 향해 나간다. 보스가 청록빛으로 빛날 때 D로 끊어내고, 힘을 모을 때는 무력화 스킬(R, E, A, F, D, Q)을 몰아 넣어라. 평타 C는 누르고 있으면 계속 나간다. 돌진은 가장자리 기둥으로 유인하고, 보랏빛으로 도끼를 젖히면 손을 멈춰라. 영웅 지원 게이지가 차면 Ctrl+Z·X·C 중 하나를 골라 소환한다. 매혹에 걸리면 방향키를 연타해 풀어라. 광기 게이지가 가득 차면 조작이 반전된다. 열린 스테이지 카드를 누르거나 방향키·숫자 1~9로 고르고 Enter로 시작한다. 반격은 노말에선 방향과 상관없고, 하드에선 보스를 향해야 한다.</p>
-    <div class="row diff"><span class="hint">조작</span><button class="dbtn" id="cpc">PC</button><button class="dbtn" id="cmo">모바일</button>${ctl==='mobile'?`<button class="dbtn" id="cfs">전체화면 ${fsOn?'켬':'끔'}</button>`:''}<button class="dbtn${gq==='high'?' on':''}" id="cq">화질 ${gq==='high'?'높음':'보통'}</button><span class="hint">난이도</span><button class="dbtn" id="dn">노말</button><button class="dbtn" id="dh">하드</button><span class="hint" id="dtx"></span><button class="ghost" id="prac" style="margin-left:auto">기믹 연습</button>${RANK.on?'<button class="ghost" id="hofb">명예의 전당</button>':''}<button id="go">토벌 시작${ctl==='mobile'?'':' (Enter · '+STAGES[selSt].name+')'}</button></div>
+    <div class="row diff"><span class="hint">조작</span><button class="dbtn" id="cpc">PC</button><button class="dbtn" id="cmo">모바일</button>${ctl==='mobile'?`<button class="dbtn" id="cfs">전체화면 ${fsOn?'켬':'끔'}</button>`:''}<button class="dbtn${gq==='high'?' on':''}" id="cq">화질 ${gq==='high'?'높음':'보통'}</button><span class="hint">난이도</span><button class="dbtn" id="dn">노말</button><button class="dbtn" id="dh">하드</button><span class="hint" id="dtx"></span><button class="ghost" id="prac" style="margin-left:auto">기믹 연습</button>${RANK.on?'<button class="ghost" id="hofb">명예의 전당</button>':''}<button id="go">${goLabel()}</button></div>
   </div>`;
   const syncD=()=>{$('dn').classList.toggle('on',!hard);$('dh').classList.toggle('on',hard);$('dtx').textContent=hard?'보스 피해 1.35배 · 생명력 1.5배 · 하드 전용 기믹':'기본 난이도';try{localStorage.setItem('legion-raid-hard',hard?'1':'0')}catch(e){}};
   $('dn').onclick=()=>{hard=false;syncD();toTitle()};$('dh').onclick=()=>{hard=true;syncD();toTitle()};syncD();window.__syncD=syncD;
   $('cpc').classList.toggle('on',ctl==='pc');$('cmo').classList.toggle('on',ctl==='mobile');$('cpc').onclick=()=>{ctl='pc';applyCtl();toTitle()};$('cmo').onclick=()=>{ctl='mobile';applyCtl();toTitle()};if($('cfs')){$('cfs').classList.toggle('on',fsOn);$('cfs').onclick=()=>{fsOn=!fsOn;try{localStorage.setItem('legion-raid-fs',fsOn?'1':'0')}catch(e){}toTitle()}}
   $('cq').onclick=()=>{gq=gq==='high'?'low':'high';gqUser=true;if(gq==='high'){pipe='gpu';sprHalf=false}try{localStorage.setItem('legion-raid-q',gq);if(gq==='high')localStorage.removeItem('legion-raid-pipe')}catch(e){}applyQ();toTitle()};
-  $('prac').onclick=practiceMenu;if($('hofb'))$('hofb').onclick=hallMenu;$('go').onclick=()=>{tryFull();startRun(0)};ovl.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>{tryFull();startRun(+el.dataset.st)});$('go').focus({preventScroll:true});
+  $('prac').onclick=practiceMenu;if($('hofb'))$('hofb').onclick=hallMenu;$('go').onclick=()=>{tryFull();if(!stageOpen(selSt))selSt=0;startRun(selSt)};ovl.querySelectorAll('[data-st]').forEach(el=>{el.onclick=()=>{tryFull();startRun(+el.dataset.st)};el.onmouseenter=()=>{const n=+el.dataset.st;if(stageOpen(n)&&n!==selSt){selSt=n;ovl.querySelectorAll('.stage').forEach((e2,i)=>e2.classList.toggle('sel',i===selSt));syncGo()}}});$('go').focus({preventScroll:true});
 }
 function setupStage(){
   B=newBoss();B.intro=1.9;B.z=520;B.cineT=2.8;teles=[];rings=[];proj=[];fx=[];texts=[];timers=[];fightTime=0;aims=[];vfx=[];decals=[];swordE=null;mage=null;knight=null;fairy=null;allyShots=[];clones=[];parts=[];pools=[];crystals=[];gasC=[];darkT=0;spots=[];pip=stageIx===2?newPip():null;mode='arena';SCR=null;door=null;beams=[];flipT=0;orbs=[];holies=[];adds=[];shards=[];visionT=0;eclipseT=0;stalk=[];stalker=null;rods=[];snakes=[];lotuses=[];mirrorG=null;clockG=null;voids=[];redMoon=false;BOSSDEF[5].tint='160,96,255';BOSSDEF[5].rimRGB=null;voidWarn=null;if(BD().fixed){B.x=AR.x;B.y=AR.y+24}
@@ -3017,11 +3025,11 @@ function startRun(ix){practice=null;
   stageIx=typeof ix==='number'?ix:runStart;runStart=stageIx;
   picked=[];reviveUsed=false;S=baseStats();P=newPlayer();P.hp=maxHp();
   setupStage();buildSlots();renderEngr();
-  $('hud').hidden=false;openPick(1,()=>{});
+  $('hud').hidden=false;openLoadout();
 }
 function nextStage(){practice=null;
   stageIx++;const keep={rage:P.rage,hero:P.hero};P=newPlayer();P.hp=maxHp();P.hero=keep.hero;
-  setupStage();buildSlots();renderEngr();$('hud').hidden=false;openPick(1,()=>{});
+  setupStage();buildSlots();renderEngr();$('hud').hidden=false;beginFight();
 }
 let pickChoices=[],pickCb=null;
 function openPick(n,cb){
@@ -3034,6 +3042,16 @@ function openPick(n,cb){
     <p class="hint">${ctl==='mobile'?'카드를 눌러 선택':'숫자 1·2·3 또는 클릭으로 선택'}${picked.length?` · 보유 각인: ${picked.map(id=>ENGR.find(e=>e.id===id).name).join(', ')}`:''}</p></div>`;
   ovl.querySelectorAll('.card').forEach(el=>el.onclick=()=>choose(el.dataset.id));
 }
+let loadSel=[];
+function openLoadout(){state='pick';pickChoices=[];pickCb=null;let last=[];try{last=JSON.parse(localStorage.getItem('legion-raid-loadout')||'[]')}catch(e){}loadSel=last.filter(id=>ENGR.some(e=>e.id===id)).slice(0,3);
+  ovl.hidden=false;ovl.innerHTML=`<div class="screen"><span class="eyebrow">STAGE ${stageIx+1} · ${STAGES[stageIx].legion} · 출정 준비</span><h2>각인 3개를 새기고 출발하라</h2>
+    <div class="lgrid">${ENGR.map(e=>`<button class="lcard" data-id="${e.id}"><span class="cn">${e.name}</span><span class="cd2">${e.desc}</span></button>`).join('')}</div>
+    <div class="row"><span class="hint" id="lcnt"></span><button class="ghost" id="lbk">처음 화면 (Esc)</button><button id="lgo">출발 (Enter)</button></div></div>`;
+  const sync=()=>{ovl.querySelectorAll('.lcard').forEach(el=>el.classList.toggle('on',loadSel.includes(el.dataset.id)));$('lcnt').textContent=`선택 ${loadSel.length}/3`+(loadSel.length?' · '+loadSel.map(id=>ENGR.find(e=>e.id===id).name).join(', '):'')+' · 이번 토벌 내내 유지돼요';$('lgo').disabled=loadSel.length!==3};
+  ovl.querySelectorAll('.lcard').forEach(el=>el.onclick=()=>{const id=el.dataset.id;if(loadSel.includes(id))loadSel=loadSel.filter(x=>x!==id);else{if(loadSel.length>=3)loadSel.shift();loadSel.push(id)}sync()});
+  $('lgo').onclick=confirmLoadout;$('lbk').onclick=toTitle;sync()}
+function confirmLoadout(){if(loadSel.length!==3||state!=='pick')return;picked=loadSel.slice();try{localStorage.setItem('legion-raid-loadout',JSON.stringify(picked))}catch(e){}beginFight()}
+function beginFight(){recompute();P.hp=maxHp();renderEngr();ovl.hidden=true;ovl.innerHTML='';state='fight'}
 function choose(id){if(state!=='pick')return;picked.push(id);recompute();if(B.phase===1&&!B.trans)P.hp=maxHp();renderEngr();ovl.hidden=true;ovl.innerHTML='';state='fight';const cb=pickCb;pickCb=null;if(cb)cb()}
 function pause(){state='pause';ovl.hidden=false;ovl.innerHTML=`<div class="screen"><span class="eyebrow">일시정지</span><h2>숨을 고른다</h2><div class="row"><button id="rs">계속 (Esc)</button><button class="ghost" id="qt">토벌 포기</button></div></div>`;$('rs').onclick=resume;$('qt').onclick=toTitle}
 function resume(){state='fight';ovl.hidden=true;ovl.innerHTML=''}
