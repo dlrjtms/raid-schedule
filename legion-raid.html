@@ -2963,7 +2963,8 @@ const ovl=$('ovl');
 let selSt=0;
 function stageOpen(i){return i<BOSSDEF.length&&(i<=unlocked||!hard)}
 function goLabel(){const st=STAGES[selSt]||STAGES[0];return '토벌 시작 ('+(ctl==='mobile'?'':'Enter · ')+st.legion+')'}
-function syncGo(){const g=$('go');if(g)g.textContent=goLabel()}
+function syncGo(){const g=$('go');if(g)g.textContent=goLabel();previewStage(selSt)}
+function previewStage(n){if(state!=='title'||!BOSSDEF[n])return;if(stageIx===n&&B&&B._pv)return;const keepP=P;stageIx=n;setupStage();B.intro=0;B.z=0;B.cineT=0;B._pv=true;B.cool=99;if(keepP)P=keepP;$('hud').hidden=true}
 function stageCards(click){return STAGES.map((s2,i)=>{const made=i<BOSSDEF.length,open=made&&(i<=unlocked||!hard);const st=!made?'준비 중':!open?'하드: 이전 군단장 토벌 시 열림':(bests[i]||bests[i+'h'])?'토벌 완료'+(bests[i]?' · 노말 '+fmt(bests[i]):'')+(bests[i+'h']?' · 하드 '+fmt(bests[i+'h']):''):'도전 가능';
   return `<${open&&click?'button':'div'} class="stage ${open?'open':'lock'}${click&&i===selSt?' sel':''}${(bests[i]||bests[i+'h'])?' done':''}"${open&&click?` data-st="${i}"`:''}><span class="no">STAGE ${i+1}</span><span class="ti">${s2.legion} · ${s2.title}</span><span class="na">${s2.name}</span><span class="st">${st}</span></${open&&click?'button':'div'}>`}).join('')}
 function toTitle(){
@@ -2986,7 +2987,7 @@ function toTitle(){
   $('dn').onclick=()=>{hard=false;syncD();toTitle()};$('dh').onclick=()=>{hard=true;syncD();toTitle()};syncD();window.__syncD=syncD;
   $('cpc').classList.toggle('on',ctl==='pc');$('cmo').classList.toggle('on',ctl==='mobile');$('cpc').onclick=()=>{ctl='pc';applyCtl();toTitle()};$('cmo').onclick=()=>{ctl='mobile';applyCtl();toTitle()};if($('cfs')){$('cfs').classList.toggle('on',fsOn);$('cfs').onclick=()=>{fsOn=!fsOn;try{localStorage.setItem('legion-raid-fs',fsOn?'1':'0')}catch(e){}toTitle()}}
   $('cq').onclick=()=>{gq=gq==='high'?'low':'high';gqUser=true;if(gq==='high'){pipe='gpu';sprHalf=false}try{localStorage.setItem('legion-raid-q',gq);if(gq==='high')localStorage.removeItem('legion-raid-pipe')}catch(e){}applyQ();toTitle()};
-  $('prac').onclick=practiceMenu;if($('hofb'))$('hofb').onclick=hallMenu;$('go').onclick=()=>{tryFull();if(!stageOpen(selSt))selSt=0;startRun(selSt)};ovl.querySelectorAll('[data-st]').forEach(el=>{el.onclick=()=>{tryFull();startRun(+el.dataset.st)};el.onmouseenter=()=>{const n=+el.dataset.st;if(stageOpen(n)&&n!==selSt){selSt=n;ovl.querySelectorAll('.stage').forEach((e2,i)=>e2.classList.toggle('sel',i===selSt));syncGo()}}});$('go').focus({preventScroll:true});
+  previewStage(selSt);$('prac').onclick=practiceMenu;if($('hofb'))$('hofb').onclick=hallMenu;$('go').onclick=()=>{tryFull();if(!stageOpen(selSt))selSt=0;startRun(selSt)};ovl.querySelectorAll('[data-st]').forEach(el=>{el.onclick=()=>{tryFull();startRun(+el.dataset.st)};el.onmouseenter=()=>{const n=+el.dataset.st;if(stageOpen(n)&&n!==selSt){selSt=n;ovl.querySelectorAll('.stage').forEach((e2,i)=>e2.classList.toggle('sel',i===selSt));syncGo()}}});$('go').focus({preventScroll:true});
 }
 function setupStage(){
   B=newBoss();B.intro=1.9;B.z=520;B.cineT=2.8;teles=[];rings=[];proj=[];fx=[];texts=[];timers=[];fightTime=0;aims=[];vfx=[];decals=[];swordE=null;mage=null;knight=null;fairy=null;allyShots=[];clones=[];parts=[];pools=[];crystals=[];gasC=[];darkT=0;spots=[];pip=stageIx===2?newPip():null;mode='arena';SCR=null;door=null;beams=[];flipT=0;orbs=[];holies=[];adds=[];shards=[];visionT=0;eclipseT=0;stalk=[];stalker=null;rods=[];snakes=[];lotuses=[];mirrorG=null;clockG=null;voids=[];redMoon=false;BOSSDEF[5].tint='160,96,255';BOSSDEF[5].rimRGB=null;voidWarn=null;if(BD().fixed){B.x=AR.x;B.y=AR.y+24}
