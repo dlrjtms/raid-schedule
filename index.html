@@ -7005,6 +7005,7 @@ function RaidBoard() {
   const [showCheatSheet, setShowCheatSheet] = useState(false);
   const [showRaidRewards, setShowRaidRewards] = useState(false);
   const [showHellNarak, setShowHellNarak] = useState(false);
+  const [showGame, setShowGame] = useState(false);
   const [hellNarakCategory, setHellNarakCategory] = useState("hell");
   const [hellNarakLevel, setHellNarakLevel] = useState(1640);
   const [raidRewardOpen, setRaidRewardOpen] = useState({});
@@ -8151,6 +8152,9 @@ function RaidBoard() {
         .rb-num { font-family: 'Chakra Petch', 'Noto Sans KR', sans-serif; }
         ::placeholder { color: #5f6577; }
         .rb-refbtn:hover { border-color: #d9a94e !important; color: #d9a94e !important; }
+        .rb-gamebtn { animation: rbGlow 2.4s ease-in-out infinite; transition: transform .15s, filter .15s; }
+        .rb-gamebtn:hover { transform: translateY(-2px); filter: brightness(1.18); }
+        @keyframes rbGlow { 0%,100% { box-shadow: 0 0 14px rgba(255,90,40,.35), inset 0 1px 0 rgba(255,220,180,.25); } 50% { box-shadow: 0 0 30px rgba(255,110,50,.8), inset 0 1px 0 rgba(255,220,180,.25); } }
         @media (max-width: 640px) {
           .my-info-grid { grid-template-columns: 1fr !important; }
           .hero-divider { display: none; }
@@ -8166,14 +8170,23 @@ function RaidBoard() {
           <div style={styles.heroEyebrow}>연고</div>
           <h1 style={styles.heroTitle}>레이드 시간표</h1>
         </div>
-        <a
-          href="https://discord.gg/GGBSmCWKHk"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{ ...styles.discordLink, marginTop: 10 }}
-        >
-          [연고 디스코드 입장]
-        </a>
+        <div style={styles.heroBtnRow}>
+          <a
+            href="https://discord.gg/GGBSmCWKHk"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={styles.discordLink}
+          >
+            [연고 디스코드 입장]
+          </a>
+          <button className="rb-gamebtn" style={styles.gameBtn} onClick={() => setShowGame(true)}>
+            <span style={{ fontSize: 26, lineHeight: 1 }}>⚔</span>
+            <span style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", lineHeight: 1.15 }}>
+              <span style={{ fontFamily: "'Black Han Sans', sans-serif", fontSize: 21, letterSpacing: 1 }}>군단장 토벌전</span>
+              <span style={{ fontSize: 11, fontWeight: 500, color: "#f0c49a" }}>레이드 대기 중 한 판</span>
+            </span>
+          </button>
+        </div>
       </div>
 
       {onlineCount > 0 && (
@@ -9222,6 +9235,39 @@ function RaidBoard() {
         </div>
       )}
 
+      {showGame && (
+        <div style={{ ...styles.modalOverlay, padding: 8, zIndex: 200 }} onClick={() => setShowGame(false)}>
+          <div
+            style={{ ...styles.modalPanel, maxWidth: "min(1280px, calc((100vh - 110px) * 16 / 9))", maxHeight: "none", overflow: "hidden", padding: 12 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={styles.modalHeader}>
+              <div style={styles.modalTitle}>⚔ 군단장 토벌전</div>
+              <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                <a href="legion-raid.html" target="_blank" rel="noopener noreferrer" style={{ color: "#d9a94e", fontSize: 13, textDecoration: "none" }}>
+                  새 창으로 열기
+                </a>
+                <button style={styles.modalClose} onClick={() => setShowGame(false)}>
+                  ✕
+                </button>
+              </div>
+            </div>
+            <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 9", background: "#000", borderRadius: 8, overflow: "hidden" }}>
+              <iframe
+                src="legion-raid.html"
+                title="군단장 토벌전"
+                style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: 0 }}
+                allow="fullscreen; autoplay"
+                allowFullScreen
+              />
+            </div>
+            <div style={{ fontSize: 12, color: "#8b93a7", marginTop: 8 }}>
+              키보드로 할 때는 게임 화면을 한 번 클릭한 뒤 조작하세요. 휴대폰은 '새 창으로 열기'가 더 편해요.
+            </div>
+          </div>
+        </div>
+      )}
+
       {showHellNarak && (
         <div style={styles.modalOverlay} onClick={() => setShowHellNarak(false)}>
           <div style={{ ...styles.modalPanel, maxWidth: 720 }} onClick={(e) => e.stopPropagation()}>
@@ -10031,6 +10077,8 @@ const styles = {
   refBtnRow: { display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" },
   refBtn: { fontSize: 12, fontWeight: 600, padding: "5px 10px", borderRadius: 7, border: "1px solid #2a3040", background: "transparent", color: "#9aa1b5", cursor: "pointer" },
   guideBtn: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #7fbf5f", background: "#152110", color: "#9fdd7f", cursor: "pointer" },
+  heroBtnRow: { display: "flex", gap: 14, alignItems: "center", justifyContent: "center", flexWrap: "wrap", marginTop: 14 },
+  gameBtn: { padding: "10px 22px", borderRadius: 12, border: "1px solid #ff7a4a", background: "linear-gradient(180deg, #6a1812 0%, #2a0806 100%)", color: "#ffe0b0", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 12, textShadow: "0 2px 8px rgba(0,0,0,0.8)" },
   discordLink: { fontSize: 14, fontWeight: 700, padding: "6px 12px", borderRadius: 8, border: "1px solid #5865F2", background: "#1d1f33", color: "#8ea1ff", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center" },
   adminLoginRow: { display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" },
   adminPwInput: { background: "#0f1219", border: "1px solid #2a3040", borderRadius: 6, padding: "5px 8px", color: "#e8ebf0", fontSize: 12, width: 140 },
