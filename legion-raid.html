@@ -113,7 +113,7 @@ button.stage:hover{border-color:var(--gold)}
 .hof-t tr.top1 td:first-child{color:#ffd36b;font-weight:900}.hof-t tr.top2 td:first-child{color:#d8dce8;font-weight:900}.hof-t tr.top3 td:first-child{color:#e0a070;font-weight:900}.hof-t tr.hi td{background:rgba(255,200,80,.2);color:#fff3c8}
 .hof-time{font-variant-numeric:tabular-nums;font-weight:700}.hof-l{color:#8fe39a;font-size:.8cqw}.hof-new{font-size:1.5cqw;color:#ffd36b;font-weight:900;letter-spacing:.06em;animation:hofBlink .9s steps(2) infinite}.hof-new b{color:#fff}
 @keyframes hofBlink{50%{opacity:.45}}.hof-form{display:flex;gap:.6cqw;align-items:center;margin:.3cqw 0 .6cqw}.hof-form input{font-size:1.1cqw;padding:.45cqw .7cqw;background:#120c0c;color:#fff;border:1px solid var(--gold);width:17cqw;font-family:inherit}
-.hof-form button{font-size:1.05cqw}.hof-who{font-size:1.05cqw;color:#e8d8b8}.hof-miss,.hof-empty{font-size:1cqw;color:#a89880;margin:.4cqw 0}.hof-tabs{display:flex;flex-wrap:wrap;gap:.4cqw}.hof-tab{padding:.4cqw .9cqw;font-size:.95cqw}.hof-screen .hof{max-height:24cqw}
+.hof-form button{font-size:1.05cqw}.hof-err{font-size:.95cqw;color:#ff8a8a}.hof-who{font-size:1.05cqw;color:#e8d8b8}.hof-miss,.hof-empty{font-size:1cqw;color:#a89880;margin:.4cqw 0}.hof-tabs{display:flex;flex-wrap:wrap;gap:.4cqw}.hof-tab{padding:.4cqw .9cqw;font-size:.95cqw}.hof-screen .hof{max-height:24cqw}
 
 #dh.on{background:var(--blood);color:#fff;border-color:var(--blood)}
 #cmo.on,#cpc.on,#cfs.on{background:#2f8a90;color:#fff;border-color:#2f8a90}
@@ -2780,10 +2780,11 @@ function rankDB(){if(RANK.db)return Promise.resolve(RANK.db);if(RANK.loading)ret
   RANK.loading.catch(()=>{RANK.loading=null});return RANK.loading}
 const rankKey=(st,h)=>'legionrank:'+st+':'+(h?'h':'n');
 async function rankGet(st,h){const db=await rankDB();const d=await db.collection('raid_storage').doc(rankKey(st,h)).get();if(!d.exists)return[];try{return JSON.parse(d.data().value).list||[]}catch(e){return[]}}
-async function rankSubmit(st,h,entry){const db=await rankDB();const ref=db.collection('raid_storage').doc(rankKey(st,h));let rank=-1,out=[];
-  await db.runTransaction(async tx=>{const d=await tx.get(ref);let list=[];if(d.exists){try{list=JSON.parse(d.data().value).list||[]}catch(e){}}
-    list.push(entry);list.sort((a,b)=>a.time-b.time||a.at-b.at);list=list.slice(0,10);rank=list.findIndex(x=>x.at===entry.at&&x.name===entry.name);out=list;
-    tx.set(ref,{value:JSON.stringify({list})})});return{rank,list:out}}
+function rankMerge(list,entry){list=list.filter(x=>!(x.at===entry.at&&x.name===entry.name));list.push(entry);list.sort((a,b)=>a.time-b.time||a.at-b.at);list=list.slice(0,10);return{list,rank:list.findIndex(x=>x.at===entry.at&&x.name===entry.name)}}
+async function rankSubmit(st,h,entry){const db=await rankDB();const ref=db.collection('raid_storage').doc(rankKey(st,h));let res=null;
+  try{await db.runTransaction(async tx=>{const d=await tx.get(ref);let list=[];if(d.exists){try{list=JSON.parse(d.data().value).list||[]}catch(e){}}res=rankMerge(list,entry);tx.set(ref,{value:JSON.stringify({list:res.list})})})}
+  catch(err){console.warn('rank tx failed, fallback',err);const list=await rankGet(st,h);res=rankMerge(list,entry);await ref.set({value:JSON.stringify({list:res.list})})}
+  return res}
 async function rankWho(){try{const id=localStorage.getItem('raidboard-logged-in-id');if(!id)return null;
     const adm=localStorage.getItem('raidboard-is-admin')==='1',t=Number(localStorage.getItem('raidboard-login-time')||0);if(!adm&&(!t||Date.now()-t>4*3600*1000))return null;
     const db=await rankDB();const d=await db.collection('raid_storage').doc('member:'+id).get();if(!d.exists)return null;const m=JSON.parse(d.data().value);const nm=m.characters&&m.characters[0]&&m.characters[0].name;return nm?{id,name:nm}:null}catch(e){return null}}
@@ -2802,11 +2803,13 @@ function rankOnWin(st,h,time,hp){const box=$('hof');if(!box||!RANK.on)return;box
     if(qual){const go=$('hofGo'),inp=$('hofName');
       try{const last=localStorage.getItem('legion-raid-name');if(inp&&last)inp.value=last}catch(e){}
       if(inp){inp.focus();inp.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')go.click()}}
+      const at=Date.now();
       go.onclick=()=>{const nm=who?who.name:(inp.value||'').replace(/[<>]/g,'').trim().slice(0,12);if(!nm){inp.focus();inp.placeholder='이름을 입력해주세요';return}
         go.disabled=true;go.textContent='새기는 중…';if(!who)try{localStorage.setItem('legion-raid-name',nm)}catch(e){}
-        rankSubmit(st,h,{name:nm,time:Math.round(time*100)/100,hp,login:!!who,at:Date.now()}).then(r=>{if(!$('hof'))return;const f=box.querySelector('.hof-form');if(f)f.innerHTML=r.rank>=0?`<span class="hof-who">🏆 ${r.rank+1}위에 이름을 새겼어요!</span>`:'<span class="hof-who">그사이 다른 기록에 밀려 순위 밖이 되었어요</span>';$('hofList').innerHTML=rankTable(r.list,r.rank);sfx('counter')})
-          .catch(()=>{go.disabled=false;go.textContent='다시 시도';})}}})
-  .catch(()=>{if($('hof'))box.innerHTML='<div class="hof-head">HALL OF FAME</div><div class="hof-empty">순위를 불러오지 못했어요.</div>'})}
+        rankSubmit(st,h,{name:nm,time:Math.round(time*100)/100,hp,login:!!who,at}).then(r=>{if(!$('hof'))return;const f=box.querySelector('.hof-form');if(f)f.innerHTML=r.rank>=0?`<span class="hof-who">🏆 ${r.rank+1}위에 <b>${escH(nm)}</b> 이름을 새겼어요!</span>`:'<span class="hof-who">그사이 다른 기록에 밀려 순위 밖이 되었어요</span>';$('hofList').innerHTML=rankTable(r.list,r.rank);sfx('counter')})
+          .catch(err=>{go.disabled=false;go.textContent='다시 시도';const f=box.querySelector('.hof-err')||box.querySelector('.hof-form').appendChild(Object.assign(document.createElement('span'),{className:'hof-err'}));f.textContent='저장 실패: '+((err&&(err.code||err.message))||err)})};
+      if(who)go.click()}})
+  .catch(err=>{if($('hof'))box.innerHTML='<div class="hof-head">HALL OF FAME</div><div class="hof-empty">순위를 불러오지 못했어요. ('+escH((err&&(err.code||err.message))||err)+')</div>'})}
 // 타이틀 · 명예의 전당 보기
 let hofSel={st:0,h:false};
 function hallMenu(){state='title';ovl.hidden=false;hofSel.st=selSt||0;hofSel.h=hard;
