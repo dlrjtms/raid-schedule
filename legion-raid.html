@@ -108,6 +108,13 @@ button.stage:hover{border-color:var(--gold)}
 #wrap.mob .pbtn{font-size:1.1cqw;padding:.7cqw .4cqw}#wrap.mob .pcol b{font-size:1.5cqw}
 .dbtn{background:transparent;color:var(--dim);border:1px solid #5a4a44;padding:.5cqw 1.6cqw;font-size:1.1cqw}
 .dbtn.on{background:var(--ember);color:#1a0d06;border-color:var(--ember)}
+.hof{margin:.4cqw 0;max-height:21cqw;overflow:auto}.hof-head{font-family:var(--display);font-size:1.25cqw;color:var(--gold);letter-spacing:.18em;margin-bottom:.4cqw}
+.hof-t{width:100%;border-collapse:collapse;font-size:.95cqw;color:var(--bone)}.hof-t th{color:#a89880;font-weight:600;text-align:left;padding:.25cqw .5cqw;border-bottom:1px solid #5a4236}.hof-t td{padding:.24cqw .5cqw;border-bottom:1px solid rgba(90,66,54,.4)}
+.hof-t tr.top1 td:first-child{color:#ffd36b;font-weight:900}.hof-t tr.top2 td:first-child{color:#d8dce8;font-weight:900}.hof-t tr.top3 td:first-child{color:#e0a070;font-weight:900}.hof-t tr.hi td{background:rgba(255,200,80,.2);color:#fff3c8}
+.hof-time{font-variant-numeric:tabular-nums;font-weight:700}.hof-l{color:#8fe39a;font-size:.8cqw}.hof-new{font-size:1.5cqw;color:#ffd36b;font-weight:900;letter-spacing:.06em;animation:hofBlink .9s steps(2) infinite}.hof-new b{color:#fff}
+@keyframes hofBlink{50%{opacity:.45}}.hof-form{display:flex;gap:.6cqw;align-items:center;margin:.3cqw 0 .6cqw}.hof-form input{font-size:1.1cqw;padding:.45cqw .7cqw;background:#120c0c;color:#fff;border:1px solid var(--gold);width:17cqw;font-family:inherit}
+.hof-form button{font-size:1.05cqw}.hof-who{font-size:1.05cqw;color:#e8d8b8}.hof-miss,.hof-empty{font-size:1cqw;color:#a89880;margin:.4cqw 0}.hof-tabs{display:flex;flex-wrap:wrap;gap:.4cqw}.hof-tab{padding:.4cqw .9cqw;font-size:.95cqw}.hof-screen .hof{max-height:24cqw}
+
 #dh.on{background:var(--blood);color:#fff;border-color:var(--blood)}
 #cmo.on,#cpc.on,#cfs.on{background:#2f8a90;color:#fff;border-color:#2f8a90}
 .keys{display:grid;grid-template-columns:repeat(5,1fr);gap:.2cqw 1cqw;font-size:.82cqw;color:var(--dim)}
@@ -335,6 +342,7 @@ function sfx(type){
 
 /* ───── 입력 ───── */
 addEventListener('keydown',e=>{
+  if(e.target&&(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'))return;
   const c=e.code;
   if(c.startsWith('Arrow')||c==='Space')e.preventDefault();
   keys[c]=true;
@@ -344,6 +352,7 @@ addEventListener('keydown',e=>{
     if(mv!==undefined){e.preventDefault();let n=selSt+mv;if(n>=0&&n<STAGES.length&&stageOpen(n)){selSt=n;ovl.querySelectorAll('.stage').forEach((el,i)=>el.classList.toggle('sel',i===selSt))}return}
     const dg=/^(Digit|Numpad)([1-9])$/.exec(c);if(dg){const n=+dg[2]-1;if(stageOpen(n)){selSt=n;startRun(n)}return}}
   if(state==='title'&&ovl.querySelector('.pgrid')){if(c==='Escape')toTitle();return}
+  if(state==='title'&&ovl.querySelector('.hof-screen')){if(c==='Escape')toTitle();return}
   if(state==='title'){if(c==='Enter'||c==='Space'){if(!stageOpen(selSt))selSt=0;startRun(selSt)}if(c==='KeyH'){hard=!hard;if(window.__syncD)window.__syncD();toTitle()}return}
   if(state==='pick'){const n={Digit1:0,Digit2:1,Digit3:2,Numpad1:0,Numpad2:1,Numpad3:2}[c];if(n!==undefined&&pickChoices[n])choose(pickChoices[n].id);return}
   if(state==='dead'||state==='clear'){if(c==='Enter'){if(practice)startPractice(practice.st,practice.j);else if(state==='clear'&&stageIx+1<BOSSDEF.length)nextStage();else startRun(runStart)}if(c==='Escape')toTitle();return}
@@ -2754,6 +2763,56 @@ function guardSkill(){const p=P;if((p.cds.G||0)>0)return;p.guardT=hard?0.26:0.32
 function drawGuard(){const p=P;if(!p||!(p.guardT>0))return;const k=p.guardT/(hard?0.26:0.32),a=p.face;ctx.save();ctx.globalCompositeOperation='lighter';
   for(const [w,col] of[[14,'255,200,60,'],[5,'255,236,150,'],[2,'255,255,240,']]){ctx.strokeStyle=`rgba(${col}${0.4+0.5*k})`;ctx.lineWidth=w;ctx.beginPath();ctx.ellipse(p.x+Math.cos(a)*18,p.y-46+Math.sin(a)*10,26,44,0,a-1.1,a+1.1);ctx.stroke()}ctx.restore()}
 
+/* ═════ 명예의 전당 (레이드 시간표 사이트 전용 · Firestore) ═════ */
+const RANK={on:/(^|\.)dlrjtms\.github\.io$/.test(location.hostname)||/[?&]rank=1/.test(location.search),db:null,loading:null};
+const FB_CFG={apiKey:"AIzaSyA1_AZcZQnh3UpdP3WJxOzc5YUC8XtUVkc",authDomain:"raid-dda42.firebaseapp.com",projectId:"raid-dda42",storageBucket:"raid-dda42.firebasestorage.app",messagingSenderId:"775623601647",appId:"1:775623601647:web:c23f8fdfa9685758035a1a"};
+function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
+function rankDB(){if(RANK.db)return Promise.resolve(RANK.db);if(RANK.loading)return RANK.loading;
+  RANK.loading=(async()=>{let fb=null;try{if(window.parent&&window.parent!==window&&window.parent.firebase)fb=window.parent.firebase}catch(e){}
+    if(!fb){if(!window.firebase){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-app-compat.js');await loadScript('https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-firestore-compat.js')}fb=window.firebase;if(!fb.apps.length)fb.initializeApp(FB_CFG)}
+    RANK.db=fb.firestore();return RANK.db})();
+  RANK.loading.catch(()=>{RANK.loading=null});return RANK.loading}
+const rankKey=(st,h)=>'legionrank:'+st+':'+(h?'h':'n');
+async function rankGet(st,h){const db=await rankDB();const d=await db.collection('raid_storage').doc(rankKey(st,h)).get();if(!d.exists)return[];try{return JSON.parse(d.data().value).list||[]}catch(e){return[]}}
+async function rankSubmit(st,h,entry){const db=await rankDB();const ref=db.collection('raid_storage').doc(rankKey(st,h));let rank=-1,out=[];
+  await db.runTransaction(async tx=>{const d=await tx.get(ref);let list=[];if(d.exists){try{list=JSON.parse(d.data().value).list||[]}catch(e){}}
+    list.push(entry);list.sort((a,b)=>a.time-b.time||a.at-b.at);list=list.slice(0,10);rank=list.findIndex(x=>x.at===entry.at&&x.name===entry.name);out=list;
+    tx.set(ref,{value:JSON.stringify({list})})});return{rank,list:out}}
+async function rankWho(){try{const id=localStorage.getItem('raidboard-logged-in-id');if(!id)return null;
+    const adm=localStorage.getItem('raidboard-is-admin')==='1',t=Number(localStorage.getItem('raidboard-login-time')||0);if(!adm&&(!t||Date.now()-t>4*3600*1000))return null;
+    const db=await rankDB();const d=await db.collection('raid_storage').doc('member:'+id).get();if(!d.exists)return null;const m=JSON.parse(d.data().value);const nm=m.characters&&m.characters[0]&&m.characters[0].name;return nm?{id,name:nm}:null}catch(e){return null}}
+function fmt2(t){const m=Math.floor(t/60),s=t%60;return String(m).padStart(2,'0')+':'+s.toFixed(2).padStart(5,'0')}
+function escH(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function rankTable(list,hi){if(!list.length)return '<div class="hof-empty">아직 기록이 없어요. 첫 번째 이름을 새겨보세요!</div>';
+  return '<table class="hof-t"><tr><th>순위</th><th>이름</th><th>토벌 시간</th><th>남은 HP</th><th>날짜</th></tr>'+list.map((r,i)=>{const d=new Date(r.at);return `<tr class="${i===hi?'hi':''}${i<3?' top'+(i+1):''}"><td>${i+1}</td><td>${escH(r.name)}${r.login?' <span class="hof-l">✔</span>':''}</td><td class="hof-time">${fmt2(r.time)}</td><td>${r.hp!=null?r.hp+'%':'-'}</td><td>${d.getMonth()+1}/${d.getDate()}</td></tr>`}).join('')+'</table>'}
+// 클리어 화면용
+function rankOnWin(st,h,time,hp){const box=$('hof');if(!box||!RANK.on)return;box.innerHTML='<div class="hof-head">HALL OF FAME · '+escH(STAGES[st].name)+' '+(h?'하드':'노말')+'</div><div class="hof-empty">순위를 불러오는 중…</div>';
+  Promise.all([rankGet(st,h),rankWho()]).then(([list,who])=>{if(!$('hof'))return;
+    const qual=list.length<10||time<list[list.length-1].time;const pos=qual?list.filter(r=>r.time<=time).length:-1;
+    let form='';
+    if(qual){form=`<div class="hof-new">NEW RECORD! <b>${pos+1}위</b> · ${fmt2(time)}</div><div class="hof-form">`+(who?`<span class="hof-who">로그인 계정 <b>${escH(who.name)}</b> 으로 기록</span>`:`<input id="hofName" maxlength="12" placeholder="이름을 새겨주세요 (12자)" autocomplete="off">`)+`<button id="hofGo">기록 남기기</button></div>`}
+    else form=`<div class="hof-miss">10위 기록 ${fmt2(list[list.length-1].time)} · 이번 기록 ${fmt2(time)} — 아쉽게 순위 밖이에요</div>`;
+    box.innerHTML='<div class="hof-head">HALL OF FAME · '+escH(STAGES[st].name)+' '+(h?'하드':'노말')+'</div>'+form+'<div id="hofList">'+rankTable(list,-1)+'</div>';
+    if(qual){const go=$('hofGo'),inp=$('hofName');
+      try{const last=localStorage.getItem('legion-raid-name');if(inp&&last)inp.value=last}catch(e){}
+      if(inp){inp.focus();inp.onkeydown=e=>{e.stopPropagation();if(e.key==='Enter')go.click()}}
+      go.onclick=()=>{const nm=who?who.name:(inp.value||'').replace(/[<>]/g,'').trim().slice(0,12);if(!nm){inp.focus();inp.placeholder='이름을 입력해주세요';return}
+        go.disabled=true;go.textContent='새기는 중…';if(!who)try{localStorage.setItem('legion-raid-name',nm)}catch(e){}
+        rankSubmit(st,h,{name:nm,time:Math.round(time*100)/100,hp,login:!!who,at:Date.now()}).then(r=>{if(!$('hof'))return;const f=box.querySelector('.hof-form');if(f)f.innerHTML=r.rank>=0?`<span class="hof-who">🏆 ${r.rank+1}위에 이름을 새겼어요!</span>`:'<span class="hof-who">그사이 다른 기록에 밀려 순위 밖이 되었어요</span>';$('hofList').innerHTML=rankTable(r.list,r.rank);sfx('counter')})
+          .catch(()=>{go.disabled=false;go.textContent='다시 시도';})}}})
+  .catch(()=>{if($('hof'))box.innerHTML='<div class="hof-head">HALL OF FAME</div><div class="hof-empty">순위를 불러오지 못했어요.</div>'})}
+// 타이틀 · 명예의 전당 보기
+let hofSel={st:0,h:false};
+function hallMenu(){state='title';ovl.hidden=false;hofSel.st=selSt||0;hofSel.h=hard;
+  ovl.innerHTML=`<div class="screen hof-screen"><span class="eyebrow">HALL OF FAME</span><h2>명예의 전당</h2>
+    <div class="hof-tabs">${STAGES.map((s,i)=>`<button class="dbtn hof-tab" data-i="${i}">${i+1}. ${s.name}</button>`).join('')}</div>
+    <div class="row diff"><button class="dbtn" id="hfN">노말</button><button class="dbtn" id="hfH">하드</button><span class="hint">스테이지·난이도별 가장 빠른 토벌 기록 1~10위</span></div>
+    <div id="hof" class="hof"></div><div class="row"><button class="ghost" id="hfB">처음 화면 (Esc)</button></div></div>`;
+  const draw=()=>{ovl.querySelectorAll('.hof-tab').forEach((el,i)=>el.classList.toggle('on',i===hofSel.st));$('hfN').classList.toggle('on',!hofSel.h);$('hfH').classList.toggle('on',hofSel.h);
+    const box=$('hof');box.innerHTML='<div class="hof-head">'+escH(STAGES[hofSel.st].name)+' · '+(hofSel.h?'하드':'노말')+'</div><div class="hof-empty">불러오는 중…</div>';const k=hofSel.st+''+hofSel.h;
+    rankGet(hofSel.st,hofSel.h).then(list=>{if(!$('hof')||k!==hofSel.st+''+hofSel.h)return;box.innerHTML='<div class="hof-head">'+escH(STAGES[hofSel.st].name)+' · '+(hofSel.h?'하드':'노말')+'</div>'+rankTable(list,-1)}).catch(()=>{if($('hof'))box.innerHTML='<div class="hof-empty">순위를 불러오지 못했어요.</div>'})};
+  ovl.querySelectorAll('.hof-tab').forEach(el=>el.onclick=()=>{hofSel.st=+el.dataset.i;draw()});$('hfN').onclick=()=>{hofSel.h=false;draw()};$('hfH').onclick=()=>{hofSel.h=true;draw()};$('hfB').onclick=toTitle;draw()}
+
 var BOSSDEF=[
   {hp:60000,r:62,h:215,acts:ACTS,choose:chooseAct,sprite:drawMinotaur,hires:2,outline:[20,8,8],idleArm:0.6,groggyArm:1.3,spd:[0,95,115,140],cool:[0,1.05,0.8,0.55],roar:[380,520],intro:'불타는 산맥의 정상, 그라브나크가 기다린다',deathLine:'산맥의 불길에 삼켜졌다',pillars:true,theme:'lava',tint:'255,60,20',josa:'를'},
   {hp:70000,r:46,h:230,acts:ACTS2,choose:chooseAct2,sprite:drawSuccubus,hires:2,outline:[26,6,18],idleArm:-0.5,groggyArm:0.9,spd:[0,105,120,140],cool:[0,0.95,0.75,0.55],roar:[400,540],intro:'장미 향이 짙은 궁전, 벨리시아가 미소 짓는다',deathLine:'달콤한 꿈속에 잠들었다',pillars:false,theme:'palace',tint:'255,80,170',josa:'를'},
@@ -2903,13 +2962,13 @@ function toTitle(){
       <span><b>S</b>피의 갈증</span><span><b>D</b>반격</span><span><b>F</b>전투 함성</span><span><b>Z</b>광폭화</span><span><b>1</b>회복약</span><span><b>2</b>피의 맹세</span><span><b>Ctrl+Z</b>황금 기사</span><span><b>Ctrl+X</b>요정 궁수 (2스테이지~)</span><span><b>Ctrl+C</b>수호 마법사 (4스테이지~)</span><span><b>V</b>각성기 · 버서커 퓨리</span><span><b>G</b>저스트 가드 (6스테이지~)</span>
     </div>
     <p class="hint"${ctl==='mobile'?' hidden':''}>스킬은 이동 중이면 그 방향으로, 서 있으면 보스를 향해 나간다. 보스가 청록빛으로 빛날 때 D로 끊어내고, 힘을 모을 때는 무력화 스킬(R, E, A, F, D, Q)을 몰아 넣어라. 평타 C는 누르고 있으면 계속 나간다. 돌진은 가장자리 기둥으로 유인하고, 보랏빛으로 도끼를 젖히면 손을 멈춰라. 영웅 지원 게이지가 차면 Ctrl+Z·X·C 중 하나를 골라 소환한다. 매혹에 걸리면 방향키를 연타해 풀어라. 광기 게이지가 가득 차면 조작이 반전된다. 열린 스테이지 카드를 누르거나 방향키·숫자 1~9로 고르고 Enter로 시작한다. 반격은 노말에선 방향과 상관없고, 하드에선 보스를 향해야 한다.</p>
-    <div class="row diff"><span class="hint">조작</span><button class="dbtn" id="cpc">PC</button><button class="dbtn" id="cmo">모바일</button>${ctl==='mobile'?`<button class="dbtn" id="cfs">전체화면 ${fsOn?'켬':'끔'}</button>`:''}<button class="dbtn${gq==='high'?' on':''}" id="cq">화질 ${gq==='high'?'높음':'보통'}</button><span class="hint">난이도</span><button class="dbtn" id="dn">노말</button><button class="dbtn" id="dh">하드</button><span class="hint" id="dtx"></span><button class="ghost" id="prac" style="margin-left:auto">기믹 연습</button><button id="go">토벌 시작${ctl==='mobile'?'':' (Enter · '+STAGES[selSt].name+')'}</button></div>
+    <div class="row diff"><span class="hint">조작</span><button class="dbtn" id="cpc">PC</button><button class="dbtn" id="cmo">모바일</button>${ctl==='mobile'?`<button class="dbtn" id="cfs">전체화면 ${fsOn?'켬':'끔'}</button>`:''}<button class="dbtn${gq==='high'?' on':''}" id="cq">화질 ${gq==='high'?'높음':'보통'}</button><span class="hint">난이도</span><button class="dbtn" id="dn">노말</button><button class="dbtn" id="dh">하드</button><span class="hint" id="dtx"></span><button class="ghost" id="prac" style="margin-left:auto">기믹 연습</button>${RANK.on?'<button class="ghost" id="hofb">명예의 전당</button>':''}<button id="go">토벌 시작${ctl==='mobile'?'':' (Enter · '+STAGES[selSt].name+')'}</button></div>
   </div>`;
   const syncD=()=>{$('dn').classList.toggle('on',!hard);$('dh').classList.toggle('on',hard);$('dtx').textContent=hard?'보스 피해 1.35배 · 생명력 1.5배 · 하드 전용 기믹':'기본 난이도';try{localStorage.setItem('legion-raid-hard',hard?'1':'0')}catch(e){}};
   $('dn').onclick=()=>{hard=false;syncD();toTitle()};$('dh').onclick=()=>{hard=true;syncD();toTitle()};syncD();window.__syncD=syncD;
   $('cpc').classList.toggle('on',ctl==='pc');$('cmo').classList.toggle('on',ctl==='mobile');$('cpc').onclick=()=>{ctl='pc';applyCtl();toTitle()};$('cmo').onclick=()=>{ctl='mobile';applyCtl();toTitle()};if($('cfs')){$('cfs').classList.toggle('on',fsOn);$('cfs').onclick=()=>{fsOn=!fsOn;try{localStorage.setItem('legion-raid-fs',fsOn?'1':'0')}catch(e){}toTitle()}}
   $('cq').onclick=()=>{gq=gq==='high'?'low':'high';gqUser=true;if(gq==='high'){pipe='gpu';sprHalf=false}try{localStorage.setItem('legion-raid-q',gq);if(gq==='high')localStorage.removeItem('legion-raid-pipe')}catch(e){}applyQ();toTitle()};
-  $('prac').onclick=practiceMenu;$('go').onclick=()=>{tryFull();startRun(0)};ovl.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>{tryFull();startRun(+el.dataset.st)});$('go').focus({preventScroll:true});
+  $('prac').onclick=practiceMenu;if($('hofb'))$('hofb').onclick=hallMenu;$('go').onclick=()=>{tryFull();startRun(0)};ovl.querySelectorAll('[data-st]').forEach(el=>el.onclick=()=>{tryFull();startRun(+el.dataset.st)});$('go').focus({preventScroll:true});
 }
 function setupStage(){
   B=newBoss();B.intro=1.9;B.z=520;B.cineT=2.8;teles=[];rings=[];proj=[];fx=[];texts=[];timers=[];fightTime=0;aims=[];vfx=[];decals=[];swordE=null;mage=null;knight=null;fairy=null;allyShots=[];clones=[];parts=[];pools=[];crystals=[];gasC=[];darkT=0;spots=[];pip=stageIx===2?newPip():null;mode='arena';SCR=null;door=null;beams=[];flipT=0;orbs=[];holies=[];adds=[];shards=[];visionT=0;eclipseT=0;stalk=[];stalker=null;rods=[];snakes=[];lotuses=[];mirrorG=null;clockG=null;voids=[];redMoon=false;BOSSDEF[5].tint='160,96,255';BOSSDEF[5].rimRGB=null;voidWarn=null;if(BD().fixed){B.x=AR.x;B.y=AR.y+24}
@@ -2986,10 +3045,11 @@ function win(){
   ovl.hidden=false;ovl.innerHTML=`<div class="screen"><span class="eyebrow">STAGE ${i+1} ${hard?'하드 ':''}토벌 완료</span><h2>${STAGES[i].name}${BD().josa} 베었다</h2>
     <div class="stats"><span>토벌 시간<b>${fmt(fightTime)}</b></span><span>최고 기록<b>${fmt(bests[bk])}${isBest?' · 갱신':''}</b></span><span>남은 생명력<b>${Math.round(P.hp/maxHp()*100)}%</b></span></div>
     <p class="hint">각인: ${picked.map(id=>ENGR.find(e=>e.id===id).name).join(', ')}</p>
-    <div class="stages">${stageCards(false)}</div>
+    ${RANK.on?'<div id="hof" class="hof"></div>':`<div class="stages">${stageCards(false)}</div>`}
     ${i===5?`<p class="lede">여섯 군단장을 모두 토벌했다. 마왕군의 그림자가 걷힌다.</p>`:''}${i===9?`<p class="lede">죽음의 신 아케론이 쓰러졌다. 죽음의 질서가 끝나고, 세상에 새로운 새벽이 밝는다.</p>`:''}${hasNext?`<p class="lede">다음 군단장 「${nx.title}」 ${nx.name}. 각인과 황금 기사 게이지를 그대로 들고 간다.</p>`:nx?`<p class="lede">다음 군단장 「${nx.title}」 ${nx.name}은 아직 준비 중이다.</p>`:''}
     <div class="row">${hasNext?'<button id="nx">다음 군단장으로 (Enter)</button>':''}<button class="${hasNext?'ghost':''}" id="rt">STAGE ${runStart+1}부터 다시${hasNext?'':' (Enter)'}</button><button class="ghost" id="tt">처음 화면 (Esc)</button></div></div>`;
   if(hasNext)$('nx').onclick=nextStage;$('rt').onclick=()=>startRun(runStart);$('tt').onclick=toTitle;
+  if(RANK.on)rankOnWin(i,hard,fightTime,Math.round(P.hp/maxHp()*100));
 }
 
 /* ───── 조작 모드: PC / 모바일 ───── */
