@@ -2774,8 +2774,9 @@ const RANK={on:/(^|\.)dlrjtms\.github\.io$/.test(location.hostname)||/[?&]rank=1
 const FB_CFG={apiKey:"AIzaSyA1_AZcZQnh3UpdP3WJxOzc5YUC8XtUVkc",authDomain:"raid-dda42.firebaseapp.com",projectId:"raid-dda42",storageBucket:"raid-dda42.firebasestorage.app",messagingSenderId:"775623601647",appId:"1:775623601647:web:c23f8fdfa9685758035a1a"};
 function loadScript(src){return new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.onload=ok;s.onerror=no;document.head.appendChild(s)})}
 function rankDB(){if(RANK.db)return Promise.resolve(RANK.db);if(RANK.loading)return RANK.loading;
-  RANK.loading=(async()=>{let fb=null;try{if(window.parent&&window.parent!==window&&window.parent.firebase)fb=window.parent.firebase}catch(e){}
-    if(!fb){if(!window.firebase){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-app-compat.js');await loadScript('https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-firestore-compat.js')}fb=window.firebase;if(!fb.apps.length)fb.initializeApp(FB_CFG)}
+  RANK.loading=(async()=>{let fb=null;
+    // 부모 창(시간표 사이트)의 firebase를 빌려 쓰면 iframe에서 만든 객체를 '올바른 객체가 아님'으로 거부(invalid-argument)하므로 항상 자체 인스턴스를 쓴다
+    {if(!window.firebase){await loadScript('https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-app-compat.js');await loadScript('https://cdnjs.cloudflare.com/ajax/libs/firebase/12.15.0/firebase-firestore-compat.js')}fb=window.firebase;if(!fb.apps.length)fb.initializeApp(FB_CFG)}
     RANK.db=fb.firestore();return RANK.db})();
   RANK.loading.catch(()=>{RANK.loading=null});return RANK.loading}
 const rankKey=(st,h)=>'legionrank:'+st+':'+(h?'h':'n');
