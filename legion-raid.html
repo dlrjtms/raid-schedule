@@ -338,82 +338,96 @@ function banner(txt,dur){const el=$('banner');el.textContent=txt;el.classList.ad
 
 /* ───── 소리 ───── */
 let AC=null, muted=false, noiseBuf=null;
-/* ───── 사운드 (WebAudio 합성 · 보스별 테마) ───── */
-let MST=null,lastHitA=0;
-function aInit(){if(AC)return;AC=new (window.AudioContext||window.webkitAudioContext)();noiseBuf=AC.createBuffer(1,AC.sampleRate,AC.sampleRate);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
-  const comp=AC.createDynamicsCompressor();comp.threshold.value=-16;comp.knee.value=12;comp.ratio.value=5;comp.attack.value=0.003;comp.release.value=0.18;MST=AC.createGain();MST.gain.value=0.85;MST.connect(comp);comp.connect(AC.destination)}
-function aEnv(g,t,vol,dur,att){g.gain.setValueAtTime(0.0001,t);g.gain.exponentialRampToValueAtTime(Math.max(0.0002,vol),t+(att||Math.min(0.008,dur*0.2)));g.gain.exponentialRampToValueAtTime(0.0001,t+dur)}
-function aN(t,dur,vol,ft,f0,f1,q,att){const s=AC.createBufferSource();s.buffer=noiseBuf;s.loop=true;const f=AC.createBiquadFilter();f.type=ft||'lowpass';f.frequency.setValueAtTime(f0,t);if(f1)f.frequency.exponentialRampToValueAtTime(Math.max(30,f1),t+dur);if(q)f.Q.value=q;const g=AC.createGain();aEnv(g,t,vol,dur,att);s.connect(f);f.connect(g);g.connect(MST);s.start(t,Math.random()*0.8);s.stop(t+dur+0.05)}
-function aO(t,dur,vol,type,f0,f1,att,vib){const o=AC.createOscillator();o.type=type||'sine';o.frequency.setValueAtTime(f0,t);if(f1)o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);const g=AC.createGain();aEnv(g,t,vol,dur,att);
-  if(vib){const l=AC.createOscillator(),lg=AC.createGain();l.frequency.value=vib[0];lg.gain.value=vib[1];l.connect(lg);lg.connect(o.frequency);l.start(t);l.stop(t+dur+0.05)}o.connect(g);g.connect(MST);o.start(t);o.stop(t+dur+0.05)}
-function aOF(t,dur,vol,type,f0,f1,fFreq,att,trem,vib){const o=AC.createOscillator();o.type=type;o.frequency.setValueAtTime(f0,t);if(f1)o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);const f=AC.createBiquadFilter();f.type='lowpass';f.frequency.value=fFreq;f.Q.value=1.2;const g=AC.createGain();aEnv(g,t,vol,dur,att);
-  let out=g;if(trem){const tg=AC.createGain();tg.gain.value=0.6;const l=AC.createOscillator(),lg=AC.createGain();l.frequency.value=trem;lg.gain.value=0.4;l.connect(lg);lg.connect(tg.gain);l.start(t);l.stop(t+dur+0.05);g.connect(tg);out=tg}
-  if(vib){const l=AC.createOscillator(),lg=AC.createGain();l.frequency.value=vib[0];lg.gain.value=vib[1];l.connect(lg);lg.connect(o.frequency);l.start(t);l.stop(t+dur+0.05)}
-  o.connect(f);f.connect(g);out.connect(MST);o.start(t);o.stop(t+dur+0.05)}
-function aR(t,dur,vol,base,ratios){ratios.forEach((r,i)=>aO(t,dur*(1-i*0.08),vol/(1+i*0.6),'sine',base*r,base*r*0.996,0.002))}
-function aCrackle(t,dur,n,vol){for(let i=0;i<n;i++)aN(t+Math.random()*dur,0.03,vol*(0.5+Math.random()*0.5),'highpass',2500+Math.random()*3000,0,0.7,0.002)}
-const HIT_MAT=['flesh','magic','wood','magic','flesh','metal','magic','lava','stone','bone'];
-function sndHit(t,crit){const v=crit?1.25:1,j=1+(Math.random()-0.5)*0.12;
-  aO(t,0.17,0.55*v,'sine',96*j,40);aN(t,0.12,0.5*v,'lowpass',3400,280);aR(t,0.16,0.12*v,2150*j,[1,1.47,2.03]);
+/* ───── 사운드 v2 (판타지 액션 · 노이즈/포먼트 합성, 음정 있는 '띵' 소리 없음) ───── */
+let MST=null,REV=null,lastHitA=0;const DISTC={};
+function aInit(){if(AC)return;AC=new (window.AudioContext||window.webkitAudioContext)();const sr=AC.sampleRate;noiseBuf=AC.createBuffer(1,sr*2,sr);const d=noiseBuf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+  const comp=AC.createDynamicsCompressor();comp.threshold.value=-18;comp.knee.value=10;comp.ratio.value=6;comp.attack.value=0.002;comp.release.value=0.2;
+  MST=AC.createGain();MST.gain.value=0.9;MST.connect(comp);comp.connect(AC.destination);
+  REV=AC.createConvolver();const n=Math.floor(sr*1.7),ir=AC.createBuffer(2,n,sr);for(let c=0;c<2;c++){const x=ir.getChannelData(c);for(let i=0;i<n;i++)x[i]=(Math.random()*2-1)*Math.pow(1-i/n,3.2)}REV.buffer=ir;const rg=AC.createGain();rg.gain.value=0.5;REV.connect(rg);rg.connect(comp)}
+function shp(k){if(DISTC[k])return DISTC[k];const n=2048,c=new Float32Array(n);for(let i=0;i<n;i++){const x=i/(n-1)*2-1;c[i]=Math.tanh(k*x)/Math.tanh(k)}return DISTC[k]=c}
+function aGain(t,vol,dur,o){const g=AC.createGain();const v=Math.max(0.0002,vol);g.gain.setValueAtTime(0.0001,t);
+  if(o.swell){g.gain.exponentialRampToValueAtTime(v,t+dur*(o.peak||0.5));g.gain.exponentialRampToValueAtTime(0.0001,t+dur)}
+  else{g.gain.exponentialRampToValueAtTime(v,t+(o.att||Math.min(0.004,dur*0.15)));g.gain.exponentialRampToValueAtTime(0.0001,t+dur)}return g}
+function aOut(node,g,o){node.connect(g);g.connect(MST);if(o.rev){const r=AC.createGain();r.gain.value=o.rev;g.connect(r);r.connect(REV)}}
+function nz(t,dur,vol,o){const s=AC.createBufferSource();s.buffer=noiseBuf;s.loop=true;const f=AC.createBiquadFilter();f.type=o.ft||'lowpass';f.Q.value=o.q||0.8;f.frequency.setValueAtTime(o.f0,t);
+  if(o.fm){f.frequency.exponentialRampToValueAtTime(o.fm,t+dur*(o.peak||0.5));f.frequency.exponentialRampToValueAtTime(o.f1||o.f0,t+dur)}else if(o.f1)f.frequency.exponentialRampToValueAtTime(o.f1,t+dur);
+  let node=f;if(o.dist){const w=AC.createWaveShaper();w.curve=shp(o.dist);f.connect(w);node=w}aOut(node,aGain(t,vol,dur,o),o);s.start(t,Math.random()*1.5);s.stop(t+dur+0.05)}
+function vox(t,dur,vol,o){/* 포먼트를 통과한 톱니파: 짐승 울음/외침 */const os=AC.createOscillator();os.type=o.type||'sawtooth';os.frequency.setValueAtTime(o.f0,t);if(o.fm){os.frequency.linearRampToValueAtTime(o.fm,t+dur*0.35);os.frequency.exponentialRampToValueAtTime(o.f1||o.fm,t+dur)}else if(o.f1)os.frequency.exponentialRampToValueAtTime(o.f1,t+dur);
+  if(o.jit){const l=AC.createOscillator(),lg=AC.createGain();l.type='sawtooth';l.frequency.value=o.jit[0];lg.gain.value=o.jit[1];l.connect(lg);lg.connect(os.frequency);l.start(t);l.stop(t+dur+0.05)}
+  const mix=AC.createGain();mix.gain.value=1;for(const [ff,q,gv] of (o.form||[[600,4,1],[1200,5,0.6]])){const bp=AC.createBiquadFilter();bp.type='bandpass';bp.frequency.value=ff;bp.Q.value=q;const gg=AC.createGain();gg.gain.value=gv;os.connect(bp);bp.connect(gg);gg.connect(mix)}
+  let node=mix;if(o.dist){const w=AC.createWaveShaper();w.curve=shp(o.dist);mix.connect(w);node=w}
+  const g=aGain(t,vol,dur,{att:o.att||0.06,swell:o.swell,peak:o.peak});
+  if(o.growl){const am=AC.createGain();am.gain.value=0.55;const l=AC.createOscillator(),lg=AC.createGain();l.frequency.value=o.growl;lg.gain.value=0.45;l.connect(lg);lg.connect(am.gain);l.start(t);l.stop(t+dur+0.05);node.connect(am);node=am}
+  aOut(node,g,o);os.start(t);os.stop(t+dur+0.05)}
+function sub(t,dur,vol,f0,f1,o){o=o||{};const os=AC.createOscillator();os.type='sine';os.frequency.setValueAtTime(f0,t);os.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);aOut(os,aGain(t,vol,dur,o),o);os.start(t);os.stop(t+dur+0.05)}
+function grit(t,dur,n,vol,o){for(let i=0;i<n;i++){const k=i/n;nz(t+k*dur+Math.random()*dur/n,0.014+Math.random()*0.02,vol*(1-k*0.6)*(0.6+Math.random()*0.4),{ft:o.ft||'bandpass',f0:(o.f||1500)*(0.7+Math.random()*0.6),q:o.q||1.5,dist:o.dist,att:0.001})}}
+function whoosh(t,dur,vol,lo,hi,o){o=o||{};nz(t,dur,vol,{ft:'bandpass',f0:lo*0.55,fm:lo*1.7,f1:lo*0.6,q:0.9,swell:true,peak:o.peak||0.45,rev:o.rev});nz(t+dur*0.05,dur*0.85,vol*0.5,{ft:'bandpass',f0:hi*0.6,fm:hi*1.4,f1:hi*0.7,q:1.3,swell:true,peak:o.peak||0.5})}
+function clank(t,vol,base,dur){/* 짧은 금속 부딪힘: 고Q 노이즈라 음정이 길게 남지 않음 */for(const r of[1,1.62,2.35])nz(t,dur||0.06,vol/2,{ft:'bandpass',f0:base*r,q:9,dist:1.5,att:0.001})}
+function boom(t,size,o){o=o||{};const s=size||1;sub(t,0.55*s,0.9,72,26,{rev:o.rev});nz(t,0.5*s,0.85,{ft:'lowpass',f0:2400,f1:90,dist:3.5,rev:o.rev||0.3});nz(t,0.012,0.8,{ft:'highpass',f0:1800,dist:6,att:0.001});grit(t+0.03,0.45*s,10,0.3,{ft:'lowpass',f:1600})}
+const HIT_MAT=['flesh','flesh','wood','magic','flesh','metal','flesh','lava','stone','bone'];
+function sndHit(t,crit){const p=crit?1.3:1,j=1+(Math.random()-0.5)*0.15;
+  nz(t,0.01,0.9*p,{ft:'highpass',f0:2600*j,dist:6,att:0.001});
+  nz(t,0.12,0.85*p,{ft:'lowpass',f0:1100*j,f1:180,dist:3.5});sub(t,0.15,0.75*p,88*j,40);
   const m=stageIx===9&&B&&B.form2?'radiant':HIT_MAT[stageIx]||'flesh';
-  if(m==='flesh'){aN(t,0.11,0.32,'lowpass',950,180);aO(t,0.08,0.18,'triangle',180,90)}
-  else if(m==='metal'){aR(t+0.005,0.36,0.24,860*j,[1,2.76,5.4])}
-  else if(m==='magic'){aR(t,0.28,0.14,1650*j,[1,1.5,2.0])}
-  else if(m==='wood'){aN(t,0.06,0.3,'bandpass',1300,0,2);aO(t,0.07,0.2,'triangle',420,200)}
-  else if(m==='lava'){aN(t,0.2,0.3,'lowpass',1300,200);aCrackle(t,0.15,4,0.12)}
-  else if(m==='stone'){aN(t,0.16,0.35,'lowpass',1600,150);aO(t,0.12,0.25,'sine',70,38)}
-  else if(m==='bone'){aR(t,0.3,0.2,720*j,[1,2.3,3.9])}
-  else if(m==='radiant'){aR(t,0.32,0.16,2400*j,[1,1.25,1.5,2.0])}
-  if(crit){aO(t,0.25,0.45,'sine',70,30);aR(t+0.01,0.32,0.22,3400,[1,1.5]);aN(t,0.08,0.4,'highpass',5000,0,0.7)}}
+  if(m==='flesh'){nz(t+0.004,0.1,0.5*p,{ft:'bandpass',f0:760*j,f1:330,q:2.2,dist:2.5});grit(t+0.01,0.08,5,0.28*p,{f:1400})}
+  else if(m==='metal'){clank(t,0.55*p,1050*j,0.07);grit(t+0.01,0.06,4,0.2,{f:3000})}
+  else if(m==='wood'){nz(t,0.05,0.5,{ft:'bandpass',f0:1100*j,q:3,dist:2});grit(t+0.01,0.08,6,0.25,{f:900})}
+  else if(m==='magic'){nz(t,0.16,0.3,{ft:'highpass',f0:3200,swell:true,peak:0.2});grit(t,0.1,6,0.2,{f:2500})}
+  else if(m==='lava'){nz(t,0.2,0.32,{ft:'lowpass',f0:1500,f1:300,dist:2});grit(t+0.02,0.2,8,0.22,{ft:'highpass',f:3000})}
+  else if(m==='stone'){nz(t,0.18,0.45,{ft:'lowpass',f0:1700,f1:200,dist:2.5});grit(t+0.01,0.16,8,0.3,{ft:'lowpass',f:1300})}
+  else if(m==='bone'){nz(t,0.04,0.55,{ft:'bandpass',f0:1900*j,q:3.5,dist:3,att:0.001});grit(t+0.01,0.09,6,0.3,{f:2200,q:3})}
+  else if(m==='radiant'){nz(t,0.2,0.32,{ft:'highpass',f0:3500,swell:true,peak:0.15});grit(t,0.14,7,0.22,{f:3200})}
+  if(crit){sub(t,0.3,0.7,62,28,{rev:0.25});nz(t,0.06,0.5,{ft:'bandpass',f0:1800,q:1.2,dist:5});grit(t+0.02,0.14,7,0.3,{f:1700})}}
 function sndBoss(kind,t){const st=stageIx,f2=st===9&&B&&B.form2;
   if(kind==='swing'){switch(st){
-    case 0:aN(t,0.3,0.5,'bandpass',240,900,1.1);aO(t,0.22,0.3,'sine',95,48);break;
-    case 1:aN(t,0.05,0.6,'highpass',3200,0,0.8,0.002);aN(t+0.02,0.13,0.3,'bandpass',1500,4200,1.4);break;
-    case 2:aN(t,0.16,0.35,'bandpass',600,2600,1.2);aR(t+0.05,0.28,0.12,2600,[1,1.33,1.5]);break;
-    case 3:aN(t,0.25,0.28,'bandpass',1000,3600,1);aR(t,0.4,0.11,1800,[1,1.5,2.25]);break;
-    case 4:aN(t,0.28,0.45,'bandpass',500,1500,3);aN(t+0.1,0.08,0.2,'highpass',4000,0,0.7);break;
-    case 5:aN(t,0.14,0.45,'bandpass',1500,5200,1.5);aR(t+0.04,0.2,0.1,3200,[1,1.41]);break;
-    case 6:aN(t,0.22,0.7,'bandpass',800,2100,0.6);aN(t+0.03,0.12,0.25,'highpass',3500,0,0.7);break;
-    case 7:aN(t,0.3,0.5,'lowpass',600,2400);aCrackle(t,0.3,6,0.14);break;
-    case 8:aN(t,0.36,0.5,'bandpass',300,1200,0.8);aO(t,0.3,0.25,'sine',62,40);break;
-    case 9:aN(t,0.28,0.55,'bandpass',300,1400,1);aO(t,0.24,0.32,'sine',110,45);if(f2)aR(t+0.03,0.35,0.12,2300,[1,1.5,2]);break;
-    default:aN(t,0.2,0.4,'bandpass',500,2000,1)}return}
+    case 0:whoosh(t,0.38,0.85,200,1100);sub(t,0.3,0.25,80,45,{swell:true});break;
+    case 1:nz(t,0.018,0.9,{ft:'highpass',f0:2200,dist:8,att:0.001});whoosh(t,0.16,0.45,700,3000);break;
+    case 2:whoosh(t,0.14,0.55,500,2600);whoosh(t+0.13,0.14,0.45,600,2800);break;
+    case 3:whoosh(t,0.32,0.55,450,2400);nz(t+0.05,0.3,0.18,{ft:'highpass',f0:4000,swell:true});break;
+    case 4:whoosh(t,0.32,0.65,350,1600);nz(t+0.04,0.24,0.3,{ft:'bandpass',f0:1500,q:4,dist:3,swell:true});break;
+    case 5:whoosh(t,0.17,0.65,700,3400);nz(t+0.08,0.05,0.25,{ft:'bandpass',f0:3800,q:2,dist:2});break;
+    case 6:whoosh(t,0.26,0.6,500,2000);break;
+    case 7:whoosh(t,0.34,0.7,300,1500);nz(t,0.34,0.35,{ft:'lowpass',f0:700,fm:2200,f1:500,swell:true,dist:2});grit(t+0.05,0.3,9,0.2,{ft:'highpass',f:3200});break;
+    case 8:whoosh(t,0.46,0.8,180,900);nz(t,0.46,0.3,{ft:'lowpass',f0:300,fm:700,f1:200,swell:true});break;
+    case 9:whoosh(t,0.36,0.85,220,1300);sub(t,0.3,0.3,90,48,{swell:true});if(f2){nz(t+0.05,0.32,0.25,{ft:'highpass',f0:3800,swell:true});grit(t+0.05,0.28,6,0.15,{f:3500})}break;
+    default:whoosh(t,0.3,0.6,350,1800)}return}
   if(kind==='slam'){switch(st){
-    case 0:aO(t,0.6,0.8,'sine',82,30);aN(t,0.7,0.7,'lowpass',1200,100);aN(t+0.05,1.0,0.3,'lowpass',220,60);break;
-    case 1:aO(t,0.32,0.55,'sine',140,60);aR(t,0.55,0.18,1200,[1,1.5,2]);break;
-    case 2:aN(t,0.8,0.35,'highpass',4200,0,0.6);aO(t,0.25,0.5,'sine',110,50);break;
-    case 3:aO(t,0.4,0.55,'sine',100,40);aR(t,0.9,0.2,1400,[1,1.5,2,2.5]);break;
-    case 4:aO(t,0.42,0.65,'sine',90,35);aN(t,0.36,0.6,'lowpass',700,150);for(let i=0;i<3;i++)aO(t+0.08+i*0.07,0.08,0.12,'sine',300+i*80,650+i*80);break;
-    case 5:aO(t,0.7,0.7,'sine',70,28);aN(t,0.6,0.6,'lowpass',900,80);aR(t,1.2,0.18,180,[1,2.1]);break;
-    case 6:aN(t,0.45,0.5,'bandpass',2600,600,0.8);aO(t,0.22,0.45,'sine',120,60);break;
-    case 7:aO(t,0.6,0.75,'sine',75,30);aN(t,0.8,0.8,'lowpass',3000,150);aCrackle(t+0.05,0.5,10,0.16);break;
-    case 8:aN(t,0.09,0.8,'highpass',2200,0,0.7,0.002);aN(t+0.03,1.4,0.7,'lowpass',900,60);aO(t,1.0,0.5,'sine',52,25);break;
-    case 9:aO(t,0.5,0.6,'sine',70,34);if(f2)aR(t,1.8,0.32,330,[1,2,2.4,3,4.2]);else aR(t,2.2,0.36,196,[1,2,2.4,3,4.2]);aN(t,0.3,0.4,'lowpass',1000,120);break;
-    default:aO(t,0.4,0.6,'sine',80,30);aN(t,0.4,0.5,'lowpass',1000,100)}return}
+    case 0:boom(t,1.2,{rev:0.35});nz(t+0.08,1.1,0.35,{ft:'lowpass',f0:240,f1:60,rev:0.3});break;
+    case 1:sub(t,0.4,0.8,95,40);nz(t,0.35,0.4,{ft:'bandpass',f0:900,fm:2500,f1:700,swell:true,peak:0.2,rev:0.3});break;
+    case 2:boom(t,0.7);grit(t+0.02,0.35,12,0.35,{f:1100,dist:2});break;
+    case 3:sub(t,0.45,0.75,85,35,{rev:0.4});nz(t,0.6,0.35,{ft:'bandpass',f0:600,fm:2000,f1:400,swell:true,peak:0.25,rev:0.5});break;
+    case 4:boom(t,0.8);nz(t+0.02,0.3,0.5,{ft:'bandpass',f0:500,f1:200,q:3,dist:2});grit(t+0.06,0.3,8,0.25,{ft:'lowpass',f:700});break;
+    case 5:boom(t,1.1,{rev:0.55});nz(t,0.9,0.3,{ft:'lowpass',f0:400,f1:60,rev:0.5});break;
+    case 6:sub(t,0.3,0.7,100,45);nz(t,0.4,0.6,{ft:'bandpass',f0:2600,f1:500,q:0.8,dist:1.5});grit(t+0.1,0.4,10,0.25,{f:2600});break;
+    case 7:boom(t,1.2,{rev:0.35});nz(t,0.8,0.5,{ft:'lowpass',f0:3000,f1:200,dist:4});grit(t+0.05,0.7,16,0.25,{ft:'highpass',f:3000});break;
+    case 8:nz(t,0.09,1,{ft:'highpass',f0:1500,dist:9,att:0.001});nz(t+0.02,1.6,0.75,{ft:'lowpass',f0:900,f1:50,dist:2,rev:0.5});sub(t,1.1,0.7,55,24);break;
+    case 9:boom(t,1.3,{rev:0.6});nz(t+0.05,1.2,0.35,{ft:'lowpass',f0:300,f1:50,rev:0.6});if(f2){nz(t,0.5,0.35,{ft:'highpass',f0:3000,swell:true,peak:0.15,rev:0.4});grit(t,0.4,10,0.2,{f:3500})}break;
+    default:boom(t,1)}return}
   if(kind==='roar'){switch(st){
-    case 0:aOF(t,1.0,0.32,'sawtooth',88,62,700,0.06,9);aN(t,1.0,0.32,'bandpass',420,260,1.2,0.05);break;
-    case 1:for(let i=0;i<3;i++)aO(t+i*0.16,0.14,0.16,'sine',560+i*60,760+i*60,0.01,[6,10]);aR(t+0.5,0.6,0.1,1500,[1,1.5]);break;
-    case 2:aOF(t,0.6,0.22,'square',220,200,1400,0.02,0,[7,18]);aR(t+0.1,0.5,0.1,2600,[1,1.33,1.5]);break;
-    case 3:for(const f of[330,392,494])aO(t,1.1,0.08,'sine',f,f*0.998,0.3,[5,3]);aR(t+0.2,0.9,0.08,1900,[1,1.5]);break;
-    case 4:aOF(t,1.0,0.3,'sawtooth',72,58,500,0.05,14);aN(t,1.0,0.3,'lowpass',320,200,0,0.05);break;
-    case 5:aOF(t,1.1,0.28,'sawtooth',110,98,800,0.08);aOF(t,1.1,0.22,'sawtooth',55,50,500,0.08);break;
-    case 6:aN(t,0.85,0.32,'highpass',5200,0,0.7,0.05);aR(t+0.3,0.6,0.1,1700,[1,1.5,2]);break;
-    case 7:aN(t,1.0,0.5,'lowpass',900,400,0,0.05);aOF(t,1.0,0.22,'sawtooth',80,60,600,0.05,11);aCrackle(t,0.9,10,0.12);break;
-    case 8:aN(t,0.09,0.6,'highpass',2200,0,0.7,0.002);aN(t,1.6,0.6,'lowpass',700,50,0,0.05);aO(t,1.2,0.4,'sine',48,24);break;
-    case 9:if(f2){for(const f of[440,554,659])aO(t,1.2,0.08,'sine',f,f,0.25,[5,3]);aR(t,1.6,0.25,330,[1,2,3])}else{for(const f of[220,262,330])aO(t,1.3,0.09,'sine',f,f*0.997,0.3,[4,2]);aR(t,2.0,0.3,147,[1,2,2.4,3])}break;
-    default:aOF(t,0.9,0.3,'sawtooth',90,60,700,0.05)}}}
+    case 0:vox(t,1.15,0.75,{f0:92,fm:104,f1:70,form:[[420,5,1],[1050,6,0.6],[2400,8,0.25]],dist:3,growl:34,jit:[28,6],rev:0.35});nz(t,1.1,0.35,{ft:'bandpass',f0:500,q:1.5,swell:true,peak:0.3});break;
+    case 1:nz(t,0.9,0.45,{ft:'bandpass',f0:2600,fm:3400,f1:2000,q:1.4,swell:true,peak:0.35,rev:0.4});vox(t,0.9,0.3,{f0:175,f1:150,form:[[800,6,1],[1800,7,0.5]],dist:2,growl:22,swell:true,peak:0.4,rev:0.3});break;
+    case 2:for(let i=0;i<4;i++)vox(t+i*0.14,0.12,0.45,{f0:240-i*10,f1:200,form:[[850,6,1],[1700,7,0.6]],dist:3,growl:40,att:0.01});break;
+    case 3:nz(t,1.1,0.4,{ft:'bandpass',f0:1500,fm:2600,f1:1200,q:2,swell:true,peak:0.5,rev:0.6});vox(t,1.1,0.25,{type:'triangle',f0:110,f1:96,form:[[350,4,1],[700,5,0.5]],swell:true,peak:0.5,rev:0.6});break;
+    case 4:vox(t,1.1,0.7,{f0:70,fm:78,f1:56,form:[[340,5,1],[820,6,0.6]],dist:3.5,growl:48,jit:[34,8],rev:0.3});grit(t+0.1,0.9,14,0.2,{ft:'lowpass',f:600});break;
+    case 5:vox(t,1.15,0.7,{f0:112,fm:120,f1:92,form:[[520,5,1],[950,6,0.7],[2500,8,0.25]],dist:3,growl:20,rev:0.5});vox(t,1.15,0.4,{f0:56,f1:46,form:[[300,4,1]],dist:2,rev:0.4});break;
+    case 6:nz(t,1.0,0.5,{ft:'highpass',f0:4200,swell:true,peak:0.3,rev:0.3});vox(t,0.8,0.25,{f0:140,f1:120,form:[[700,6,1]],dist:2,growl:30});break;
+    case 7:vox(t,1.15,0.65,{f0:86,fm:96,f1:66,form:[[400,5,1],[1000,6,0.6]],dist:3.5,growl:30,jit:[30,6],rev:0.3});nz(t,1.1,0.45,{ft:'lowpass',f0:600,fm:1600,f1:500,swell:true,dist:2});grit(t+0.05,1.0,16,0.18,{ft:'highpass',f:3200});break;
+    case 8:vox(t,1.4,0.7,{f0:60,fm:66,f1:44,form:[[300,4,1],[700,5,0.6]],dist:3,growl:18,rev:0.5});nz(t+0.1,1.6,0.5,{ft:'lowpass',f0:600,f1:50,dist:2,rev:0.5});break;
+    case 9:if(f2){vox(t,1.2,0.55,{f0:118,fm:128,f1:98,form:[[620,5,1],[1400,6,0.7],[3000,8,0.25]],dist:2.5,growl:16,rev:0.6});nz(t,1.2,0.3,{ft:'highpass',f0:3500,swell:true,peak:0.4,rev:0.5})}
+      else{vox(t,1.5,0.7,{f0:56,fm:62,f1:42,form:[[330,4,1],[760,5,0.6],[2200,8,0.2]],dist:3,growl:24,jit:[22,5],rev:0.65});vox(t,1.5,0.45,{f0:84,f1:66,form:[[450,5,1],[1000,6,0.5]],dist:2.5,growl:31,rev:0.6})}break;
+    default:vox(t,1,0.6,{f0:90,f1:70,dist:3,growl:30})}}}
 function sfx(type){
   if(muted)return;
   try{aInit();if(AC.state==='suspended'&&AC.resume)AC.resume().catch(()=>{});const t=AC.currentTime+0.005;
     switch(type){
-      case 'hit':case 'crit':{if(t-lastHitA<0.045&&type==='hit')return;lastHitA=t;sndHit(t,type==='crit');break}
-      case 'pswing':{const j=1+(Math.random()-0.5)*0.15;aN(t,0.22,0.7,'bandpass',360*j,2300*j,1.2);aO(t,0.2,0.32,'sine',140*j,55);break}
-      case 'pslam':{aO(t,0.45,0.75,'sine',110,32);aN(t,0.5,0.6,'lowpass',1900,120);aN(t+0.03,0.6,0.25,'bandpass',620,200,0.8);aR(t,0.2,0.1,1900,[1,1.47]);break}
-      case 'pwar':{aOF(t,0.55,0.26,'sawtooth',170,125,900,0.03,0,[5,4]);aOF(t,0.55,0.18,'sawtooth',255,190,1300,0.03);aN(t,0.5,0.22,'bandpass',800,500,1.5,0.03);break}
-      case 'hurt':{aO(t,0.18,0.5,'sine',120,50);aN(t,0.14,0.42,'lowpass',2100,300);aOF(t,0.16,0.14,'sawtooth',210,140,900,0.01);break}
-      case 'counter':{aR(t,0.7,0.42,1180,[1,2.4,3.9,5.1]);aN(t,0.07,0.45,'highpass',4500,0,0.7,0.002);aO(t,0.22,0.12,'triangle',880,1760);aO(t,0.25,0.4,'sine',90,40);break}
+      case 'hit':case 'crit':{if(t-lastHitA<0.05&&type==='hit')return;lastHitA=t;sndHit(t,type==='crit');break}
+      case 'pswing':{const j=1+(Math.random()-0.5)*0.18;whoosh(t,0.3,0.85,240*j,1700*j);sub(t,0.26,0.3,95*j,50,{swell:true,peak:0.4});break}
+      case 'pslam':{boom(t,1,{rev:0.3});break}
+      case 'pwar':{vox(t,0.7,0.6,{f0:155,fm:170,f1:130,form:[[700,5,1],[1150,6,0.7],[2600,8,0.3]],dist:2.5,jit:[20,4],rev:0.35});nz(t,0.6,0.25,{ft:'bandpass',f0:900,q:1.5,swell:true,peak:0.25});break}
+      case 'hurt':{nz(t,0.1,0.6,{ft:'lowpass',f0:900,f1:200,dist:3});sub(t,0.14,0.55,95,45);vox(t,0.18,0.3,{f0:200,f1:140,form:[[620,5,1],[1050,6,0.6]],dist:2,att:0.01});break}
+      case 'counter':{nz(t,0.025,1,{ft:'highpass',f0:1600,dist:8,att:0.001});clank(t,0.6,1300,0.11);sub(t,0.25,0.7,80,38,{rev:0.3});nz(t,0.3,0.3,{ft:'bandpass',f0:2400,f1:900,q:1.2,rev:0.4});grit(t+0.01,0.12,8,0.3,{f:3200});break}
       case 'swing':case 'slam':case 'roar':sndBoss(type,t);break;
-      default:aN(t,0.1,0.3,'lowpass',800,200)}
+      default:nz(t,0.1,0.3,{ft:'lowpass',f0:800,f1:200})}
   }catch(e){}
 }
 
