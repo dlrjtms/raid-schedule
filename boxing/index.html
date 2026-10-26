@@ -302,7 +302,8 @@ function gyroInput(){ // returns screen-relative {x: right, y: into-screen}
   const[sx,sy,z]=screenUp();
   const roll=Math.atan2(sx,Math.hypot(sy,z))-GY.n0.roll;
   let pitch=Math.atan2(sy,z)-GY.n0.pitch;pitch=((pitch+Math.PI*3)%(Math.PI*2))-Math.PI;
-  const map=v=>{const dz=.07,full=.32/SET.sens;const a=Math.abs(v);return a<dz?0:Math.sign(v)*Math.min(1,(a-dz)/(full-dz))};
+  // ~7° dead zone, gentle curve, full speed only at ~30° tilt
+  const map=v=>{const dz=.12,full=.52/SET.sens;const a=Math.abs(v);if(a<dz)return 0;const k=Math.min(1,(a-dz)/(full-dz));return Math.sign(v)*Math.pow(k,1.7)};
   let x=map(-roll),y=map(-pitch);if(SET.invX)x=-x;if(SET.invY)y=-y;
   return{x,y};
 }
@@ -490,7 +491,7 @@ function doAction(f,type,hand,body){
   if(f===G.F[0]&&!G.demo&&f.st<18&&!f.tiredMsg){f.tiredMsg=true;pop('숨이 차요 · 펀치가 느려짐','#e3b23c',false,1.1);setTimeout(()=>{f.tiredMsg=false},6000)}
   if(hasT(f,'rage')&&f.hp<35&&!f.rageOn){f.rageOn=true;if(!G.demo)pop(f.def.name+' 폭주!','#ff5a4a',false,1)}
   f.stats.thrown++;f.rs.thrown++;
-  const lg=(D.lunge||1)*(.8+f.def.speed/300)*(.5+f.st/200);f.vx+=Math.sin(f.facing)*lg;f.vz+=Math.cos(f.facing)*lg;
+  const lg=.55*(D.lunge||1)*(.8+f.def.speed/300)*(.5+f.st/200);f.vx+=Math.sin(f.facing)*lg;f.vz+=Math.cos(f.facing)*lg;
   return true;
 }
 function evading(f,type,body){
@@ -536,7 +537,7 @@ function resolveHit(at,df){
     const wall=hasT(df,'wall');const through=a.body?(wall?.3:.45):a.type==='upper'?(wall?.28:.4):(wall?.03:.08);
     if(wall)at.st=Math.max(0,at.st-4);
     dmg*=through;df.st=Math.max(0,df.st-D.dmg*.55);
-    if(through<.2){{const ux=(df.x-at.x)/dist,uz=(df.z-at.z)/dist;df.vx+=ux*.45;df.vz+=uz*.45;}df.hp-=dmg;sfx.block();spark(tgt);df.hitT=.12;df.hitKind='block';df.hitPow=2;if(df===G.F[0])buzz(10);
+    if(through<.2){{const ux=(df.x-at.x)/dist,uz=(df.z-at.z)/dist;df.vx+=ux*.22;df.vz+=uz*.22;}df.hp-=dmg;sfx.block();spark(tgt);df.hitT=.12;df.hitKind='block';df.hitPow=2;if(df===G.F[0])buzz(10);
       if(df.hp<=0)knockdown(df,at);return}
   }
   if(a.body){
@@ -548,15 +549,15 @@ function resolveHit(at,df){
   const v=dmg/DS;
   at.stats.landed++;at.rs.landed++;if(D.power){at.stats.power++;at.rs.power++}at.rs.dmg+=dmg;at.stats.dmg+=dmg;
   df.hitT=.3;df.hitKind=a.body?'body':a.type;df.hitHand=a.hand;df.hitPow=v;df.noHitT=0;
-  {const kb=.5+v*.16,ux=(df.x-at.x)/dist,uz=(df.z-at.z)/dist;df.vx+=ux*kb;df.vz+=uz*kb;
-   if(a.type==='hook'){const s2=a.hand==='L'?-1:1;df.vx+=-uz*s2*kb*.5;df.vz+=ux*s2*kb*.5}}
-  G.fovKick=Math.max(G.fovKick||0,Math.min(7,v*.55));
+  {const kb=.25+v*.08,ux=(df.x-at.x)/dist,uz=(df.z-at.z)/dist;df.vx+=ux*kb;df.vz+=uz*kb;
+   if(a.type==='hook'){const s2=a.hand==='L'?-1:1;df.vx+=-uz*s2*kb*.25;df.vz+=ux*s2*kb*.25}}
+  G.fovKick=Math.max(G.fovKick||0,Math.min(4,v*.3));
   if(counter&&v>8&&!G.demo){G.slow=.3;G.slowT=.32}
   if(wa&&wa.kind==='punch'&&wa.t<wa.s&&(v>3.5||PUNCH[wa.type].s>.2)){df.action=null;df.queued=null;if(!G.demo&&df===G.F[0]&&PUNCH[wa.type].s>.2)pop('끊겼다','#9aa4b5',false,.5)}
   if(df.ai)df.ai.combo.length=Math.min(df.ai.combo.length,v>6?0:9);
   const op=hasT(at,'onepunch')&&(a.type==='cross'||a.type==='upper');
   if(!a.body&&(v>(op?10:13)||(counter&&v>9.5)||(df.hp<25&&v>7&&Math.random()<(op?.7:.4))))df.stunT=Math.max(df.stunT,.7+v*.04);
-  G.hitStop=Math.min(.1,.025+v*.005);G.shake=Math.max(G.shake,v*.009);
+  G.hitStop=Math.min(.1,.025+v*.005);G.shake=Math.max(G.shake,v*.005);
   sweat(tgt,at,v);sfx.hit(clamp(v/10,.3,1.4));sfx.crowd(v/35);
   if(df===G.F[0])buzz(v>8?45:20);
   const show=!G.demo||window.__SHOWALL;
@@ -565,7 +566,7 @@ function resolveHit(at,df){
   else if(temple){df.stunT=Math.max(df.stunT,.9);if(show)pop('관자놀이 강타!','#ff7a3d',false,.9)}
   else if(rising){if(show)pop('정타!','#ffcf4a',false,.8)}
   else if(counter&&v>5&&show)pop('카운터!','#ffcf4a',false,.8);
-  if(crit||temple){G.slow=.25;G.slowT=.45;G.shake=Math.max(G.shake,.12);G.fovKick=7}
+  if(crit||temple){G.slow=.25;G.slowT=.45;G.shake=Math.max(G.shake,.07);G.fovKick=4.5}
   if(df.hp<=0)knockdown(df,at,{flash,crit});
 }
 function whiffed(at,df,D){
@@ -629,10 +630,10 @@ function aiThink(f,o,dt){
   if(o.stunT>0||o.st<15)want=Math.min(want,.82);
   if(ai.moveT<0){ai.moveT+=dt;f.mvF=1;if(ai.moveT>=0)ai.moveT=0}
   else if(ai.moveT>0){ai.moveT-=dt;f.mvF=-1}
-  else if(dist>want+.08)f.mvF=1;else if(dist<want-.08)f.mvF=-1;
-  if(ai.strafeT<=0){ai.strafe=Math.random()<.25?0:(Math.random()<.5?-1:1);ai.strafeT=rnd(.6,1.6)}
-  f.mvS=ai.strafe*.85;
-  if(!ai.combo.length&&dist>want+.05&&Math.random()<dt*1.5*df.aggr)ai.moveT=-.4;
+  else if(dist>want+.1)f.mvF=.7;else if(dist<want-.1)f.mvF=-.6;
+  if(ai.strafeT<=0){ai.strafe=Math.random()<.6?0:(Math.random()<.5?-1:1);ai.strafeT=rnd(1.5,3.5)}
+  f.mvS=ai.strafe*.4;
+  if(!ai.combo.length&&dist>want+.05&&Math.random()<dt*.6*df.aggr)ai.moveT=-.35;
   // keep away from ropes: steer toward center
   const r=Math.hypot(f.x,f.z);if(r>RING_L-.7){const lx=Math.cos(f.facing),lz=-Math.sin(f.facing);f.mvS=-Math.sign(f.x*lx+f.z*lz)||1;if(Math.random()<dt*.8)ai.strafeT=0}
   if(ai.guardT<=0&&!f.action&&!ai.combo.length&&dist<1.25&&Math.random()<dt*(.6+sk*1.1)*(f.st<30?2:1))ai.guardT=rnd(.4,1.1)*(f.st<30?1.6:1);
@@ -677,9 +678,9 @@ function updFighter(f,o,dt){
   let F=f.mvF,S=f.mvS;
   if(f.action&&f.action.kind==='punch'){F*=.3;S*=.3}
   const m=Math.hypot(F,S);if(m>1){F/=m;S/=m}
-  const sp=1.9*(.8+f.def.speed/250)*(hasT(f,'flash')?1.25:1)*(isGuarding(f)?.7:1)*(f.stunT>0?.45:1)*(f.st<15?.75:1);
+  const sp=1.25*(.8+f.def.speed/250)*(hasT(f,'flash')?1.25:1)*(isGuarding(f)?.7:1)*(f.stunT>0?.45:1)*(f.st<15?.75:1);
   const fx=Math.sin(f.facing),fz=Math.cos(f.facing),lx=Math.cos(f.facing),lz=-Math.sin(f.facing);
-  const tvx=(fx*F+lx*S)*sp,tvz=(fz*F+lz*S)*sp,ka=1-Math.exp(-dt*(m>.05?11:7));
+  const tvx=(fx*F+lx*S)*sp,tvz=(fz*F+lz*S)*sp,ka=1-Math.exp(-dt*(m>.05?5:6));
   f.vx+=(tvx-f.vx)*ka;f.vz+=(tvz-f.vz)*ka;f.x+=f.vx*dt;f.z+=f.vz*dt;
   const spd=Math.hypot(f.vx,f.vz);if(spd>.15){f.walk+=dt*Math.min(1.4,spd/1.4);f.st=Math.max(0,f.st-1.1*dt*Math.min(1,spd/sp))}
   if(!(f.action&&f.action.kind==='punch'))f.st=Math.min(f.stMax,f.st+(5.5+f.def.stamina*.075)*dt*(f.noHitT>.8?1.3:.8)*(isGuarding(f)?.75:1)*(hasT(f,'engine')?1.6:1));
@@ -697,8 +698,10 @@ function playerControl(p){
   const gi=gyroInput();x+=gi.x;y+=gi.y;
   if(keys.KeyD||keys.ArrowRight)x+=1;if(keys.KeyA||keys.ArrowLeft)x-=1;if(keys.KeyW||keys.ArrowUp)y+=1;if(keys.KeyS||keys.ArrowDown)y-=1;
   x=clamp(x,-1,1);y=clamp(y,-1,1);
+  // smooth the stick/tilt so the boxer eases in and out of steps instead of twitching
+  const k=1-Math.exp(-(G.lastDt||1/60)*4.5);IN.sx=(IN.sx||0)+(x-(IN.sx||0))*k;IN.sy=(IN.sy||0)+(y*.7-(IN.sy||0))*k;
   // screen-relative: right = toward opponent (side camera), into screen = player's left
-  p.mvF=x;p.mvS=y;
+  p.mvF=IN.sx;p.mvS=IN.sy;
   p.guardHeld=IN.guard||!!keys.Space;
 }
 function step(raw){
@@ -710,7 +713,7 @@ function step(raw){
   const[p,o]=G.F;
   if(G.phase==='fight'){
     G.fightT+=raw;
-    if(!G.demo)playerControl(p);else aiThink(p,o,dt);
+    G.lastDt=dt;if(!G.demo)playerControl(p);else aiThink(p,o,dt);
     aiThink(o,p,dt);
     updFighter(p,o,dt);updFighter(o,p,dt);separate();faceTo(p,o);faceTo(o,p);
     if(G.phase==='fight'){G.clock-=dt;if(G.clock<=0){G.clock=0;endRound()}}
@@ -826,7 +829,7 @@ function targetPose(f,o){
   const spd=Math.hypot(f.vx,f.vz);
   P.cr=.06+Math.sin(t*5.6+f.side)*.016+Math.min(.03,spd*.02);
   P.lean=.13+Math.sin(t*2.3+f.side*2)*.025;
-  P.roll=Math.sin(t*1.9+f.side)*.05;P.hx=Math.sin(t*1.9+f.side)*.02;
+  P.roll=Math.sin(t*1.6+f.side)*.035;P.hx=Math.sin(t*1.6+f.side)*.015;
   P.lgx+=Math.sin(t*3.1)*.012;P.lgy+=Math.cos(t*2.7)*.015;P.rgy+=Math.cos(t*3.3)*.012;
   P.lHeel=.35+Math.max(0,Math.sin(t*5.6+f.side))*.25;P.rHeel=.55+Math.max(0,Math.sin(t*5.6+f.side+1))*.25;
   if(f.st<35){const k=(35-f.st)/35;P.lgy-=.1*k;P.rgy-=.12*k;P.lean+=.06*k;P.cr+=.02*k;P.lHeel*=1-k;P.rHeel*=1-k}
@@ -1015,14 +1018,17 @@ function updateCamera(raw){
   const[p,o]=G.F;
   const dx=o.x-p.x,dz=o.z-p.z,d=Math.hypot(dx,dz)||1;
   const nx=-dz/d,nz=dx/d;const ang=Math.atan2(nx,nz);
-  if(G.camAng==null)G.camAng=ang;G.camAng=angLerp(G.camAng,ang,1-Math.exp(-raw*3.2));
+  if(G.camAng==null)G.camAng=ang;
+  {// only follow when the fighters have turned well off the broadcast line, and then slowly
+    let df2=((ang-G.camAng+Math.PI*3)%(Math.PI*2))-Math.PI;const band=.45;
+    if(Math.abs(df2)>band){const want=df2-Math.sign(df2)*band;G.camAng+=clamp(want*(1-Math.exp(-raw*1.2)),-.5*raw,.5*raw)}}
   const mx=(p.x+o.x)/2,mz=(p.z+o.z)/2;
-  G.camMid.x=lerp(G.camMid.x,mx,1-Math.exp(-raw*5));G.camMid.z=lerp(G.camMid.z,mz,1-Math.exp(-raw*5));
+  G.camMid.x=lerp(G.camMid.x,mx,1-Math.exp(-raw*2.2));G.camMid.z=lerp(G.camMid.z,mz,1-Math.exp(-raw*2.2));
   const asp=W0/H0,vf=camera.fov*Math.PI/180,hf=2*Math.atan(Math.tan(vf/2)*asp);
   const need=Math.max(d/2+.6,.85);let D=Math.max(need/Math.tan(hf/2),2.3);
   D=Math.max(D,1.15/Math.tan(vf/2));
   if(G.demo)D*=1.08;
-  G.camD=lerp(G.camD,D,1-Math.exp(-raw*3));
+  G.camD=lerp(G.camD,D*1.06,1-Math.exp(-raw*1.2));
   const sh=G.shake;
   _cam.set(G.camMid.x+Math.sin(G.camAng)*G.camD+rnd(-sh,sh),1.42+G.camD*.06+rnd(-sh,sh),G.camMid.z+Math.cos(G.camAng)*G.camD);
   {const rr=Math.hypot(_cam.x,_cam.z);if(rr>4.8){_cam.x*=4.8/rr;_cam.z*=4.8/rr;_cam.y+=Math.min(.8,(rr-4.8)*.35)}}
@@ -1373,7 +1379,7 @@ function pauseHTML(){
     ${fsOK()?`<div class="toggle"><span>전체화면</span><button class="${isFull()?'on':''}" data-act="full">${isFull()?'켬':'끔'}</button></div>`:''}
     ${gl?`<div class="toggle"><span>좌우 반전</span><button class="${SET.invX?'on':''}" data-act="invX">${SET.invX?'켬':'끔'}</button></div>
     <div class="toggle"><span>앞뒤 반전</span><button class="${SET.invY?'on':''}" data-act="invY">${SET.invY?'켬':'끔'}</button></div>
-    <div class="toggle"><span>감도</span><div class="seg" style="width:170px">${[.7,1,1.4].map(v=>`<button class="${SET.sens===v?'on':''}" data-act="sens" data-v="${v}">${v===.7?'낮음':v===1?'보통':'높음'}</button>`).join('')}</div></div>`:''}
+    <div class="toggle"><span>감도</span><div class="seg" style="width:170px">${[.6,1,1.4].map(v=>`<button class="${SET.sens===v?'on':''}" data-act="sens" data-v="${v}">${v===.6?'낮음':v===1?'보통':'높음'}</button>`).join('')}</div></div>`:''}
     <div class="toggle"><span>터치 구역 표시</span><button class="${SET.zones?'on':''}" data-act="zones">${SET.zones?'켬':'끔'}</button></div>
     <button class="btn center" data-act="howto2">조작법</button><button class="btn center" data-act="quit">기권하고 나가기</button></div>`;
 }
