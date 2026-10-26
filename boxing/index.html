@@ -194,6 +194,8 @@ const TRAITS={
   onepunch:{name:'원펀치',    desc:'스트레이트·어퍼컷 위력 1.3배, 한 방에 휘청이게 만들기 쉬워요'},
 };
 const hasT=(f,t)=>f.def.trait===t;
+const SIGNAME={hookR:'오른손 훅',hookL:'왼손 훅',jab:'잽',cross:'오른손 스트레이트',hay:'헤이메이커','b:hookL':'왼손 바디 훅'};
+function isSig(f,a){const sg=f.def.sig;if(!sg)return false;const m=parseMove(sg);return m.type===a.type&&(m.type==='jab'||m.type==='hay'||m.hand===a.hand)&&(!m.body||a.body)}
 // arm length matters: every cm of reach over 190 adds 6 mm of punching range (and longer arms on the model)
 const reachOf=f=>((f.def.reach||190)-190)*.006;
 const armK=f=>clamp((f.def.reach||190)/190,.9,1.1);
@@ -201,21 +203,21 @@ const BUILDS={balance:{name:'밸런스',desc:'리치 193cm · 파워 그대로',
   reach:{name:'리치형',desc:'리치 204cm로 멀리서 맞히지만 파워 -6',reach:204,h:192,wt:95,pw:-6},
   power:{name:'파워형',desc:'파워 +6이지만 리치 181cm라 파고들어야 해요',reach:181,h:179,wt:104,pw:6}};
 const OPP=[
-  {id:'obc',  name:'오병철',nick:'동네 주먹',  trait:'rage',    style:'slugger', power:56,speed:40,chin:46,stamina:44,skill:24,aggr:.55,rec:'7-5 (5 KO)',  h:176,wt:92, reach:176,skin:'#e0b08a',hair:'#1a1411',trunks:'#2f6fd6',trim:'#ffffff',glove:'#c62828',shoe:'#1a1a1a',rounds:3,
+  {id:'obc',sig:'hookR',  name:'오병철',nick:'동네 주먹',  trait:'rage',    style:'slugger', power:56,speed:40,chin:46,stamina:44,skill:24,aggr:.55,rec:'7-5 (5 KO)',  h:176,wt:92, reach:176,skin:'#e0b08a',hair:'#1a1411',trunks:'#2f6fd6',trim:'#ffffff',glove:'#c62828',shoe:'#1a1a1a',rounds:3,
     bio:'골목에서 싸움으로 이름을 날리다 링에 올라왔다. 맞을수록 눈이 뒤집힌다.'},
-  {id:'hdj',  name:'한도진',nick:'철벽',       trait:'wall',    style:'counter', power:50,speed:48,chin:60,stamina:58,skill:36,aggr:.42,rec:'12-3 (4 KO)', h:182,wt:95, reach:186,skin:'#d9a47c',hair:'#120d0a',trunks:'#3d3d3d',trim:'#9fd3ff',glove:'#9fd3ff',shoe:'#3d3d3d',rounds:3,
+  {id:'hdj',sig:'jab',  name:'한도진',nick:'철벽',       trait:'wall',    style:'counter', power:50,speed:48,chin:60,stamina:58,skill:36,aggr:.42,rec:'12-3 (4 KO)', h:182,wt:95, reach:186,skin:'#d9a47c',hair:'#120d0a',trunks:'#3d3d3d',trim:'#9fd3ff',glove:'#9fd3ff',shoe:'#3d3d3d',rounds:3,
     bio:'가드를 올리면 문이 잠긴다. 지쳐서 손이 내려오는 순간을 기다리는 타입.'},
-  {id:'sgw',  name:'서강우',nick:'번개',       trait:'flash',   style:'outboxer',power:44,speed:72,chin:48,stamina:64,skill:46,aggr:.5, rec:'16-2 (6 KO)', h:190,wt:90, reach:202,skin:'#e8bb95',hair:'#0f0c0a',trunks:'#f2f2f2',trim:'#c0392b',glove:'#f2f2f2',shoe:'#f2f2f2',rounds:4,
+  {id:'sgw',sig:'jab',  name:'서강우',nick:'번개',       trait:'flash',   style:'outboxer',power:44,speed:72,chin:48,stamina:64,skill:46,aggr:.5, rec:'16-2 (6 KO)', h:190,wt:90, reach:202,skin:'#e8bb95',hair:'#0f0c0a',trunks:'#f2f2f2',trim:'#c0392b',glove:'#f2f2f2',shoe:'#f2f2f2',rounds:4,
     bio:'잡히지 않는 발. 들어오면 이미 옆에 서 있다.'},
-  {id:'mts',  name:'마태식',nick:'불도저',     trait:'undying', style:'slugger', power:74,speed:44,chin:74,stamina:56,skill:48,aggr:.62,rec:'19-4 (16 KO)',h:186,wt:112,reach:184,skin:'#a86e47',hair:'#100b08',trunks:'#6b1d1d',trim:'#e8c15a',glove:'#6b1d1d',shoe:'#e8c15a',rounds:4,
+  {id:'mts',sig:'hay',  name:'마태식',nick:'불도저',     trait:'undying', style:'slugger', power:74,speed:44,chin:74,stamina:56,skill:48,aggr:.62,rec:'19-4 (16 KO)',h:186,wt:112,reach:184,skin:'#a86e47',hair:'#100b08',trunks:'#6b1d1d',trim:'#e8c15a',glove:'#6b1d1d',shoe:'#e8c15a',rounds:4,
     bio:'쓰러뜨려도 다시 걸어 들어온다. 판정까지 가면 이쪽이 먼저 지친다.'},
-  {id:'cmh',  name:'차민혁',nick:'사냥개',     trait:'hunter',  style:'swarmer', power:64,speed:62,chin:62,stamina:76,skill:58,aggr:.74,rec:'21-2 (14 KO)',h:177,wt:96, reach:178,skin:'#c98d62',hair:'#120d0a',trunks:'#1f8a4c',trim:'#f2d14b',glove:'#f2d14b',shoe:'#1f8a4c',rounds:5,
+  {id:'cmh',sig:'b:hookL',  name:'차민혁',nick:'사냥개',     trait:'hunter',  style:'swarmer', power:64,speed:62,chin:62,stamina:76,skill:58,aggr:.74,rec:'21-2 (14 KO)',h:177,wt:96, reach:178,skin:'#c98d62',hair:'#120d0a',trunks:'#1f8a4c',trim:'#f2d14b',glove:'#f2d14b',shoe:'#1f8a4c',rounds:5,
     bio:'파고들어 옆구리만 판다. 3라운드쯤 되면 상대 손이 저절로 내려간다.'},
-  {id:'yjh',  name:'윤재하',nick:'카운터',     trait:'counter', style:'counter', power:60,speed:74,chin:62,stamina:66,skill:74,aggr:.44,rec:'24-2 (12 KO)',h:189,wt:96, reach:199,skin:'#e2ae86',hair:'#0c0a09',trunks:'#151515',trim:'#e23b3b',glove:'#e23b3b',shoe:'#151515',rounds:5,
+  {id:'yjh',sig:'cross',  name:'윤재하',nick:'카운터',     trait:'counter', style:'counter', power:60,speed:74,chin:62,stamina:66,skill:74,aggr:.44,rec:'24-2 (12 KO)',h:189,wt:96, reach:199,skin:'#e2ae86',hair:'#0c0a09',trunks:'#151515',trim:'#e23b3b',glove:'#e23b3b',shoe:'#151515',rounds:5,
     bio:'먼저 치는 법이 없다. 헛스윙 한 번이 그대로 다운으로 돌아온다.'},
-  {id:'bdh',  name:'백도현',nick:'콤보 머신',  trait:'combo',   style:'swarmer', power:70,speed:80,chin:64,stamina:80,skill:76,aggr:.76,rec:'27-1 (19 KO)',h:180,wt:99, reach:182,skin:'#b97a52',hair:'#140e0a',trunks:'#d4a017',trim:'#141414',glove:'#141414',shoe:'#d4a017',rounds:6,
+  {id:'bdh',sig:'hookL',  name:'백도현',nick:'콤보 머신',  trait:'combo',   style:'swarmer', power:70,speed:80,chin:64,stamina:80,skill:76,aggr:.76,rec:'27-1 (19 KO)',h:180,wt:99, reach:182,skin:'#b97a52',hair:'#140e0a',trunks:'#d4a017',trim:'#141414',glove:'#141414',shoe:'#d4a017',rounds:6,
     bio:'한 번 손이 나오면 다섯 번은 나온다. 가드 위로도 쉬지 않고 두드린다.'},
-  {id:'ktm',  name:'강태무',nick:'전설',       trait:'onepunch',style:'slugger', power:86,speed:70,chin:82,stamina:78,skill:84,aggr:.6, rec:'31-0 (27 KO)',h:194,wt:110,reach:203,skin:'#6a4029',hair:'#0b0807',trunks:'#101010',trim:'#d9b44a',glove:'#d9b44a',shoe:'#101010',rounds:7,champ:true,
+  {id:'ktm',sig:'cross',  name:'강태무',nick:'전설',       trait:'onepunch',style:'slugger', power:86,speed:70,chin:82,stamina:78,skill:84,aggr:.6, rec:'31-0 (27 KO)',h:194,wt:110,reach:203,skin:'#6a4029',hair:'#0b0807',trunks:'#101010',trim:'#d9b44a',glove:'#d9b44a',shoe:'#101010',rounds:7,champ:true,
     bio:'무패의 챔피언. 오른손 한 방으로 끝난 경기가 스물일곱 번.'},
 ];
 const TRUNKS=[
@@ -276,6 +278,7 @@ function tn(f0,f1,dur,gain,type,delay){const ac=AU.ac;if(!ac||G.demo)return;cons
 const sfx={
   hit(p){nz(.09,'lowpass',1300,.55*p);tn(120,42,.16,.7*p)},
   boom(){tn(75,28,.5,.95);nz(.25,'lowpass',500,.6)},
+  ring(){const ac=AU.ac;if(!ac||G.demo)return;const t=ac.currentTime,o=ac.createOscillator(),g=ac.createGain(),l=ac.createOscillator(),lg=ac.createGain();o.frequency.value=2900;l.frequency.value=7;lg.gain.value=.012;l.connect(lg).connect(g.gain);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.03,t+.15);g.gain.exponentialRampToValueAtTime(.0001,t+1.6);o.connect(g).connect(AU.master);o.start(t);l.start(t);o.stop(t+1.7);l.stop(t+1.7)},
   ready(){tn(260,820,.22,.14,'sawtooth')},
   heavy(){nz(.32,'bandpass',260,.32,1.1,1300)},
   block(){nz(.05,'bandpass',1600,.28,1.2);tn(240,140,.06,.12,'triangle')},
@@ -510,6 +513,7 @@ function doAction(f,type,hand,body){
   if(f.action){f.queued={type,hand,body,link:f.action.kind==='evade'&&!!PUNCH[type]?f.action.ev:null};return false}
   let tf=(1.18-f.def.speed/280)*(1+(1-f.st/100)*.55)*(f.st<15?1.25:1);
   if(hasT(f,'rage')&&f.hp<35)tf*=.87;
+  if(PUNCH[type])tf*=1+.5*(hand==='L'?f.fatL||0:f.fatR||0);
   if(EVADE[type]){if(f.st<3)return false;f.action={kind:'evade',ev:type,t:0,d:EVADE[type].d*tf*(hasT(f,'flash')?1.15:1),id:++UID};f.st-=3;
     // duck = dip and step in like an infighter; pull = lean and slide back out of range; weave stays put
     const fx=Math.sin(f.facing);if(type==='duck'){f.vx+=fx*1.35}else if(type==='pull'){f.vx-=fx*1.1}
@@ -524,6 +528,8 @@ function doAction(f,type,hand,body){
   if(f===G.F[0]&&!G.demo&&f.st<18&&!f.tiredMsg){f.tiredMsg=true;pop('숨이 차요 · 펀치가 느려짐','#e3b23c',false,1.1);setTimeout(()=>{f.tiredMsg=false},6000)}
   if(hasT(f,'rage')&&f.hp<35&&!f.rageOn){f.rageOn=true;if(!G.demo)pop(f.def.name+' 폭주!','#ff5a4a',false,1)}
   f.stats.thrown++;f.rs.thrown++;
+  {const k=hand==='L'?'fatL':'fatR';f[k]=Math.min(1,(f[k]||0)+D.cost/70);
+   if(f===G.F[0]&&!G.demo&&f[k]>.7&&!f.armMsg){f.armMsg=true;pop((hand==='L'?'왼팔':'오른팔')+'이 무거워요 · 반대 손도 쓰세요','#e3b23c',false,1.1);setTimeout(()=>{f.armMsg=false},5000)}}
   const lg=.55*(D.lunge||1)*(.8+f.def.speed/300)*(.5+f.st/200);f.vx+=Math.sin(f.facing)*lg;f.vz+=Math.cos(f.facing)*lg;
   return true;
 }
@@ -552,6 +558,9 @@ function resolveHit(at,df){
   let dmg=D.dmg*DS*(.7+at.def.power/100*.6)*(.3+.7*Math.pow(at.st/100,.8));
   if(hasT(at,'rage')&&at.hp<35)dmg*=1.35;
   if(hasT(at,'onepunch')&&(a.type==='cross'||a.type==='upper'))dmg*=1.3;
+  const sig=isSig(at,a);if(sig)dmg*=1.3;
+  // a heavily used arm gets heavy: up to 35% less behind the punch
+  dmg*=1-.35*(a.hand==='L'?at.fatL||0:at.fatR||0);
   const counter=at.counterT>0||(wa&&wa.kind==='punch'&&wa.t<wa.s+wa.a)||(ducking&&a.type==='upper')||df.offT>0;
   if(counter)dmg*=hasT(at,'counter')?2:1.55;
   at.counterT=0;
@@ -581,10 +590,12 @@ function resolveHit(at,df){
     if(df.bodyChain>=4&&!df.stunT)df.stunT=.45;
     df.hp-=dmg*.6;df.st=Math.max(0,df.st-dmg*3.2*(hasT(at,'hunter')?2:1));df.stMax=Math.max(50,df.stMax-dmg*.6)}
   else{dmg*=(1.25-df.def.chin/250);df.hp-=dmg;df.cap=Math.max(30,df.cap-dmg*.2);df.faceDmg=(df.faceDmg||0)+dmg;
-    if(df.faceDmg>45&&Math.random()<.6)for(let i=0;i<6;i++)G.parts.push({x:tgt.x,y:tgt.y+.04,z:tgt.z,vx:Math.sin(at.facing)*rnd(.3,1)+rnd(-.3,.3),vy:rnd(0,.8),vz:rnd(-.3,.3),life:rnd(.4,.7),t:0,r:rnd(1.4,2.6),c:'#a3141a'})}
+    if(df.faceDmg>60&&Math.random()<.6)for(let i=0;i<6;i++)G.parts.push({x:tgt.x,y:tgt.y+.04,z:tgt.z,vx:Math.sin(at.facing)*rnd(.3,1)+rnd(-.3,.3),vy:rnd(0,.8),vz:rnd(-.3,.3),life:rnd(.4,.7),t:0,r:rnd(1.4,2.6),c:'#a3141a'})}
   const v=dmg/DS;
+  at.unans=0;if(D.power&&!a.body&&(df.stunT>0||df.hp<22))df.unans=(df.unans||0)+1;
   at.stats.landed++;at.rs.landed++;if(D.power){at.stats.power++;at.rs.power++}at.rs.dmg+=dmg;at.stats.dmg+=dmg;
   if(a.type==='hay'&&a.charged)dmg*=1.15;
+  df.squash={body:!!a.body,t:.16,k:Math.min(1,v/12)};
   df.hitT=.3;df.hitKind=a.body?'body':(a.type==='hay'?'upper':a.type);df.hitHand=a.hand;df.hitPow=v;df.noHitT=0;
   {const kb=.25+v*.08,ux=(df.x-at.x)/dist,uz=(df.z-at.z)/dist;df.vx+=ux*kb;df.vz+=uz*kb;
    if(a.type==='hook'){const s2=a.hand==='L'?-1:1;df.vx+=-uz*s2*kb*.25;df.vz+=ux*s2*kb*.25}}
@@ -593,6 +604,7 @@ function resolveHit(at,df){
   if(wa&&wa.kind==='punch'&&wa.t<wa.s&&(v>3.5||PUNCH[wa.type].s>.2)){df.action=null;df.queued=null;if(!G.demo&&df===G.F[0]&&PUNCH[wa.type].s>.2)pop('끊겼다','#9aa4b5',false,.5)}
   if(df.ai)df.ai.combo.length=Math.min(df.ai.combo.length,v>6?0:9);
   const op=hasT(at,'onepunch')&&(a.type==='cross'||a.type==='upper');
+  const wasStun=df.stunT>0;
   if(!a.body&&(v>(op?10:13)||(counter&&v>9.5)||(df.hp<25&&v>7&&Math.random()<(op?.7:.4))))df.stunT=Math.max(df.stunT,.7+v*.04);
   G.hitStop=Math.min(.1,.025+v*.005);G.shake=Math.max(G.shake,v*.005);
   df.charge=null;
@@ -600,6 +612,7 @@ function resolveHit(at,df){
     {const ux=(df.x-at.x)/dist;df.vx+=ux*(a.charged?1.6:1)}if(a.charged){G.slow=.3;G.slowT=.35}}
   sweat(tgt,at,v);sfx.hit(clamp(v/10,.3,1.4));sfx.crowd(v/35);
   if(df===G.F[0])buzz(v>8?45:20);
+  if(!wasStun&&df.stunT>0){if(df===G.F[0])sfx.ring();if(!G.demo)pop(df===G.F[0]?'휘청…':'상대가 휘청!','#ffcf4a',false,.8)}
   const show=!G.demo||window.__SHOWALL;
   if(flash){df.hp=0;if(show)pop('크리티컬 K.O.!','#ff3b30',true,1.6)}
   else if(crit){df.stunT=Math.max(df.stunT,1.1);if(show)pop('크리티컬 히트!','#ff7a3d',false,1)}
@@ -608,6 +621,7 @@ function resolveHit(at,df){
   else if(counter&&v>5&&show)pop('카운터!','#ffcf4a',false,.8);
   if(crit||temple){G.slow=.25;G.slowT=.45;G.shake=Math.max(G.shake,.07);G.fovKick=4.5}
   if(df.hp<=0)knockdown(df,at,{flash,crit});
+  else if((df.unans||0)>=4&&df.hp<25&&G.phase==='fight'){df.unans=0;if(!G.demo||window.__SHOWALL)pop('레프리 스톱!','#ff5a4a',true,1.6);endFight(at,'TKO')}
 }
 function whiffed(at,df,D){
   // a missed power shot over-rotates: longer recovery and a counter window for the other guy
@@ -697,6 +711,7 @@ function aiThink(f,o,dt){
       const c=pick(list).split(' ').map(parseMove);
       if(isGuarding(o)&&Math.random()<.35+sk*.3)c.forEach(x=>{if(x.type!=='upper')x.body=Math.random()<.6});
       if(o.action&&o.action.kind==='evade'&&(o.action.ev==='duck'||o.action.ev==='weave')&&Math.random()<sk)c.unshift({type:Math.random()<.5?'hook':'upper',hand:Math.random()<.5?'L':'R',body:true});
+      if(df.sig&&Math.random()<.3)c.push(parseMove(df.sig));
       ai.combo=c;ai.guardT=0;f.guardHeld=false;
     }
   }
@@ -739,6 +754,7 @@ function updFighter(f,o,dt){
   f.vx+=(tvx-f.vx)*ka;f.vz+=(tvz-f.vz)*ka;f.x+=f.vx*dt;f.z+=f.vz*dt;
   const spd=Math.hypot(f.vx,f.vz);if(spd>.15){f.walk+=dt*Math.min(1.4,spd/1.4);f.st=Math.max(0,f.st-1.1*dt*Math.min(1,spd/sp))}
   if(!(f.action&&f.action.kind==='punch'))f.st=Math.min(f.stMax,f.st+(5.5+f.def.stamina*.075)*dt*(f.noHitT>.8?1.3:.8)*(isGuarding(f)?.75:1)*(hasT(f,'engine')?1.6:1));
+  {const busy=f.action&&f.action.kind==='punch';f.fatL=Math.max(0,(f.fatL||0)-dt*(busy?.06:.16));f.fatR=Math.max(0,(f.fatR||0)-dt*(busy?.06:.16))}
   if(f.noHitT>2.5&&f.hp<f.cap)f.hp=Math.min(f.cap,f.hp+.6*dt);
 }
 function separate(){
@@ -855,6 +871,8 @@ function endRound(){
     card.push([Math.max(7,s[0]),Math.max(7,s[1])]);
   }
   G.scores.push(card);
+  // ringside doctor: a bad cut can stop the fight between rounds
+  for(const f of [p,o]){const other=f===p?o:p;if((f.faceDmg||0)>175&&Math.random()<.6){G.phase='fight';if(!G.demo)pop('닥터 스톱','#ff5a4a',true,1.8);endFight(other,'TKO');return}}
   if(G.round>=G.rounds){decide();return}
   G.phase='between';G.phaseT=0;IN.guard=false;
   [p,o].forEach(f=>{f.action=null;f.queued=null;f.guardHeld=false;f.mvF=f.mvS=0});
@@ -862,7 +880,7 @@ function endRound(){
 }
 function nextRound(){
   G.round++;
-  G.F.forEach(f=>{f.hp=Math.min(f.cap,f.hp+28);f.stMax=Math.min(100,f.stMax+12);f.st=f.stMax;f.cap=Math.min(100,f.cap+4)});
+  G.F.forEach(f=>{f.faceDmg=Math.max(0,(f.faceDmg||0)-15);f.fatL=f.fatR=0;f.unans=0;f.hp=Math.min(f.cap,f.hp+28);f.stMax=Math.min(100,f.stMax+12);f.st=f.stMax;f.cap=Math.min(100,f.cap+4)});
   roundStart();hideScreen();
 }
 function decide(){
@@ -1062,11 +1080,13 @@ function applyModel(f){
   M.root.position.set(f.x,0,f.z);M.root.rotation.y=f.facing;
   {const fd=f.faceDmg||0,k=clamp(fd/80,0,.55);M.headMat.color.copy(M.baseSkin).lerp(_bruise,k);
    const sw=clamp((fd-15)/50,0,1);M.swell[0].scale.set(.03*sw+.001,.024*sw+.001,.022*sw+.001);M.swell[1].scale.set(.02*sw+.001,.016*sw+.001,.016*sw+.001);
-   M.cut.visible=fd>45;const wet=clamp((G.fightT||0)/240,0,1);M.skinMat.roughness=.5-.2*wet;M.headMat.roughness=.5-.2*wet}
+   M.cut.visible=fd>60;const wet=clamp((G.fightT||0)/240,0,1);M.skinMat.roughness=.5-.2*wet;M.headMat.roughness=.5-.2*wet}
   M.body.rotation.x=-f.fallA;M.body.position.z=-f.fallA*.05;
   M.pelvis.position.copy(k.pel);M.pelvis.rotation.copy(k.pe);
   M.torso.position.copy(k.waist);M.torso.rotation.copy(k.ce);
   M.head.position.copy(k.head);M.head.rotation.copy(k.rh);
+  {const q=f.squash;let hk=0,bk=0;if(q&&q.t>0){const w=Math.sin(Math.PI*(1-q.t/.16))*q.k;if(q.body)bk=w;else hk=w;q.t-=1/60}
+   M.head.scale.set(1+.1*hk,1-.09*hk,1+.08*hk);M.torso.scale.set(1+.06*bk,1-.05*bk,1-.07*bk)}
   placeSeg(M.neck,k.chest,k.head);
   for(const s of['L','R']){
     const A=s==='L'?k.aL:k.aR,sh=s==='L'?k.shL:k.shR;
@@ -1140,9 +1160,13 @@ function endReplay(){
 }
 function replayCamera(raw){
   // slow orbit on the broadcast side of the ring, centred between the two fighters
-  const R=G.rp,h=R.hit,[p,o]=G.F;const mx=(p.x+o.x)/2*.5+h.x*.5;const a=-.55+R.t*1.4;
-  camera.position.set(mx+Math.sin(a)*2.5,1.38+Math.sin(R.t*1.5)*.1,Math.cos(a)*2.5);camera.lookAt(mx,1.2,0);
-  if(Math.abs(camera.fov-34)>.01){camera.fov=34;camera.updateProjectionMatrix()}
+  // three cuts: wide orbit on the build-up, tight close-up on the impact, low angle on the fall
+  const R=G.rp,h=R.hit,[p,o]=G.F;const span=R.frames[R.frames.length-1].rt-R.start,tt=R.t,f=tt/span;
+  const atk=G.F[h.att],dir=Math.sign(h.x-atk.x)||1;let fov=34;
+  if(f<.5){const mx=(p.x+o.x)/2*.5+h.x*.5,a=-.55+tt*1.4;camera.position.set(mx+Math.sin(a)*2.5,1.38,Math.cos(a)*2.5);camera.lookAt(mx,1.2,0)}
+  else if(f<.78){const a=.9+tt*.4;camera.position.set(h.x-dir*.35+Math.sin(a)*1.05,h.y+.05,Math.cos(a)*1.05);camera.lookAt(h.x,h.y,0);fov=30}
+  else{camera.position.set(h.x+dir*1.6,.35,1.5);camera.lookAt(h.x-dir*.4,.6,0);fov=40}
+  if(Math.abs(camera.fov-fov)>.01){camera.fov=fov;camera.updateProjectionMatrix()}
 }
 function drawReplayHUD(c){
   const bar=VH*.09;c.fillStyle='#000';c.fillRect(0,0,VW,bar);c.fillRect(0,VH-bar,VW,bar);
@@ -1192,6 +1216,10 @@ function updateCamera(raw){
   _look.set(G.camMid.x,1.08,0);
   G.fovKick=(G.fovKick||0)*Math.exp(-raw*6);const fov=38-G.fovKick;if(Math.abs(camera.fov-fov)>.01){camera.fov=fov;camera.updateProjectionMatrix()}
   camera.position.copy(_cam);camera.lookAt(_look);
+  {// when you're rocked the world tilts and drains of colour; when they are, the camera leans in
+    const p0=G.F[0],me=!G.demo&&p0.stunT>0&&G.phase==='fight';
+    if(me)camera.rotateZ(Math.sin(G.time*2.3)*.035);
+    const gl=$('#gl'),want=me?'saturate(.35) blur(1.2px)':'';if(gl.style.filter!==want)gl.style.filter=want}
 }
 function render(raw){
   for(const f of G.F)applyModel(f);
@@ -1238,6 +1266,9 @@ function drawBars(c,f,x,dir,bw){
   c.fillStyle='#3a3f48';para(c,x+dir*12,sy,sw*f.stMax/100,10,5,dir);c.fill();
   g=c.createLinearGradient(0,sy,0,sy+10);g.addColorStop(0,'#f6e985');g.addColorStop(1,'#c4ae1c');
   c.fillStyle=g;para(c,x+dir*12,sy,Math.max(0,sw*f.st/100),10,5,dir);c.fill();
+  // arm fatigue pips under the stamina bar (L / R)
+  for(const [i,v] of [[0,f.fatL||0],[1,f.fatR||0]]){const ax=x+dir*(sw*.55+18+i*42),ay=sy+13;c.fillStyle='rgba(255,255,255,.12)';c.fillRect(dir>0?ax:ax-38,ay,38,4);
+    c.fillStyle=v>.7?'#ff6a4a':v>.4?'#e3b23c':'#7fd39a';c.fillRect(dir>0?ax:ax-38*v,ay,38*v,4)}
   const ny=y+40;c.font='400 17px "Black Han Sans", sans-serif';const tw=c.measureText(f.def.name).width;
   c.fillStyle='rgba(16,20,28,.9)';para(c,x+dir*18,ny,tw+28,24,8,dir);c.fill();
   c.fillStyle='#fff';c.textAlign=dir>0?'left':'right';c.textBaseline='middle';c.fillText(f.def.name,x+dir*32,ny+13);
@@ -1445,6 +1476,9 @@ function howto(back){
     <dt>회피 연계</dt><dd>더킹·위빙·슬립·풀백 도중에 펀치를 입력하면 회피에서 곧바로 이어져 나가요(빠르고 1.25배). 더킹→어퍼, 위빙→훅이 특히 잘 어울려요</dd>
     <dt>가드 차징</dt><dd>가드(양손)를 누르고 있으면 힘이 모여요. 링이 빨개졌을 때 한 손을 떼면 그 손으로 바로 헤이메이커</dd>
     <dt>체형</dt><dd>리치가 길면 멀리서 맞히고, 짧으면 파워로 승부해요. 선수 등록에서 내 체형도 고를 수 있어요</dd>
+    <dt>팔 피로</dt><dd>한 손만 계속 쓰면 그 팔이 무거워져 느려지고 약해져요(체력바 아래 L·R 표시). 양손을 섞어 쓰세요</dd>
+    <dt>스톱</dt><dd>휘청이는 상태에서 파워 펀치를 4번 연속 맞으면 심판이 경기를 멈춰요(TKO). 눈 위가 크게 찢어지면 라운드 사이에 닥터가 멈출 수도 있어요</dd>
+    <dt>주무기</dt><dd>선수마다 특히 센 주무기가 있어요(1.3배). 테일 오브 더 테이프에서 확인하고 그 펀치를 조심하세요</dd>
     <dt>위험한 순간</dt><dd>위빙·더킹 중에 바디 훅이나 어퍼가 오면 숙인 머리 관자놀이에 맞아요(1.8배). 회피 동작이 끝나 머리를 드는 순간 맞으면 정타(1.5배)</dd>
     <dt>크리티컬</dt><dd>파워가 센 선수의 파워 펀치는 가끔 크리티컬(2배)이 나고, 한 방에 KO될 수도 있어요. 카운터·정타 상황이면 확률이 올라가요</dd>
     <dt>다운</dt><dd>다운이 나오면 슬로모션 리플레이가 나와요(탭하면 건너뛰기). 보통 카운트 3쯤이면 일어나고, 일어나면 체력 30%. 강펀처에게 맞았을 땐 연타해도 못 일어날 수 있어요</dd>
@@ -1500,7 +1534,7 @@ function tape(i,rounds){
     <div class="tape">
       <div class="who"><small>${G.pendingBack==='quick'?'플레이어':'도전자'}</small>${esc(p.name)}</div><div class="vs">VS</div><div class="who r"><small>“${o.nick}”</small>${o.name}</div>
       ${row('전적',p.rec,o.rec)}${row('신장',p.h+'cm',o.h+'cm')}${row('체중',p.wt+'kg',o.wt+'kg')}${row('리치',p.reach+'cm',o.reach+'cm')}
-      ${row('스타일','아웃복서',STYLES[o.style].label)}${row('특성',TRAITS[p.trait].name,TRAITS[o.trait].name)}
+      ${row('스타일','아웃복서',STYLES[o.style].label)}${row('특성',TRAITS[p.trait].name,TRAITS[o.trait].name)}${row('주무기','-',o.sig?SIGNAME[o.sig]:'-')}
       ${row('파워',p.power,o.power,cmp(p.power,o.power))}${row('스피드',p.speed,o.speed,cmp(p.speed,o.speed))}${row('맷집',p.chin,o.chin,cmp(p.chin,o.chin))}${row('스태미나',p.stamina,o.stamina,cmp(p.stamina,o.stamina))}
     </div>
     <p class="bio">${o.bio} <b style="color:var(--gold)">${TRAITS[o.trait].name}</b>: ${TRAITS[o.trait].desc}</p>
@@ -1521,6 +1555,8 @@ function showBetween(){
   if(p.st<40)tip='숨이 차요. <b>가드를 올리고 잽으로 거리</b>를 벌리면서 스태미나를 채우세요.';
   else if(o.def.style==='counter')tip='상대는 카운터 펀처예요. 먼저 크게 휘두르지 말고 <b>잽으로 끌어낸 뒤 슬립→반격</b>을 노리세요.';
   else if(o.rs.landed>p.rs.landed*1.4)tip='맞는 횟수가 많아요. 상대 펀치가 시작될 때 <b>가드를 누른 채 쓸어서 슬립</b>하거나 아래를 쓸어 더킹하세요.';
+  else if((p.faceDmg||0)>120)tip='<b>눈두덩이 찢어졌어요.</b> 컷맨이 막고는 있지만 더 맞으면 닥터가 경기를 멈출 수 있어요. 얼굴 가드를 단단히!';
+  else if((o.faceDmg||0)>120)tip='상대 <b>눈 위가 찢어졌어요.</b> 그 얼굴을 계속 노리면 닥터 스톱도 가능해요.';
   else if(o.stMax<80)tip='바디가 먹히고 있어요. <b>가운데 줄을 계속 두드리면</b> 상대 손이 내려옵니다.';
   else tip='가드가 단단하면 <b>바디 공격과 어퍼컷</b>으로 틈을 만드세요. 폰을 기울여 옆으로 돌면 각도가 생겨요.';
   const r=(k,a,b)=>`<tr><td>${a}</td><td>${k}</td><td>${b}</td></tr>`;
