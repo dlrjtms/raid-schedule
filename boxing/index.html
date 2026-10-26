@@ -128,6 +128,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .trait.on{border-color:var(--gold);background:rgba(227,178,60,.12)}
 .tchip{display:inline-block;font:600 11px var(--f-body);color:var(--gold);border:1px solid rgba(227,178,60,.4);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px}
 .bio{margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
+.sens{display:flex;flex-direction:column;gap:8px}
+.sens .row2{display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.sens b{font:600 22px var(--f-num);color:var(--gold)}
+.sens input[type=range]{width:100%;accent-color:var(--gold);height:28px}
+.sens .meter{height:8px;border-radius:4px;background:rgba(255,255,255,.08);position:relative;overflow:hidden}
+.sens .meter i{position:absolute;top:0;bottom:0;left:50%;width:0;background:var(--gold)}
+.sens small{color:var(--muted);font-size:12px}
 .toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:14px}
 .toggle button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 14px;font:600 13px var(--f-body)}
 .toggle button.on{background:var(--gold);color:#111;border-color:var(--gold)}
@@ -235,8 +242,10 @@ function loadSave(){
 }
 let save=loadSave();
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-let SET={zones:true,sens:1,invX:false,invY:false,full:true,demoFight:false};
+let SET={zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
+const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
+const sensVal=()=>SENS[clamp((SET.sensLv|0)||4,1,7)-1];
 function persistSet(){try{localStorage.setItem(SKEY,JSON.stringify(SET))}catch(e){}}
 function playerDef(){
   const tr=TRUNKS[save.trunks]||TRUNKS[0];
@@ -314,7 +323,7 @@ function gyroInput(){ // returns screen-relative {x: right, y: into-screen}
   const roll=Math.atan2(sx,Math.hypot(sy,z))-GY.n0.roll;
   let pitch=Math.atan2(sy,z)-GY.n0.pitch;pitch=((pitch+Math.PI*3)%(Math.PI*2))-Math.PI;
   // ~7° dead zone, gentle curve, full speed only at ~30° tilt
-  const map=v=>{const dz=.12,full=.52/SET.sens;const a=Math.abs(v);if(a<dz)return 0;const k=Math.min(1,(a-dz)/(full-dz));return Math.sign(v)*Math.pow(k,1.7)};
+  const sv=sensVal(),map=v=>{const dz=.12/Math.sqrt(sv),full=Math.max(dz+.08,.52/sv);const a=Math.abs(v);if(a<dz)return 0;const k=Math.min(1,(a-dz)/(full-dz));return Math.sign(v)*Math.pow(k,1.7)};
   let x=map(-roll),y=map(-pitch);if(SET.invX)x=-x;if(SET.invY)y=-y;
   return{x,y};
 }
@@ -1409,6 +1418,7 @@ function menu(){
       <button class="btn primary" data-act="career">커리어 모드<small>랭커 8명을 꺾고 챔피언 벨트에 도전</small></button>
       <button class="btn" data-act="quick">빠른 대전<small>상대와 라운드 수를 골라 바로 한 판</small></button>
       <button class="btn" data-act="howto">조작법</button>
+      <button class="btn" data-act="settings">설정<small>자이로 감도 · 방향 반전 · 터치 구역 표시</small></button>
       <button class="back" data-act="demotog" style="align-self:flex-start">${SET.demoFight?'배경 AI 대전 끄기':'배경 AI 대전 보기'}</button>
       ${fsOK()?'<button class="btn" data-act="fullnow">전체화면 · 가로 고정<small>경기를 시작하면 자동으로 전체화면이 돼요</small></button>':''}
     </div>
@@ -1553,12 +1563,29 @@ function pauseHTML(){
     <div class="toggle"><span>자이로 이동 ${gl?'<b style="color:#7fd39a">켜짐</b>':'<span style="color:var(--muted)">신호 없음 · 스틱 사용 중</span>'}</span>${gl?'<button data-act="calib">지금 자세로 맞추기</button>':'<button data-act="gyro">자이로 켜기</button>'}</div>
     ${gl?'':`<p class="tip" style="font-size:13px">${gyroWhy()}</p>`}
     ${fsOK()?`<div class="toggle"><span>전체화면</span><button class="${isFull()?'on':''}" data-act="full">${isFull()?'켬':'끔'}</button></div>`:''}
-    ${gl?`<div class="toggle"><span>좌우 반전</span><button class="${SET.invX?'on':''}" data-act="invX">${SET.invX?'켬':'끔'}</button></div>
-    <div class="toggle"><span>앞뒤 반전</span><button class="${SET.invY?'on':''}" data-act="invY">${SET.invY?'켬':'끔'}</button></div>
-    <div class="toggle"><span>감도</span><div class="seg" style="width:170px">${[.6,1,1.4].map(v=>`<button class="${SET.sens===v?'on':''}" data-act="sens" data-v="${v}">${v===.6?'낮음':v===1?'보통':'높음'}</button>`).join('')}</div></div>`:''}
+    ${gl?`<div class="toggle"><span>앞뒤 방향 반전</span><button class="${SET.invX?'on':''}" data-act="invX">${SET.invX?'켬':'끔'}</button></div>
+    `:''}
+    <div class="sens"><div class="row2"><span>자이로 감도</span><b id="svl">${SET.sensLv||4}</b></div>
+      <input type="range" id="sensR" min="1" max="7" step="1" value="${SET.sensLv||4}" aria-label="자이로 감도">
+      <div class="row2"><small>1 둔하게</small><small>7 예민하게</small></div>
+      <div class="meter" aria-hidden="true"><i id="tiltM"></i></div><small id="tiltT">${gyroLive()?'폰을 좌우로 기울여 보세요 — 막대가 움직임 속도예요':'기울기 센서 신호가 없어요'}</small></div>
     <div class="toggle"><span>터치 구역 표시</span><button class="${SET.zones?'on':''}" data-act="zones">${SET.zones?'켬':'끔'}</button></div>
     <button class="btn center" data-act="howto2">조작법</button><button class="btn center" data-act="quit">기권하고 나가기</button></div>`;
 }
+function settingsScreen(){
+  showScreen(`<div class="sheet" style="max-width:420px"><div class="sheet-h"><button class="back" data-act="menu">← 메뉴</button><h2>설정</h2></div>
+    <div class="sens"><div class="row2"><span>자이로 감도</span><b id="svl">${SET.sensLv||4}</b></div>
+      <input type="range" id="sensR" min="1" max="7" step="1" value="${SET.sensLv||4}" aria-label="자이로 감도">
+      <div class="row2"><small>1 둔하게</small><small>7 예민하게</small></div>
+      <div class="meter" aria-hidden="true"><i id="tiltM"></i></div><small id="tiltT">${gyroLive()?'폰을 좌우로 기울여 보세요 — 막대가 움직임 속도예요':'기울기 센서 신호가 없어요'}</small></div>
+    <div class="toggle"><span>자이로 이동</span>${gyroLive()?'<button data-act="calib">지금 자세를 기준으로</button>':'<button data-act="gyro">자이로 켜기</button>'}</div>
+    <div class="toggle"><span>앞뒤 방향 반전</span><button class="${SET.invX?'on':''}" data-act="invX">${SET.invX?'켬':'끔'}</button></div>
+    <div class="toggle"><span>터치 구역 표시</span><button class="${SET.zones?'on':''}" data-act="zones">${SET.zones?'켬':'끔'}</button></div>
+  </div>`);
+}
+// live tilt meter on whichever screen shows the slider
+setInterval(()=>{const m=document.getElementById('tiltM');if(!m)return;const v=gyroInput().x;m.style.left=(v<0?50+v*50:50)+'%';m.style.width=Math.abs(v)*50+'%'},60);
+scr.addEventListener('input',e=>{if(e.target.id==='sensR'){SET.sensLv=+e.target.value;persistSet();const l=document.getElementById('svl');if(l)l.textContent=SET.sensLv}});
 function pauseMenu(){
   if(G.demo||G.phase==='over'||G.phase==='between'||G.phase==='paused'||G.phase==='replay')return;
   G.prevPhase=G.phase;G.phase='paused';IN.guard=false;IN.mx=IN.my=0;PT.clear();
@@ -1599,11 +1626,11 @@ scr.addEventListener('click',e=>{
     case'full':SET.full=!isFull();persistSet();if(SET.full)goFull();else exitFull();setTimeout(()=>{if(G.phase==='paused')showScreen(pauseHTML())},300);break;
     case'fullnow':SET.full=true;persistSet();goFull();break;
     case'calib':gyroCalib();b.textContent='맞췄어요';break;
-    case'gyro':gyroStart();setTimeout(()=>{if(G.phase==='paused')showScreen(pauseHTML())},800);break;
-    case'invX':SET.invX=!SET.invX;persistSet();showScreen(pauseHTML());break;
+    case'gyro':gyroStart();setTimeout(()=>{if(G.phase==='paused')showScreen(pauseHTML());else if(document.getElementById('sensR'))settingsScreen()},800);break;
+    case'invX':SET.invX=!SET.invX;persistSet();G.phase==='paused'?showScreen(pauseHTML()):settingsScreen();break;
     case'invY':SET.invY=!SET.invY;persistSet();showScreen(pauseHTML());break;
-    case'sens':SET.sens=+b.dataset.v;persistSet();showScreen(pauseHTML());break;
-    case'zones':SET.zones=!SET.zones;persistSet();showScreen(pauseHTML());break;
+    case'settings':settingsScreen();break;
+    case'zones':SET.zones=!SET.zones;persistSet();G.phase==='paused'?showScreen(pauseHTML()):settingsScreen();break;
     case'quit':{hideScreen();if(G.career){save.l++;persist()}G.prevPhase=null;menu();break}
   }
 });
