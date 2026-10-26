@@ -168,7 +168,7 @@ const PUNCH={
   hay:  {s:.42,a:.09,r:.46,dmg:17,cost:24,range:1.1,power:true, name:'헤이메이커',lunge:1.2,whiff:1.1},
 };
 const EVADE={slipL:{d:.36,beats:['jab','cross'],name:'왼쪽 슬립'},slipR:{d:.36,beats:['jab','cross'],name:'오른쪽 슬립'},
-  pull:{d:.4,beats:['jab','cross','hook'],name:'풀백'},weave:{d:.55,beats:['jab','cross','hook'],name:'위빙'},duck:{d:.42,beats:['jab','cross','hook'],name:'더킹'}};
+  pull:{d:.48,beats:['jab','cross','hook','upper','hay'],name:'풀백'},weave:{d:.55,beats:['jab','cross','hook'],name:'위빙'},duck:{d:.42,beats:['jab','cross','hook','hay'],name:'더킹'}};
 const STYLES={
   outboxer:{label:'아웃복서',dist:1.0, ev:['slipL','slipR','pull'],combos:['jab','jab jab','jab cross','jab jab cross','jab cross hookL','jab b:jab','jab cross b:hookL','f:jab cross','f:jab jab cross']},
   slugger: {label:'슬러거',  dist:.86,ev:['pull','duck'],        combos:['hookL','cross hookL','hookL upperR','b:hookL hookL','jab cross hookL upperR','upperR hookL','cross','hookR','jab hayR','hayR']},
@@ -494,7 +494,10 @@ function doAction(f,type,hand,body){
   if(f.action){f.queued={type,hand,body};return false}
   let tf=(1.18-f.def.speed/280)*(1+(1-f.st/100)*.55)*(f.st<15?1.25:1);
   if(hasT(f,'rage')&&f.hp<35)tf*=.87;
-  if(EVADE[type]){if(f.st<3)return false;f.action={kind:'evade',ev:type,t:0,d:EVADE[type].d*tf*(hasT(f,'flash')?1.15:1),id:++UID};f.st-=3;return true}
+  if(EVADE[type]){if(f.st<3)return false;f.action={kind:'evade',ev:type,t:0,d:EVADE[type].d*tf*(hasT(f,'flash')?1.15:1),id:++UID};f.st-=3;
+    // duck = dip and step in like an infighter; pull = lean and slide back out of range; weave stays put
+    const fx=Math.sin(f.facing);if(type==='duck'){f.vx+=fx*1.35}else if(type==='pull'){f.vx-=fx*1.1}
+    return true}
   if(type==='feint'){f.action={kind:'feint',type:hand==='R'?'cross':'jab',hand,t:0,d:.26*tf,id:++UID};f.st=Math.max(0,f.st-.8);return true}
   const D=PUNCH[type];
   const charged=type==='hay'&&f.charge&&f.charge.k>=1;f.charge=null;f.chargeReady=false;
@@ -887,8 +890,8 @@ function targetPose(f,o){
     switch(a.ev){ // bend at knees and waist, not just the neck
       case'slipL':P.roll-=.34*w;P.hx+=.08*w;P.hs-=.15*w;P.cr+=.07*w;P.tw+=.18*w;P.lean+=.08*w;break;
       case'slipR':P.roll+=.34*w;P.hx-=.08*w;P.hs+=.15*w;P.cr+=.07*w;P.tw-=.25*w;P.ptw-=.1*w;P.lean+=.08*w;break;
-      case'pull':P.lean-=.34*w;P.hz-=.13*w;P.ht-=.12*w;P.rHeel=0;break;
-      case'duck':P.cr+=.32*w;P.lean+=.38*w;P.ht+=.2*w;P.lHeel=P.rHeel=0;break;
+      case'pull':P.lean-=.4*w;P.hz-=.16*w;P.ht-=.2*w;P.rHeel=0;P.lHeel=.5*w;break;
+      case'duck':P.cr+=.32*w;P.lean+=.42*w;P.hz+=.1*w;P.ht+=.2*w;P.lStep=.1*w;P.lHeel=0;P.rHeel=.6*w;break;
       case'weave':{const s=Math.cos(Math.PI*k);P.cr+=.3*w;P.lean+=.32*w;P.roll+=.42*s*w;P.hx-=.1*s*w;P.tw+=.2*s*w;P.lHeel=P.rHeel=0;break}
     }
   }
@@ -1303,12 +1306,14 @@ touchEl.addEventListener('pointermove',e=>{
   t.x=x;t.y=y;
   if(t.used&&!t.guard)return;
   const dx=x-t.x0,dy=y-t.y0,held=performance.now()-t.t0;
-  if(Math.hypot(dx,dy)<(!t.guard&&t.zone!=='bot'&&held>220?90:SWIPE))return;
+  if(Math.hypot(dx,dy)<(t.guard?20:(t.zone!=='bot'&&held>220?90:SWIPE)))return;
   if(!t.guard&&performance.now()-t.t0<70)return; // give a second finger a moment to land for guard
   if(t.guard){ // guard held: head movement in swipe direction
     if(t.slipped)return;t.slipped=true;
-    const ev=Math.abs(dx)>Math.abs(dy)*.8?(dx<0?'slipL':'slipR'):(dy>0?'pull':null);
-    if(ev){playerAct(ev,dx<0?'L':'R',false,x,y);t.x0=x;t.y0=y;setTimeout(()=>{t.slipped=false},250)}
+    // backward (toward your own corner) = sway the head back; up/down or forward = slip off the line
+    const horiz=Math.abs(dx)>=Math.abs(dy)*.7;
+    const ev=horiz?(dx<0?'pull':(t.half==='L'?'slipL':'slipR')):(dy<0?'slipL':'slipR');
+    if(ev){playerAct(ev,t.half,false,x,y);t.x0=x;t.y0=y;setTimeout(()=>{t.slipped=false},250)}
     return;
   }
   t.used=true;
@@ -1388,13 +1393,13 @@ function howto(back){
   <div class="zones">
     <div><b>왼쪽 위</b>탭: 잽(얼굴)<br>옆으로 쓸기: 왼손 훅</div><div><b>오른쪽 위</b>탭: 스트레이트(얼굴)<br>옆으로 쓸기: 오른손 훅</div>
     <div><b>왼쪽 가운데</b>탭: 바디 잽<br>옆으로 쓸기: 바디 훅</div><div><b>오른쪽 가운데</b>탭: 바디 스트레이트<br>옆으로 쓸기: 바디 훅</div>
-    <div><b>왼쪽 아래</b>쓸기: 위빙</div><div><b>오른쪽 아래</b>쓸기: 더킹</div>
+    <div><b>왼쪽 아래</b>쓸기: 위빙 (제자리 U자)</div><div><b>오른쪽 아래</b>쓸기: 더킹 (숙이며 전진)</div>
   </div></div>
   <dl class="keys">
     <dt>헤이메이커</dt><dd>왼쪽·오른쪽 어디든 위(얼굴)나 가운데(바디) 구역을 0.5초 꾹 누르고 있다 떼면 그 손·그 높이로 온몸을 실은 큰 펀치. 가드 위로도 60%가 들어가지만, 던지는 쪽 스태미나가 한 번에 크게(약 24~28) 빠져요</dd>
     <dt>어퍼컷</dt><dd>그 손 쪽을 아래에서 위로 쓸기. 더킹·위빙하는 상대에게 카운터</dd>
     <dt>가드</dt><dd>화면 어디든 왼쪽·오른쪽을 동시에 누르고 있기</dd>
-    <dt>머리 회피</dt><dd>가드를 누른 채 손가락을 쓸면 그 방향으로 회피. 왼쪽·오른쪽 = 슬립, 아래 = 풀백</dd>
+    <dt>머리 회피</dt><dd>가드(양손 누르기) 상태에서 손가락을 뒤쪽(왼쪽)으로 쓸면 머리를 뒤로 젖히는 풀백 — 뒤로 살짝 빠지며 모든 얼굴 펀치를 피해요. 위·아래나 앞으로 쓸면 옆으로 빠지는 슬립</dd>
     <dt>이동</dt><dd>폰을 좌우로 기울이면 앞(상대 쪽)·뒤로만 움직여요. 링을 돌지 않는 측면 중계 시점이에요. 자이로 신호가 없을 때만 화면 아래 가운데 스틱이 나와요</dd>
     <dt>펀치 성격</dt><dd>잽은 빠르지만 약하고, 훅은 크게 휘둘러 느리지만 세요. 어퍼컷은 가까이서 타이밍이 맞아야 들어가고 가장 강해요. 크게 헛치면 빈틈이 생겨요</dd>
     <dt>바디 연타</dt><dd>바디를 연달아 맞히면 한 대마다 데미지가 30%씩 올라가고, 4연타면 상대가 잠깐 굳어요</dd>
