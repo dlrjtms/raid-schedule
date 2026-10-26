@@ -360,7 +360,7 @@ function loadSave(){
 }
 let save=loadSave();
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-let SET={gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
+let SET={style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
 const sensVal=()=>SENS[clamp((SET.sensLv|0)||4,1,7)-1];
@@ -456,13 +456,13 @@ function mat(c,r,m,em){return new T.MeshStandardMaterial({color:c,roughness:r==n
 function phys(c,o){const m=new T.MeshPhysicalMaterial(Object.assign({color:c,roughness:.5,metalness:0,envMapIntensity:.5},o||{}));m.envMapIntensity*=.5;return m}
 function canvasTex(w,h,draw){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);const t=new T.CanvasTexture(c);t.anisotropy=4;t.encoding=T.sRGBEncoding;return t}
 let composer=null,gradePass=null,bloomPass=null;
-const GradeShader={uniforms:{tDiffuse:{value:null},time:{value:0},exposure:{value:.75},vig:{value:.55},grain:{value:.035},stun:{value:0}},
+const GradeShader={uniforms:{tDiffuse:{value:null},time:{value:0},exposure:{value:.75},vig:{value:.55},grain:{value:.035},stun:{value:0},sat:{value:1.1}},
   vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',
-  fragmentShader:`uniform sampler2D tDiffuse;uniform float time,exposure,vig,grain,stun;varying vec2 vUv;
+  fragmentShader:`uniform sampler2D tDiffuse;uniform float time,exposure,vig,grain,stun,sat;varying vec2 vUv;
   vec3 aces(vec3 x){return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.);}
   float rnd(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}
   void main(){vec3 c=texture2D(tDiffuse,vUv).rgb*exposure;c=aces(c);c=pow(c,vec3(1./2.2));
-    float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,1.1-stun*.75);
+    float l=dot(c,vec3(.299,.587,.114));c=mix(vec3(l),c,sat-stun*.75);
     c=mix(c*vec3(.93,.98,1.07),c*vec3(1.05,1.0,.94),smoothstep(.15,.85,l));
     c=(c-.5)*1.06+.5;
     float d=distance(vUv,vec2(.5));c*=1.-smoothstep(.42,.95,d)*vig;
@@ -563,9 +563,10 @@ function ball(r,m,parent,sx,sy,sz){const me=new T.Mesh(new T.SphereGeometry(r,18
 function placeBulge(me,a,b,t,len,rx,rz){_v.subVectors(b,a);const L=_v.length()||1e-4;_v.divideScalar(L);me.position.copy(a).addScaledVector(_v,L*t);_q.setFromUnitVectors(UP,_v);me.quaternion.copy(_q);me.scale.set(rx,len/2,rz)}
 function placeSeg(me,a,b){_v.subVectors(b,a);const L=_v.length()||1e-4;me.position.addVectors(a,b).multiplyScalar(.5);me.scale.set(1,L,1);_q.setFromUnitVectors(UP,_v.divideScalar(L));me.quaternion.copy(_q)}
 function buildModel(def){
-  const REF=!!def.ref;
-  const skin=phys(def.skin,{roughness:.52,clearcoat:.1,clearcoatRoughness:.45,envMapIntensity:.45}),skinD=phys(new T.Color(def.skin).multiplyScalar(.82).getHex(),{roughness:.55,envMapIntensity:.4}),trunks=phys(def.trunks,{roughness:.42,sheen:1,sheenRoughness:.35,sheenColor:new T.Color(0xffffff).multiplyScalar(.35),envMapIntensity:.6}),trim=phys(def.trim,{roughness:.4,sheen:.6,sheenColor:new T.Color(0x888888)}),glove=REF?phys(def.skin,{roughness:.5}):phys(def.glove,{roughness:.28,clearcoat:.8,clearcoatRoughness:.2,envMapIntensity:.9}),hair=mat(def.hair,.8),shoe=mat(def.shoe,.5),tape=mat(0xf2f2f2,.8),dark=mat(0x140e0c,.6);
-  const shirt=REF?mat(0xd8e0ea,.75):skin,shirtD=REF?mat(0xb9c3cf,.75):skinD,legM=REF?mat(0x16161b,.7):skin;
+  const REF=!!def.ref;const AN=SET.style!=='real';
+  const P=(c,o)=>AN?toon(c):phys(c,o),Mt=(c,r,m)=>AN?toon(c):mat(c,r,m);
+  const skin=P(def.skin,{roughness:.52,clearcoat:.1,clearcoatRoughness:.45,envMapIntensity:.45}),skinD=P(new T.Color(def.skin).multiplyScalar(.82).getHex(),{roughness:.55,envMapIntensity:.4}),trunks=P(def.trunks,{roughness:.42,sheen:1,sheenRoughness:.35,sheenColor:new T.Color(0xffffff).multiplyScalar(.35),envMapIntensity:.6}),trim=P(def.trim,{roughness:.4,sheen:.6,sheenColor:new T.Color(0x888888)}),glove=REF?P(def.skin,{roughness:.5}):P(def.glove,{roughness:.28,clearcoat:.8,clearcoatRoughness:.2,envMapIntensity:.9}),hair=Mt(def.hair,.8),shoe=Mt(def.shoe,.5),tape=Mt(0xf2f2f2,.8),dark=Mt(0x140e0c,.6);
+  const shirt=REF?Mt(0xd8e0ea,.75):skin,shirtD=REF?Mt(0xb9c3cf,.75):skinD,legM=REF?Mt(0x16161b,.7):skin;
   const root=new T.Group(),body=new T.Group();root.add(body);
   const M={root,body};
   // torso group
@@ -584,12 +585,12 @@ function buildModel(def){
     for(let i=0;i<4;i++){const b=ball(.008,dark,torso);b.position.set(0,.05+i*.07,.132)}}
   // head
   const head=new T.Group();body.add(head);M.head=head;
-  const hs=phys(def.skin,{roughness:.5,clearcoat:.1,clearcoatRoughness:.45,envMapIntensity:.45});M.headMat=hs;M.baseSkin=new T.Color(def.skin);M.skinMat=skin;
+  const hs=P(def.skin,{roughness:.5,clearcoat:.1,clearcoatRoughness:.45,envMapIntensity:.45});M.headMat=hs;M.baseSkin=new T.Color(def.skin);M.skinMat=skin;
   ball(1,hs,head,.098,.122,.112);
   ball(1,hs,head,.075,.06,.07).position.set(0,-.07,.04);
   M.swell=[ball(1,hs,head,.03,.022,.02),ball(1,hs,head,.03,.022,.02)];M.swell[0].position.set(.045,.0,.09);M.swell[1].position.set(-.045,.0,.09);M.swell.forEach(m=>m.scale.setScalar(.001));
-  M.cut=ball(1,mat(0x7a0d0d,.3),head,.022,.006,.008);M.cut.position.set(.04,.045,.103);M.cut.visible=false;
-  const hc=new T.Mesh(new T.SphereGeometry(.104,18,10,0,Math.PI*2,0,Math.PI*.42),hair);hc.scale.set(1,1.18,1.08);hc.position.set(0,.012,-.008);hc.rotation.x=-.25;hc.castShadow=true;head.add(hc);M.hair=hc;
+  M.cut=ball(1,Mt(0x7a0d0d,.3),head,.022,.006,.008);M.cut.position.set(.04,.045,.103);M.cut.visible=false;
+  const hc=new T.Mesh(new T.SphereGeometry(.104,18,10,0,Math.PI*2,0,Math.PI*.42),hair);hc.scale.set(1,1.18,1.08);hc.position.set(0,.012,-.008);hc.rotation.x=-.25;hc.castShadow=true;head.add(hc);M.hair=hc;hc.userData.keep=true;
   ball(.025,skinD,head,.6,1,1).position.set(.098,-.005,-.01);ball(.025,skinD,head,.6,1,1).position.set(-.098,-.005,-.01);
   const nose=new T.Mesh(new T.BoxGeometry(.03,.05,.035),hs);nose.position.set(0,-.02,.115);nose.rotation.x=.25;head.add(nose);
   ball(.013,dark,head).position.set(.038,.012,.1);ball(.013,dark,head).position.set(-.038,.012,.1);
@@ -611,6 +612,7 @@ function buildModel(def){
     const foot=new T.Mesh(new T.BoxGeometry(.095,.07,.22),shoe);foot.position.set(0,-.045,.045);foot.castShadow=true;bt.add(foot);
     const sole=new T.Mesh(new T.BoxGeometry(.1,.018,.23),dark);sole.position.set(0,-.08,.045);bt.add(sole);
   }
+  if(AN){buildAnimeHead(M,def);inkOutline(root)}
   scene.add(root);
   return M;
 }
@@ -758,6 +760,7 @@ function resolveHit(at,df){
   df.charge=null;
   if(a.type==='hay'){G.hitStop=a.charged?.16:.11;G.shake=Math.max(G.shake,a.charged?.13:.08);G.fovKick=a.charged?6:4;sfx.boom();buzz(80);
     {const ux=(df.x-at.x)/dist;df.vx+=ux*(a.charged?1.6:1)}if(a.charged){G.slow=.3;G.slowT=.35}}
+  comicHit(tgt,v,crit||temple||(a.type==='hay'&&a.charged)||df.hp<=0);if((crit||df.hp<=0)&&!G.demo)G.whiteFlash=.12;
   sweat(tgt,at,v);sfx.hit(clamp(v/10,.3,1.4));sfx.crowd(v/35);
   if(df===G.F[0])buzz(v>8?45:20);
   if(!wasStun&&df.stunT>0){if(df===G.F[0])sfx.ring();if(!G.demo)pop(df===G.F[0]?'휘청…':'상대가 휘청!','#ffcf4a',false,.8)}
@@ -973,6 +976,7 @@ function step(raw){
   for(const q of G.parts){q.t+=dt;if(!q.flash){q.vy-=4.5*dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.z+=q.vz*dt}}
   G.parts=G.parts.filter(q=>q.t<q.life);
   for(const t of G.texts)t.t+=raw;G.texts=G.texts.filter(t=>t.t<t.life);
+  for(const m of G.comics||[])m.t+=raw;G.comics=(G.comics||[]).filter(m=>m.t<m.life);if(G.speed)G.speed.t+=raw;if(G.whiteFlash>0)G.whiteFlash-=raw;
   for(const r of G.ripples)r.t+=raw;G.ripples=G.ripples.filter(r=>r.t<.45);
   G.shake*=Math.exp(-raw*14);
 }
@@ -1228,7 +1232,7 @@ function applyModel(f){
   M.root.position.set(f.x,0,f.z);M.root.rotation.y=f.facing;
   {const fd=f.faceDmg||0,k=clamp(fd/80,0,.55);M.headMat.color.copy(M.baseSkin).lerp(_bruise,k);
    const sw=clamp((fd-15)/50,0,1);M.swell[0].scale.set(.03*sw+.001,.024*sw+.001,.022*sw+.001);M.swell[1].scale.set(.02*sw+.001,.016*sw+.001,.016*sw+.001);
-   M.cut.visible=fd>60;const wet=clamp((G.fightT||0)/240,0,1);M.skinMat.roughness=.52-.18*wet;M.headMat.roughness=.5-.18*wet;M.skinMat.clearcoat=.1+.55*wet;M.headMat.clearcoat=.1+.5*wet}
+   M.cut.visible=fd>60;const wet=clamp((G.fightT||0)/240,0,1);if(M.skinMat.isMeshPhysicalMaterial){M.skinMat.roughness=.52-.18*wet;M.skinMat.clearcoat=.1+.55*wet}if(M.headMat.isMeshPhysicalMaterial){M.headMat.roughness=.5-.18*wet;M.headMat.clearcoat=.1+.5*wet}}
   M.body.rotation.x=-f.fallA;M.body.position.z=-f.fallA*.05;
   M.pelvis.position.copy(k.pel);M.pelvis.rotation.copy(k.pe);
   M.torso.position.copy(k.waist);M.torso.rotation.copy(k.ce);
@@ -1252,6 +1256,117 @@ function applyModel(f){
     bt.position.copy(Lg.h);bt.rotation.set(-heel*.45,STANCE[s].yaw*(s==='L'?1:1)*(s==='L'?1:1)+piv,0,'YXZ');
   }
   if(M.xb)driveXbot(f);
+  setFace(f);
+  // fist trails while a punch is travelling
+  {const a=f.action;f.trail=f.trail||[];if(a&&a.kind==='punch'&&a.t<a.s+a.a&&a.t>a.s*.35&&SET.style!=='real'){const g=M['gl'+a.hand];const w=g.getWorldPosition(V(0,0,0));f.trail.push(w);if(f.trail.length>7)f.trail.shift()}else if(f.trail.length)f.trail.shift()}
+}
+
+
+
+/* ================= anime style: cel shading, ink lines, drawn faces ================= */
+let TOON_GRAD=null;
+function toonGrad(){if(TOON_GRAD)return TOON_GRAD;const c=document.createElement('canvas');c.width=4;c.height=1;const g=c.getContext('2d');
+  ['#3c3c40','#76767c','#c4c4c8','#f4f4f4'].forEach((col,i)=>{g.fillStyle=col;g.fillRect(i,0,1,1)});
+  const t=new T.CanvasTexture(c);t.minFilter=t.magFilter=T.NearestFilter;t.generateMipmaps=false;return TOON_GRAD=t}
+function toon(c,o){return new T.MeshToonMaterial(Object.assign({color:c,gradientMap:toonGrad()},o||{}))}
+const INK=new T.MeshBasicMaterial({color:0x0d0d10,side:T.BackSide});
+function inkOutline(root){
+  const list=[];root.traverse(o=>{if(o.isMesh&&!o.isSkinnedMesh&&!o.userData.noInk&&!o.userData.ink){o.geometry.computeBoundingSphere();
+    const sc=Math.max(o.scale.x,o.scale.y,o.scale.z),r=o.geometry.boundingSphere.radius*(o.geometry.type==='CylinderGeometry'?Math.max(o.scale.x,o.scale.z):sc);if(r>.02)list.push(o)}});
+  for(const o of list){const ln=new T.Mesh(o.geometry,INK);ln.userData.ink=true;ln.userData.keep=o.userData.keep;
+    const isCyl=o.geometry.type==='CylinderGeometry';const base=Math.max(.001,isCyl?Math.max(o.scale.x,o.scale.z):Math.min(o.scale.x,o.scale.y,o.scale.z));
+    const k=1+.009/Math.max(.01,base*(o.geometry.boundingSphere.radius||1));ln.scale.set(k,isCyl?1.0:k,k);o.add(ln)}
+}
+function skinnedInk(sm){ // outline that bends with the skinned body: push the skinned vertex out along its normal
+  const m=new T.MeshBasicMaterial({color:0x0d0d10,side:T.BackSide});
+  // thickness in the mesh's own (possibly quantized) units: ~0.55% of body height
+  sm.geometry.computeBoundingBox();const bb=sm.geometry.boundingBox,ht=Math.max(bb.max.x-bb.min.x,bb.max.y-bb.min.y,bb.max.z-bb.min.z),th=(ht*.0055).toFixed(6);
+  m.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','vec3 transformed = vec3( position ) + normalize(objectNormal) * '+th+';')};
+  const o=new T.SkinnedMesh(sm.geometry,m);o.bind(sm.skeleton,sm.bindMatrix);o.frustumCulled=false;o.userData.ink=true;sm.parent.add(o);return o;
+}
+const HAIRSTYLE={obc:'spiky',hdj:'buzz',sgw:'slick',mts:'mohawk',cmh:'short',yjh:'slick',bdh:'spiky',ktm:'buzz',player:'spiky'};
+const EYES={obc:'#3b2416',hdj:'#2a2a2a',sgw:'#3b2416',mts:'#1d1410',cmh:'#4a3018',yjh:'#262626',bdh:'#2e1d12',ktm:'#5a3a1a',player:'#3b2a1f'};
+function faceTex(def,state){
+  const W=512,H=256,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+  const ink='#141014',brow=def.hair||'#1a1411',iris=EYES[def.id]||'#3b2a1f',ref=!!def.ref;
+  g.lineCap='round';g.lineJoin='round';
+  const eye=(x,y,side)=>{
+    if(state==='hurt'){g.strokeStyle=ink;g.lineWidth=9;g.beginPath();g.moveTo(x-26*side,y-14);g.lineTo(x+14*side,y);g.lineTo(x-26*side,y+14);g.stroke();return}
+    if(state==='ko'){g.strokeStyle=ink;g.lineWidth=9;g.beginPath();g.moveTo(x-18,y-16);g.lineTo(x+18,y+16);g.moveTo(x+18,y-16);g.lineTo(x-18,y+16);g.stroke();return}
+    if(state==='dizzy'){g.strokeStyle=ink;g.lineWidth=5;g.beginPath();for(let a=0;a<14;a+=.2){const r=2+a*1.6;g.lineTo(x+Math.cos(a*side)*r,y+Math.sin(a*side)*r)}g.stroke();return}
+    const ry=state==='attack'?12:19;
+    g.fillStyle='#fffdf8';g.beginPath();g.ellipse(x,y,30,ry,0,0,7);g.fill();
+    g.save();g.beginPath();g.ellipse(x,y,30,ry,0,0,7);g.clip();
+    g.fillStyle=iris;g.beginPath();g.arc(x+4*side,y+2,17,0,7);g.fill();g.fillStyle='#000';g.beginPath();g.arc(x+4*side,y+2,8,0,7);g.fill();
+    g.fillStyle='#fff';g.beginPath();g.arc(x-2+4*side,y-5,5,0,7);g.fill();g.restore();
+    g.strokeStyle=ink;g.lineWidth=7;g.beginPath();g.ellipse(x,y,30,ry,0,Math.PI*1.05,Math.PI*1.95);g.stroke();
+    g.lineWidth=3;g.beginPath();g.ellipse(x,y,30,ry,0,Math.PI*.15,Math.PI*.85);g.stroke();
+  };
+  const browL=(x,y,side,tilt)=>{g.strokeStyle=brow;g.lineWidth=12;g.beginPath();g.moveTo(x-34*side,y-tilt);g.lineTo(x+30*side,y+tilt);g.stroke()};
+  const lx=186,rx=326,ey=118;
+  const tilt=state==='attack'?14:state==='hurt'||state==='dizzy'?-12:state==='ko'?-6:ref?0:7;
+  browL(lx,ey-44,-1,tilt);browL(rx,ey-44,1,tilt);
+  eye(lx,ey,-1);eye(rx,ey,1);
+  g.strokeStyle='rgba(20,16,20,.55)';g.lineWidth=4;g.beginPath();g.moveTo(258,150);g.lineTo(250,176);g.lineTo(262,178);g.stroke();
+  g.strokeStyle=ink;g.lineWidth=6;
+  if(state==='attack'){g.fillStyle='#fff';g.beginPath();g.rect(220,200,72,24);g.fill();g.stroke();g.lineWidth=3;g.beginPath();g.moveTo(220,212);g.lineTo(292,212);for(let x=232;x<292;x+=12){g.moveTo(x,200);g.lineTo(x,224)}g.stroke()}
+  else if(state==='hurt'){g.fillStyle='#5a1414';g.beginPath();g.ellipse(256,212,22,16,0,0,7);g.fill();g.stroke();
+    g.fillStyle='#8fd0ff';g.beginPath();g.moveTo(370,70);g.quadraticCurveTo(388,100,370,108);g.quadraticCurveTo(352,100,370,70);g.fill()}
+  else if(state==='ko'){g.beginPath();for(let x=222;x<=292;x+=4)g.lineTo(x,212+Math.sin(x*.3)*6);g.stroke()}
+  else if(state==='dizzy'){g.beginPath();g.ellipse(256,212,9,11,0,0,7);g.stroke()}
+  else{g.beginPath();g.moveTo(232,212);g.quadraticCurveTo(256,ref?214:206,282,212);g.stroke()}
+  const t=new T.CanvasTexture(c);t.encoding=T.sRGBEncoding;t.anisotropy=4;return t;
+}
+function buildAnimeHead(M,def){
+  const head=M.head;head.children.forEach(c=>{c.visible=false;c.userData.keep=false});
+  const skin=M.headMat||toon(def.skin);
+  const H=new T.Group();H.userData.keep=true;head.add(H);H.position.set(0,.012,0);
+  const sk=ball(1,skin,H,.112,.128,.118);sk.userData.keep=true;
+  const jaw=ball(1,skin,H,.085,.06,.075);jaw.position.set(0,-.075,.035);jaw.userData.keep=true;
+  for(const sx of[1,-1]){const e=ball(1,skin,H,.022,.036,.028);e.position.set(sx*.11,-.005,-.005);e.userData.keep=true}
+  // face decal: a thin shell over the front of the skull carrying the drawn face
+  const faces={};for(const st of['neutral','attack','hurt','dizzy','ko'])faces[st]=faceTex(def,st);
+  const fm=new T.MeshBasicMaterial({map:faces.neutral,transparent:true,depthWrite:false});
+  const fg=new T.SphereGeometry(1,40,20,Math.PI/2-.95,1.9,Math.PI*.24,Math.PI*.56);
+  const face=new T.Mesh(fg,fm);face.scale.set(.1135,.1295,.1195);face.userData.noInk=true;face.userData.keep=true;H.add(face);
+  M.face={mesh:face,tex:faces,state:'neutral'};
+  // hair
+  const hm=toon(def.hair||'#1a1411'),style=def.ref?'short':(HAIRSTYLE[def.id]||'spiky');
+  const cap=new T.Mesh(new T.SphereGeometry(.118,24,12,0,Math.PI*2,0,Math.PI*(style==='buzz'?.42:.47)),hm);cap.scale.set(1,1.1,1.06);cap.position.set(0,.012,-.012);cap.rotation.x=-.3;cap.userData.keep=true;H.add(cap);
+  const spike=(x,y,z,rx,rz,len,r)=>{const m=new T.Mesh(new T.ConeGeometry(r||.04,len,6),hm);m.position.set(x,y,z);m.rotation.set(rx,0,rz);m.userData.keep=true;H.add(m)};
+  if(style==='spiky'){for(let i=0;i<9;i++){const a=(i/8-.5)*2.4;spike(Math.sin(a)*.08,.1+Math.cos(a)*.02,-.03-Math.abs(a)*.02,-.5,-a*.7,.13,.045)}spike(0,.12,-.06,-.9,0,.14,.05)}
+  else if(style==='slick'){for(let i=0;i<6;i++){const a=(i/5-.5)*1.8;spike(Math.sin(a)*.08,.08,-.07,-1.75,-a*.4,.15,.042)}}
+  else if(style==='mohawk'){for(let i=0;i<5;i++)spike(0,.12-i*.01,.05-i*.04,-.25-i*.25,0,.13,.035)}
+  else if(style==='short'){for(let i=0;i<4;i++){const x=(i-1.5)*.04;spike(x,.06,.095,2.5,x*2,.06,.022)}}
+  M.hair=H;
+  // ink everything we just added
+  inkOutline(H);
+}
+function setFace(f){const F=f.M&&f.M.face;if(!F)return;let st='neutral';
+  if(f.down||(G.phase==='over'&&G.result&&G.result.win&&G.result.win!==f&&f.fallA>.5))st='ko';
+  else if(f.stunT>0)st='dizzy';else if(f.hitT>.08&&f.hitKind!=='block')st='hurt';
+  else if(f.action&&f.action.kind==='punch'||f.charge||f.celebrate)st='attack';
+  if(st!==F.state){F.state=st;F.mesh.material.map=F.tex[st];F.mesh.material.needsUpdate=true}}
+
+/* comic hit effects drawn over the 3D view */
+function comicHit(p,v,big){if(SET.style==='real'||G.demo&&!window.__SHOWALL)return;
+  const words=big?['쾅!!','콰앙!','빠악!']:v>7?['퍽!','빡!','쾅!']:['팍','탁','퍽'];
+  (G.comics=G.comics||[]).push({x:p.x,y:p.y,z:p.z,t:0,life:big?.6:.42,s:big?1.5:v>7?1.1:.75,w:pick(words),rot:rnd(-.35,.35),seed:Math.random()});
+  if(big)G.speed={t:0,life:.38,x:p.x,y:p.y,z:p.z};
+}
+function drawComics(c){
+  if(SET.style==='real')return;
+  for(const f of G.F){const tr=f.trail||[];if(tr.length>1){c.save();c.lineCap='round';
+    for(let i=1;i<tr.length;i++){const a=project(tr[i-1].x,tr[i-1].y,tr[i-1].z),b=project(tr[i].x,tr[i].y,tr[i].z);if(!a.ok||!b.ok)continue;
+      c.strokeStyle=`rgba(255,255,255,${.12+.5*i/tr.length})`;c.lineWidth=3+10*i/tr.length;c.beginPath();c.moveTo(a.x,a.y);c.lineTo(b.x,b.y);c.stroke()}c.restore()}}
+  if(G.speed){const S=G.speed,k=S.t/S.life,pp=project(S.x,S.y,S.z);if(k>=1)G.speed=null;else{c.save();c.globalAlpha=(1-k)*.85;c.strokeStyle='#fff';
+    for(let i=0;i<46;i++){const a=i/46*Math.PI*2+i*.37,r0=90+((i*53)%60),r1=Math.max(VW,VH);c.lineWidth=1+(i%3);c.beginPath();c.moveTo(pp.x+Math.cos(a)*r0*(1+k),pp.y+Math.sin(a)*r0*(1+k));c.lineTo(pp.x+Math.cos(a)*r1,pp.y+Math.sin(a)*r1);c.stroke()}c.restore()}}
+  for(const m of G.comics||[]){const k=m.t/m.life,p=project(m.x,m.y,m.z);if(!p.ok)continue;const sc=m.s*(k<.15?.5+k/.15*.6:1.1-(k-.15)*.2);
+    c.save();c.globalAlpha=k>.7?(1-k)/.3:1;c.translate(p.x+(m.seed-.5)*40,p.y-30);c.rotate(m.rot);c.scale(sc,sc);
+    c.beginPath();for(let i=0;i<24;i++){const a=i/24*Math.PI*2,r=i%2?26:46+((i*7+m.seed*20)%12);c.lineTo(Math.cos(a)*r*1.25,Math.sin(a)*r)}c.closePath();
+    c.fillStyle=m.s>1.2?'#ffd23f':'#ffffff';c.fill();c.lineWidth=4;c.strokeStyle='#141014';c.stroke();
+    c.font='400 30px "Black Han Sans", sans-serif';c.textAlign='center';c.textBaseline='middle';c.lineWidth=7;c.strokeStyle='#141014';c.strokeText(m.w,0,2);c.fillStyle=m.s>1.2?'#e2231a':'#141014';c.fillText(m.w,0,2);c.restore()}
+  if(G.whiteFlash>0){c.fillStyle=`rgba(255,255,255,${G.whiteFlash*2.5})`;c.fillRect(0,0,VW,VH)}
 }
 
 /* ================= skinned body (free three.js sample mannequin, Mixamo rig) ================= */
@@ -1277,10 +1392,11 @@ function attachXbot(f){
   inst.traverse(o=>{if(o.isBone){const n=o.name.replace('mixamorig','');bones[n]=o}
     if(o.isSkinnedMesh){o.castShadow=true;o.frustumCulled=false;o.material=M.skinMat}});
   M.body.add(inst);M.xb={inst,bones};
+  if(SET.style!=='real'){inst.traverse(o=>{if(o.isSkinnedMesh&&/Surface/i.test(o.name))M.xb.ink=skinnedInk(o)});if(bones.Head)bones.Head.scale.setScalar(.02)}
   // hide the primitive anatomy; keep trunks, gloves, boots and hair
   for(const o of [M.torso,M.neck])o.visible=false;
   for(const s of['L','R'])for(const k of['ua','fa','sh','el','th','sn','kn','bi','fo','ca','tr'])if(M[k+s])M[k+s].visible=false;
-  M.head.children.forEach(c=>{if(c!==M.hair)c.visible=false});
+  M.head.children.forEach(c=>{if(c!==M.hair&&!c.userData.keep)c.visible=false});
   M.pelvis.scale.set(.98,1,.95);
 }
 function detachXbot(f){const M=f.M;if(!M||!M.xb)return;M.body.remove(M.xb.inst);M.xb=null;
@@ -1325,7 +1441,7 @@ function driveXbot(f){
   // gloves ride on the mesh's hands, hair on its head
   for(const s of['L','R']){const hb=B[(s==='L'?'Left':'Right')+'Hand'];if(!hb)continue;hb.getWorldPosition(_xv);M.body.worldToLocal(_xv);
     const A=s==='L'?k.aL:k.aR;_xd.subVectors(A.h,A.e).normalize();M['gl'+s].position.copy(_xv).addScaledVector(_xd,.075)}
-  if(B.Head){B.Head.getWorldPosition(_xv);M.body.worldToLocal(_xv);M.head.position.copy(_xv).add(_xd.set(0,.085,.012).applyEuler(k.rh))}
+  if(B.Head){B.Head.getWorldPosition(_xv);M.body.worldToLocal(_xv);M.head.position.copy(_xv).add(_xd.set(0,SET.style!=='real'?.11:.085,.012).applyEuler(k.rh))}
 }
 
 /* ================= referee ================= */
@@ -1453,7 +1569,7 @@ function render(raw){
     updateCamera(raw);
     for(const fl of flashes){fl.t+=raw;if(fl.t>.15&&Math.random()<raw*.6){const a=Math.random()*Math.PI*2,r=rnd(5.5,11);fl.m.position.set(Math.sin(a)*r,rnd(-.2,3.4),Math.cos(a)*r);fl.t=0}
       fl.m.material.opacity=fl.t<.12?(1-fl.t/.12):0}
-    if(composer&&SET.gfx!=='low'){gradePass.uniforms.time.value=G.time%10;const st=!G.demo&&G.F[0]&&G.F[0].stunT>0&&G.phase==='fight';gradePass.uniforms.stun.value=st?1:0;composer.render()}
+    if(composer&&SET.gfx!=='low'){gradePass.uniforms.time.value=G.time%10;{const an=SET.style!=='real';gradePass.uniforms.sat.value=an?1.38:1.1;gradePass.uniforms.grain.value=an?0:.035;gradePass.uniforms.vig.value=an?.35:.55;gradePass.uniforms.exposure.value=an?.62:.75;bloomPass.strength=an?.18:.32}const st=!G.demo&&G.F[0]&&G.F[0].stunT>0&&G.phase==='fight';gradePass.uniforms.stun.value=st?1:0;composer.render()}
     else renderer.render(scene,camera);
   }
   drawHUDLayer();
@@ -1469,6 +1585,7 @@ function drawHUDLayer(){
   }
   const v=c.createRadialGradient(VW/2,VH*.55,VH*.35,VW/2,VH*.55,Math.max(VW,VH)*.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,composer&&SET.gfx!=='low'?'rgba(0,0,0,.15)':'rgba(0,0,0,.5)');c.fillStyle=v;c.fillRect(0,0,VW,VH);
   if(G.phase==='replay'){drawReplayHUD(c);return}
+  drawComics(c);
   if(!G.demo){drawZones(c);drawHUD(c);drawRipples(c);drawCharge(c);drawStick(c)}
   drawTexts(c);
   if(G.phase==='count'&&G.countN>0&&!(G.downF&&G.downF.down&&G.downF.down.rising)){
@@ -1666,6 +1783,8 @@ function showScreen(html,cls){scr.className=cls||'dim';scr.innerHTML=html;scr.hi
 function hideScreen(){scr.hidden=true;scr.innerHTML=''}
 const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
 let quickSel={opp:0,rounds:3};
+function rebuildModels(){for(const f of G.F){if(!f.M)continue;const keepR=f.M;scene.remove(keepR.root);f.M=buildModel(f.def);attachXbot(f);skeleton(f)}
+  if(G.ref){makeRef()}}
 function startDemo(){const a=pick(OPP),b=pick(OPP.filter(x=>x!==a));startFight({demo:true,p:a,o:b,rounds:99})}
 function menu(){
   if(!G.demo)startDemo();
@@ -1843,6 +1962,7 @@ function settingsScreen(){
     <div class="toggle"><span>자이로 이동</span>${gyroLive()?'<button data-act="calib">지금 자세를 기준으로</button>':'<button data-act="gyro">자이로 켜기</button>'}</div>
     <div class="toggle"><span>앞뒤 방향 반전</span><button class="${SET.invX?'on':''}" data-act="invX">${SET.invX?'켬':'끔'}</button></div>
     <div class="toggle"><span>터치 구역 표시</span><button class="${SET.zones?'on':''}" data-act="zones">${SET.zones?'켬':'끔'}</button></div>
+    <div class="toggle"><span>그림 스타일</span><div class="seg" style="width:170px"><button class="${SET.style!=='real'?'on':''}" data-act="style" data-v="anime">애니풍</button><button class="${SET.style==='real'?'on':''}" data-act="style" data-v="real">리얼풍</button></div></div>
     <div class="toggle"><span>그래픽 품질</span><div class="seg" style="width:170px"><button class="${SET.gfx!=='low'?'on':''}" data-act="gfx" data-v="high">높음</button><button class="${SET.gfx==='low'?'on':''}" data-act="gfx" data-v="low">가볍게</button></div></div>
     <p class="foot">'가볍게'는 빛 번짐·색보정·필름 효과를 끄고, 매끈한 인체 모델 대신 기본 도형 선수로 바꿔 오래된 폰이나 배터리 절약에 좋아요.</p>
   </div>`);
@@ -1894,6 +2014,7 @@ scr.addEventListener('click',e=>{
     case'invX':SET.invX=!SET.invX;persistSet();G.phase==='paused'?showScreen(pauseHTML()):settingsScreen();break;
     case'invY':SET.invY=!SET.invY;persistSet();showScreen(pauseHTML());break;
     case'settings':settingsScreen();break;
+    case'style':SET.style=b.dataset.v;persistSet();rebuildModels();settingsScreen();break;
     case'gfx':SET.gfx=b.dataset.v;persistSet();setupPost();for(const f of G.F){if(SET.gfx==='low')detachXbot(f);else attachXbot(f)}if(spot){spot.shadow.mapSize.set(SET.gfx==='low'?1024:2048,SET.gfx==='low'?1024:2048);if(spot.shadow.map){spot.shadow.map.dispose();spot.shadow.map=null}}resize();settingsScreen();break;
     case'zones':SET.zones=!SET.zones;persistSet();G.phase==='paused'?showScreen(pauseHTML()):settingsScreen();break;
     case'quit':{hideScreen();if(G.career){save.l++;persist()}G.prevPhase=null;menu();break}
