@@ -187,20 +187,26 @@ const TRAITS={
   onepunch:{name:'원펀치',    desc:'스트레이트·어퍼컷 위력 1.3배, 한 방에 휘청이게 만들기 쉬워요'},
 };
 const hasT=(f,t)=>f.def.trait===t;
+// arm length matters: every cm of reach over 190 adds 6 mm of punching range (and longer arms on the model)
+const reachOf=f=>((f.def.reach||190)-190)*.006;
+const armK=f=>clamp((f.def.reach||190)/190,.9,1.1);
+const BUILDS={balance:{name:'밸런스',desc:'리치 193cm · 파워 그대로',reach:193,h:185,wt:98,pw:0},
+  reach:{name:'리치형',desc:'리치 204cm로 멀리서 맞히지만 파워 -6',reach:204,h:192,wt:95,pw:-6},
+  power:{name:'파워형',desc:'파워 +6이지만 리치 181cm라 파고들어야 해요',reach:181,h:179,wt:104,pw:6}};
 const OPP=[
-  {id:'obc',  name:'오병철',nick:'동네 주먹',  trait:'rage',    style:'slugger', power:52,speed:40,chin:46,stamina:44,skill:24,aggr:.55,rec:'7-5 (5 KO)',  h:178,wt:92, reach:180,skin:'#e0b08a',hair:'#1a1411',trunks:'#2f6fd6',trim:'#ffffff',glove:'#c62828',shoe:'#1a1a1a',rounds:3,
+  {id:'obc',  name:'오병철',nick:'동네 주먹',  trait:'rage',    style:'slugger', power:56,speed:40,chin:46,stamina:44,skill:24,aggr:.55,rec:'7-5 (5 KO)',  h:176,wt:92, reach:176,skin:'#e0b08a',hair:'#1a1411',trunks:'#2f6fd6',trim:'#ffffff',glove:'#c62828',shoe:'#1a1a1a',rounds:3,
     bio:'골목에서 싸움으로 이름을 날리다 링에 올라왔다. 맞을수록 눈이 뒤집힌다.'},
   {id:'hdj',  name:'한도진',nick:'철벽',       trait:'wall',    style:'counter', power:50,speed:48,chin:60,stamina:58,skill:36,aggr:.42,rec:'12-3 (4 KO)', h:182,wt:95, reach:186,skin:'#d9a47c',hair:'#120d0a',trunks:'#3d3d3d',trim:'#9fd3ff',glove:'#9fd3ff',shoe:'#3d3d3d',rounds:3,
     bio:'가드를 올리면 문이 잠긴다. 지쳐서 손이 내려오는 순간을 기다리는 타입.'},
-  {id:'sgw',  name:'서강우',nick:'번개',       trait:'flash',   style:'outboxer',power:50,speed:72,chin:48,stamina:64,skill:46,aggr:.5, rec:'16-2 (6 KO)', h:184,wt:90, reach:191,skin:'#e8bb95',hair:'#0f0c0a',trunks:'#f2f2f2',trim:'#c0392b',glove:'#f2f2f2',shoe:'#f2f2f2',rounds:4,
+  {id:'sgw',  name:'서강우',nick:'번개',       trait:'flash',   style:'outboxer',power:44,speed:72,chin:48,stamina:64,skill:46,aggr:.5, rec:'16-2 (6 KO)', h:190,wt:90, reach:202,skin:'#e8bb95',hair:'#0f0c0a',trunks:'#f2f2f2',trim:'#c0392b',glove:'#f2f2f2',shoe:'#f2f2f2',rounds:4,
     bio:'잡히지 않는 발. 들어오면 이미 옆에 서 있다.'},
-  {id:'mts',  name:'마태식',nick:'불도저',     trait:'undying', style:'slugger', power:70,speed:44,chin:74,stamina:56,skill:48,aggr:.62,rec:'19-4 (16 KO)',h:191,wt:112,reach:196,skin:'#a86e47',hair:'#100b08',trunks:'#6b1d1d',trim:'#e8c15a',glove:'#6b1d1d',shoe:'#e8c15a',rounds:4,
+  {id:'mts',  name:'마태식',nick:'불도저',     trait:'undying', style:'slugger', power:74,speed:44,chin:74,stamina:56,skill:48,aggr:.62,rec:'19-4 (16 KO)',h:186,wt:112,reach:184,skin:'#a86e47',hair:'#100b08',trunks:'#6b1d1d',trim:'#e8c15a',glove:'#6b1d1d',shoe:'#e8c15a',rounds:4,
     bio:'쓰러뜨려도 다시 걸어 들어온다. 판정까지 가면 이쪽이 먼저 지친다.'},
-  {id:'cmh',  name:'차민혁',nick:'사냥개',     trait:'hunter',  style:'swarmer', power:62,speed:62,chin:62,stamina:76,skill:58,aggr:.74,rec:'21-2 (14 KO)',h:179,wt:96, reach:183,skin:'#c98d62',hair:'#120d0a',trunks:'#1f8a4c',trim:'#f2d14b',glove:'#f2d14b',shoe:'#1f8a4c',rounds:5,
+  {id:'cmh',  name:'차민혁',nick:'사냥개',     trait:'hunter',  style:'swarmer', power:64,speed:62,chin:62,stamina:76,skill:58,aggr:.74,rec:'21-2 (14 KO)',h:177,wt:96, reach:178,skin:'#c98d62',hair:'#120d0a',trunks:'#1f8a4c',trim:'#f2d14b',glove:'#f2d14b',shoe:'#1f8a4c',rounds:5,
     bio:'파고들어 옆구리만 판다. 3라운드쯤 되면 상대 손이 저절로 내려간다.'},
-  {id:'yjh',  name:'윤재하',nick:'카운터',     trait:'counter', style:'counter', power:64,speed:74,chin:62,stamina:66,skill:74,aggr:.44,rec:'24-2 (12 KO)',h:185,wt:96, reach:190,skin:'#e2ae86',hair:'#0c0a09',trunks:'#151515',trim:'#e23b3b',glove:'#e23b3b',shoe:'#151515',rounds:5,
+  {id:'yjh',  name:'윤재하',nick:'카운터',     trait:'counter', style:'counter', power:60,speed:74,chin:62,stamina:66,skill:74,aggr:.44,rec:'24-2 (12 KO)',h:189,wt:96, reach:199,skin:'#e2ae86',hair:'#0c0a09',trunks:'#151515',trim:'#e23b3b',glove:'#e23b3b',shoe:'#151515',rounds:5,
     bio:'먼저 치는 법이 없다. 헛스윙 한 번이 그대로 다운으로 돌아온다.'},
-  {id:'bdh',  name:'백도현',nick:'콤보 머신',  trait:'combo',   style:'swarmer', power:68,speed:80,chin:64,stamina:80,skill:76,aggr:.76,rec:'27-1 (19 KO)',h:183,wt:99, reach:188,skin:'#b97a52',hair:'#140e0a',trunks:'#d4a017',trim:'#141414',glove:'#141414',shoe:'#d4a017',rounds:6,
+  {id:'bdh',  name:'백도현',nick:'콤보 머신',  trait:'combo',   style:'swarmer', power:70,speed:80,chin:64,stamina:80,skill:76,aggr:.76,rec:'27-1 (19 KO)',h:180,wt:99, reach:182,skin:'#b97a52',hair:'#140e0a',trunks:'#d4a017',trim:'#141414',glove:'#141414',shoe:'#d4a017',rounds:6,
     bio:'한 번 손이 나오면 다섯 번은 나온다. 가드 위로도 쉬지 않고 두드린다.'},
   {id:'ktm',  name:'강태무',nick:'전설',       trait:'onepunch',style:'slugger', power:86,speed:70,chin:82,stamina:78,skill:84,aggr:.6, rec:'31-0 (27 KO)',h:194,wt:110,reach:203,skin:'#6a4029',hair:'#0b0807',trunks:'#101010',trim:'#d9b44a',glove:'#d9b44a',shoe:'#101010',rounds:7,champ:true,
     bio:'무패의 챔피언. 오른손 한 방으로 끝난 경기가 스물일곱 번.'},
@@ -223,19 +229,20 @@ const angLerp=(a,b,t)=>{let d=((b-a+Math.PI*3)%(Math.PI*2))-Math.PI;return a+d*t
 /* ================= save ================= */
 function loadSave(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  const d={name:'',trait:'engine',trunks:0,skin:1,stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[]};
+  const d={name:'',trait:'engine',build:'balance',trunks:0,skin:1,stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[]};
   if(!s||typeof s!=='object')return d;
   return Object.assign(d,s,{stats:Object.assign(d.stats,s.stats||{})});
 }
 let save=loadSave();
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-let SET={zones:true,sens:1,invX:false,invY:false,full:true};
+let SET={zones:true,sens:1,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 function persistSet(){try{localStorage.setItem(SKEY,JSON.stringify(SET))}catch(e){}}
 function playerDef(){
   const tr=TRUNKS[save.trunks]||TRUNKS[0];
-  return {id:'player',name:save.name||'도전자',nick:'',trait:TRAITS[save.trait]?save.trait:'engine',style:'outboxer',...save.stats,skill:60,aggr:.55,
-    rec:`${save.w}-${save.l}${save.d?'-'+save.d:''} (${save.ko} KO)`,h:185,wt:98,reach:193,
+  const B=BUILDS[save.build]||BUILDS.balance;
+  return {id:'player',name:save.name||'도전자',nick:'',trait:TRAITS[save.trait]?save.trait:'engine',style:'outboxer',...save.stats,power:clamp(save.stats.power+B.pw,30,99),skill:60,aggr:.55,
+    rec:`${save.w}-${save.l}${save.d?'-'+save.d:''} (${save.ko} KO)`,h:B.h,wt:B.wt,reach:B.reach,build:B.name,
     skin:SKIN[save.skin]||SKIN[1],hair:'#14100d',trunks:tr.t,trim:tr.trim,glove:tr.glove,shoe:tr.shoe};
 }
 
@@ -491,7 +498,7 @@ function roundStart(){
 function isGuarding(f){return f.guardHeld&&!f.action&&f.stunT<=0&&!f.down}
 function doAction(f,type,hand,body){
   if(f.down||f.stunT>0)return false;
-  if(f.action){f.queued={type,hand,body};return false}
+  if(f.action){f.queued={type,hand,body,link:f.action.kind==='evade'&&!!PUNCH[type]?f.action.ev:null};return false}
   let tf=(1.18-f.def.speed/280)*(1+(1-f.st/100)*.55)*(f.st<15?1.25:1);
   if(hasT(f,'rage')&&f.hp<35)tf*=.87;
   if(EVADE[type]){if(f.st<3)return false;f.action={kind:'evade',ev:type,t:0,d:EVADE[type].d*tf*(hasT(f,'flash')?1.15:1),id:++UID};f.st-=3;
@@ -520,7 +527,7 @@ function resolveHit(at,df){
   const a=at.action,D=PUNCH[a.type];
   if(df.down)return;
   const dist=Math.hypot(df.x-at.x,df.z-at.z);
-  if(dist>D.range-(a.body?.05:0)){sfx.whoosh();at.st=Math.max(0,at.st-1.5-D.cost*.3);whiffed(at,df,D);return}
+  if(dist>D.range+reachOf(at)-(a.body?.05:0)){sfx.whoosh();at.st=Math.max(0,at.st-1.5-D.cost*.3);whiffed(at,df,D);return}
   const wa=df.action;
   if(evading(df,a.type,a.body)){
     at.offT=.5;df.counterT=1;sfx.whoosh();whiffed(at,df,D);if(df===G.F[0]&&!G.demo){G.slow=.45;G.slowT=.18}
@@ -540,6 +547,7 @@ function resolveHit(at,df){
   if(counter)dmg*=hasT(at,'counter')?2:1.55;
   at.counterT=0;
   if(temple)dmg*=1.8;else if(rising)dmg*=1.5;
+  if(a.linked){dmg*=1.25;if(!G.demo&&(at===G.F[0]||df===G.F[0]))pop({duck:'더킹 ',weave:'위빙 ',pull:'풀백 ',slipL:'슬립 ',slipR:'슬립 '}[a.linked]+D.name+'!','#ffd36b',false,.8)}
   // critical: heavy hitters can land the one that switches the lights off
   let crit=false,flash=false;
   if(!a.body&&D.power&&!isGuarding(df)){
@@ -646,13 +654,15 @@ function aiThink(f,o,dt){
     }
   }
   if(ai.react){ai.react.t-=dt;if(ai.react.t<=0){const r=ai.react.resp;ai.react=null;
-    if(EVADE[r]){if(!f.action)doAction(f,r)}
+    if(EVADE[r]){if(!f.action&&doAction(f,r)&&Math.random()<.25+sk*.55){const lk={duck:['upper','hook'],weave:['hook','hook','upper'],pull:['cross','jab'],slipL:['cross','hook'],slipR:['hook','cross']}[r];
+      const ty=pick(lk);f.queued={type:ty,hand:ty==='cross'?'R':ty==='jab'?'L':(Math.random()<.5?'L':'R'),body:Math.random()<.25,link:r}}}
     else if(r==='guard'){
       if(f.action&&f.action.kind==='punch'&&f.action.t<f.action.s*.5&&Math.random()<sk*.6){f.action=null;f.queued=null}
       if(!f.action){ai.guardT=Math.max(ai.guardT,rnd(.35,.8));ai.combo.length=0}
     }else ai.moveT=.35;
   }}
-  let want=S.dist+Math.sin(ai.phase*.7)*.08;
+  // in-and-out rhythm: drift into range, then out again, like a boxer finding distance
+  let want=S.dist+reachOf(f)*.8+Math.sin(ai.phase*2.1)*.17+Math.sin(ai.phase*.6)*.06;
   if(f.st<25)want+=.25;
   if(o.stunT>0||o.st<15)want=Math.min(want,.82);
   if(ai.moveT<0){ai.moveT+=dt;f.mvF=1;if(ai.moveT>=0)ai.moveT=0}
@@ -660,7 +670,8 @@ function aiThink(f,o,dt){
   else if(dist>want+.1)f.mvF=.7;else if(dist<want-.1)f.mvF=-.6;
   if(ai.strafeT<=0){ai.strafe=Math.random()<.6?0:(Math.random()<.5?-1:1);ai.strafeT=rnd(1.5,3.5)}
   f.mvS=0;
-  if(!ai.combo.length&&dist>want+.05&&Math.random()<dt*.6*df.aggr)ai.moveT=-.35;
+  if(!ai.combo.length&&dist>want+.05&&Math.random()<dt*1.2*df.aggr)ai.moveT=-.3;
+  if(Math.abs(o.x)>RING_L-.5&&dist>.8&&df.aggr>.5)f.mvF=Math.max(f.mvF,.6); // cut off the ring when they're on the ropes
   // keep away from ropes: steer toward center
   if(Math.abs(f.x)>RING_L-.35&&f.mvF<0)f.mvF=0;
   if(ai.guardT<=0&&!f.action&&!ai.combo.length&&dist<1.25&&Math.random()<dt*(.6+sk*1.1)*(f.st<30?2:1))ai.guardT=rnd(.4,1.1)*(f.st<30?1.6:1);
@@ -687,7 +698,7 @@ function aiThink(f,o,dt){
       if(ready&&ai.combo[0].type==='hay'&&!f.action){const n=ai.combo[0];
         if(!f.charge)f.charge={hand:n.hand,k:0,body:n.body};
         f.charge.k=Math.min(1,f.charge.k+dt/.6);if(f.charge.k>=1){ai.combo.shift();doAction(f,'hay',n.hand,n.body);if(!ai.combo.length)ai.cool=rnd(.8,1.6)}}
-      else if(ready){const n=ai.combo.shift();doAction(f,n.type,n.hand,n.body);if(!ai.combo.length)ai.cool=rnd(.55,1.5)*(1.4-df.aggr)*(f.st<40?1.6:1)}
+      else if(ready){const n=ai.combo.shift();doAction(f,n.type,n.hand,n.body);if(!ai.combo.length){ai.cool=rnd(.55,1.5)*(1.4-df.aggr)*(f.st<40?1.6:1);if(df.style!=='swarmer'&&Math.random()<.65)ai.moveT=rnd(.25,.45)}}
     }
   }
 }
@@ -703,15 +714,19 @@ function updFighter(f,o,dt){
     a.t+=dt;
     if(a.kind==='punch'&&!a.done&&a.t>=a.s){a.done=true;resolveHit(f,o)}
     const end=a.kind==='punch'?a.s+a.a+a.r:a.d;
-    if(f.action===a&&a.t>=end){if(a.kind==='evade')f.evadeEnd=G.time;f.action=null;if(f.queued){const q=f.queued;f.queued=null;doAction(f,q.type,q.hand,q.body)}}
+    // a punch typed during a duck/weave/slip/pull comes straight out of the movement, faster and harder
+    if(f.action===a&&a.kind==='evade'&&f.queued&&f.queued.link&&a.t/a.d>=.5){const q=f.queued;f.queued=null;f.evadeEnd=G.time;f.action=null;
+      if(doAction(f,q.type,q.hand,q.body)&&f.action){f.action.linked=q.link;f.action.s*=.65}}
+    if(f.action===a&&a.t>=end){if(a.kind==='evade')f.evadeEnd=G.time;f.action=null;if(f.queued){const q=f.queued;f.queued=null;
+      if(doAction(f,q.type,q.hand,q.body)&&q.link&&f.action){f.action.linked=q.link;f.action.s*=.75}}}
   }
   let F=f.mvF,S=f.mvS;
   if(f.charge){F*=.45;S*=.45}
   if(f.action&&f.action.kind==='punch'){F*=.3;S*=.3}
   const m=Math.hypot(F,S);if(m>1){F/=m;S/=m}
-  const sp=1.25*(.8+f.def.speed/250)*(hasT(f,'flash')?1.25:1)*(isGuarding(f)?.7:1)*(f.stunT>0?.45:1)*(f.st<15?.75:1);
+  const sp=1.5*(.8+f.def.speed/250)*(hasT(f,'flash')?1.25:1)*(isGuarding(f)?.7:1)*(f.stunT>0?.45:1)*(f.st<15?.75:1);
   const fx=Math.sin(f.facing),fz=Math.cos(f.facing),lx=Math.cos(f.facing),lz=-Math.sin(f.facing);
-  const tvx=(fx*F+lx*S)*sp,tvz=(fz*F+lz*S)*sp,ka=1-Math.exp(-dt*(m>.05?5:6));
+  const tvx=(fx*F+lx*S)*sp,tvz=(fz*F+lz*S)*sp,ka=1-Math.exp(-dt*(m>.05?7:7));
   f.vx+=(tvx-f.vx)*ka;f.vz+=(tvz-f.vz)*ka;f.x+=f.vx*dt;f.z+=f.vz*dt;
   const spd=Math.hypot(f.vx,f.vz);if(spd>.15){f.walk+=dt*Math.min(1.4,spd/1.4);f.st=Math.max(0,f.st-1.1*dt*Math.min(1,spd/sp))}
   if(!(f.action&&f.action.kind==='punch'))f.st=Math.min(f.stMax,f.st+(5.5+f.def.stamina*.075)*dt*(f.noHitT>.8?1.3:.8)*(isGuarding(f)?.75:1)*(hasT(f,'engine')?1.6:1));
@@ -727,6 +742,10 @@ function separate(){
 }
 function playerCharge(p){
   let held=null;const now=performance.now();
+  // holding guard builds a charge; let go of one finger when it's full and that hand fires the haymaker
+  if(IN.guard&&!p.action&&p.stunT<=0&&!p.down){p.gk=Math.min(1,(p.gk||0)+(G.lastDt||1/60)/.75);
+    if(p.gk>=1&&!p.gReady){p.gReady=true;sfx.ready();buzz(30);G.fovKick=Math.max(G.fovKick||0,1.5)}}
+  else if(!IN.guard){p.gk=0;p.gReady=false}
   for(const t of PT.values()){if(t.stick||t.used||t.guard||t.zone==='bot')continue;if(!held||t.t0<held.t0)held=t}
   if(!held||p.action||p.stunT>0||p.down){if(!p.action||p.action.type!=='hay'){p.charge=null;p.chargeReady=false}return}
   const k=clamp((now-held.t0-120)/360,0,1);
@@ -757,10 +776,11 @@ function step(raw){
   const[p,o]=G.F;
   if(G.phase==='fight'){
     G.fightT+=raw;
-    G.lastDt=dt;if(!G.demo){playerControl(p);playerCharge(p)}else aiThink(p,o,dt);
-    aiThink(o,p,dt);
+    G.lastDt=dt;const idle=G.demo&&!SET.demoFight;
+    if(idle){for(const f of G.F){f.mvF=f.mvS=0;f.guardHeld=false;f.charge=null}}
+    else{if(!G.demo){playerControl(p);playerCharge(p)}else aiThink(p,o,dt);aiThink(o,p,dt)}
     updFighter(p,o,dt);updFighter(o,p,dt);separate();faceTo(p,o);faceTo(o,p);
-    if(G.phase==='fight'){G.clock-=dt;if(G.clock<=0){G.clock=0;endRound()}}
+    if(G.phase==='fight'&&!idle){G.clock-=dt;if(G.clock<=0){G.clock=0;endRound()}}
   }else if(G.phase==='intro'){
     G.phaseT+=dt;
     for(const f of G.F){f.anim+=dt;f.mvF=f.mvS=0;if(f.hitT>0)f.hitT-=dt;tickAction(f,dt)}
@@ -874,7 +894,7 @@ function targetPose(f,o){
   if(f.celebrate){const w=Math.sin(t*7)*.04;Object.assign(P,{lgx:.2,lgy:.42+w,lgz:.05,rgx:-.2,rgy:.4-w,rgz:.05,lean:-.08,ht:-.25,tw:0,ptw:0,cr:.02});return P}
   // rhythm: light bounce on the balls of the feet, a little upper-body sway
   const spd=Math.hypot(f.vx,f.vz);
-  P.cr=.06+Math.sin(t*5.6+f.side)*.016+Math.min(.03,spd*.02);
+  P.cr=.06+Math.sin(t*5.6+f.side)*.026+Math.min(.04,spd*.03);
   P.lean=.13+Math.sin(t*2.3+f.side*2)*.025;
   P.roll=Math.sin(t*1.6+f.side)*.035;P.hx=Math.sin(t*1.6+f.side)*.015;
   P.lgx+=Math.sin(t*3.1)*.012;P.lgy+=Math.cos(t*2.7)*.015;P.rgy+=Math.cos(t*3.3)*.012;
@@ -895,6 +915,7 @@ function targetPose(f,o){
       case'weave':{const s=Math.cos(Math.PI*k);P.cr+=.3*w;P.lean+=.32*w;P.roll+=.42*s*w;P.hx-=.1*s*w;P.tw+=.2*s*w;P.lHeel=P.rHeel=0;break}
     }
   }
+  if(f.gk>0&&isGuarding(f)){const k=easeOut(f.gk);P.cr+=.05*k;P.tw+=.18*k;P.ptw+=.12*k;P.lean+=.04*k;if(f.gk>=1)P.hx+=Math.sin(t*40)*.004}
   if(f.charge&&!a){ // cocking the haymaker: rear hand loads way back, hips and shoulders wind up, slight shake at full load
     const c=f.charge,k=easeOut(c.k),sd=c.hand==='L'?1:-1,K=c.hand==='L'?'l':'r',tr=c.k>=1?Math.sin(t*45)*.006:0;
     P[K+'gx']+=sd*.2*k;P[K+'gy']+=.1*k+tr;P[K+'gz']-=.3*k;P[K+'Up']=k>.3?1:0;P[K+'Rot']=sd*.6*k;
@@ -918,7 +939,7 @@ function punchPose(f,o,P,a){
   const tg=a.body?o.bodyW:o.headW,ch=f.sk.chest;
   const dx=tg.x-f.x,dz=tg.z-f.z,c=Math.cos(f.facing),sn=Math.sin(f.facing);
   const lx=dx*c-dz*sn,lz=dx*sn+dz*c,ly=tg.y;
-  const reach=.95;
+  const reach=.95*armK(f);
   const ty=ly-ch.y,txL=lx-ch.x,oz=Math.min(lz-.15,ch.z+reach)-ch.z;
   const L=a.hand==='L',side=L?1:-1,K=L?'l':'r',O=L?'r':'l';
   const g0={x:P[K+'gx'],y:P[K+'gy'],z:P[K+'gz']};
@@ -1015,8 +1036,8 @@ function skeleton(f){
   k.rh.set(p.lean+p.ht,p.tw*.55+p.hy,p.roll+p.hs,'YXZ');
   k.head.set(0,.15,.025).applyEuler(k.rh).add(k.neck);
   k.gL.set(k.chest.x+p.lgx,k.chest.y+p.lgy,k.chest.z+p.lgz);k.gR.set(k.chest.x+p.rgx,k.chest.y+p.rgy,k.chest.z+p.rgz);
-  ik3(k.shL,k.gL,.31,.36,p.lUp>.5?POLE.out[0]:POLE.down[0],k.aL);
-  ik3(k.shR,k.gR,.31,.36,p.rUp>.5?POLE.out[1]:POLE.down[1],k.aR);
+  const ak=armK(f);ik3(k.shL,k.gL,.31*ak,.36*ak,p.lUp>.5?POLE.out[0]:POLE.down[0],k.aL);
+  ik3(k.shR,k.gR,.31*ak,.36*ak,p.rUp>.5?POLE.out[1]:POLE.down[1],k.aR);
   const ct=Math.cos(p.ptw),st=Math.sin(p.ptw);
   k.hipL.set(k.pel.x+.1*ct,k.pel.y-.07,k.pel.z-.1*st);k.hipR.set(k.pel.x-.1*ct,k.pel.y-.07,k.pel.z+.1*st);
   if(f.feet){footLocal(f,f.feet.L,k.ftL);footLocal(f,f.feet.R,k.ftR);k.ftL.y=.1+f.feet.L.lift+p.lHeel*.035;k.ftR.y=.1+f.feet.R.lift+p.rHeel*.035}
@@ -1245,6 +1266,10 @@ function drawZones(c){
 }
 function drawCharge(c){ // a ring fills while a finger is held for a haymaker
   if(G.phase!=='fight')return;const now=performance.now();
+  {const p=G.F[0];if(IN.guard&&p.gk>0){let gx=0,gy=0,n=0;for(const t of PT.values())if(t.guard){gx+=t.x;gy+=t.y;n++}
+    if(n){gx/=n*SC;gy/=n*SC;c.save();c.lineWidth=5;c.strokeStyle='rgba(255,255,255,.18)';c.beginPath();c.arc(gx,gy,40,0,7);c.stroke();
+      c.strokeStyle=p.gk>=1?'#ff5a4a':'#e3b23c';c.beginPath();c.arc(gx,gy,40,-Math.PI/2,-Math.PI/2+p.gk*Math.PI*2);c.stroke();
+      c.fillStyle='#fff';c.font='400 15px "Black Han Sans", sans-serif';c.textAlign='center';c.fillText(p.gk>=1?'한 손을 떼면 그 손 헤이메이커!':'가드하며 힘 모으는 중',gx,gy-52);c.restore()}}}
   for(const t of PT.values()){if(t.stick||t.used||t.guard||t.zone==='bot')continue;const k=Math.min(1,(now-t.t0-120)/360);if(k<=0)continue;
     c.save();c.lineWidth=4;c.strokeStyle='rgba(255,255,255,.18)';c.beginPath();c.arc(t.x/SC,t.y/SC,34,0,7);c.stroke();
     c.strokeStyle=k>=1?'#ff5a4a':'#e3b23c';c.beginPath();c.arc(t.x/SC,t.y/SC,34,-Math.PI/2,-Math.PI/2+k*Math.PI*2);c.stroke();
@@ -1326,7 +1351,9 @@ touchEl.addEventListener('pointermove',e=>{
 function ptEnd(e){
   const t=PT.get(e.pointerId);if(!t)return;PT.delete(e.pointerId);
   if(t.stick){IN.mx=IN.my=0;return}
-  if(t.guard){IN.guard=false;for(const o of PT.values())if(o.guard){o.guard=false;o.used=true}return}
+  if(t.guard){IN.guard=false;for(const o of PT.values())if(o.guard){o.guard=false;o.used=true}
+    const p=G.F[0];if(p&&p.gk>=1&&G.phase==='fight'){p.charge={hand:t.half,k:1};p.gk=0;p.gReady=false;playerAct('hay',t.half,false,t.x,t.y);if(p.action&&p.action.type==='hay')p.action.s=.12}
+    return}
   const dur=performance.now()-t.t0;
   if(t.used||(e.type==='pointercancel'&&dur<480))return;
   if(dur>=480&&t.zone!=='bot'){playerAct('hay',t.half,t.zone==='mid',t.x,t.y);return}
@@ -1382,6 +1409,7 @@ function menu(){
       <button class="btn primary" data-act="career">커리어 모드<small>랭커 8명을 꺾고 챔피언 벨트에 도전</small></button>
       <button class="btn" data-act="quick">빠른 대전<small>상대와 라운드 수를 골라 바로 한 판</small></button>
       <button class="btn" data-act="howto">조작법</button>
+      <button class="back" data-act="demotog" style="align-self:flex-start">${SET.demoFight?'배경 AI 대전 끄기':'배경 AI 대전 보기'}</button>
       ${fsOK()?'<button class="btn" data-act="fullnow">전체화면 · 가로 고정<small>경기를 시작하면 자동으로 전체화면이 돼요</small></button>':''}
     </div>
     <p class="foot">가로 화면 추천 · 폰을 기울여 움직이고 화면을 터치해 펀치를 냅니다.${!T?'<br>3D 엔진을 불러오지 못했어요. 네트워크를 확인해 주세요.':''}</p>
@@ -1404,6 +1432,9 @@ function howto(back){
     <dt>펀치 성격</dt><dd>잽은 빠르지만 약하고, 훅은 크게 휘둘러 느리지만 세요. 어퍼컷은 가까이서 타이밍이 맞아야 들어가고 가장 강해요. 크게 헛치면 빈틈이 생겨요</dd>
     <dt>바디 연타</dt><dd>바디를 연달아 맞히면 한 대마다 데미지가 30%씩 올라가고, 4연타면 상대가 잠깐 굳어요</dd>
     <dt>스태미나</dt><dd>지칠수록 펀치가 느려지고 약해져요. 맞지 않고 숨을 고르면 빨리 차요</dd>
+    <dt>회피 연계</dt><dd>더킹·위빙·슬립·풀백 도중에 펀치를 입력하면 회피에서 곧바로 이어져 나가요(빠르고 1.25배). 더킹→어퍼, 위빙→훅이 특히 잘 어울려요</dd>
+    <dt>가드 차징</dt><dd>가드(양손)를 누르고 있으면 힘이 모여요. 링이 빨개졌을 때 한 손을 떼면 그 손으로 바로 헤이메이커</dd>
+    <dt>체형</dt><dd>리치가 길면 멀리서 맞히고, 짧으면 파워로 승부해요. 선수 등록에서 내 체형도 고를 수 있어요</dd>
     <dt>위험한 순간</dt><dd>위빙·더킹 중에 바디 훅이나 어퍼가 오면 숙인 머리 관자놀이에 맞아요(1.8배). 회피 동작이 끝나 머리를 드는 순간 맞으면 정타(1.5배)</dd>
     <dt>크리티컬</dt><dd>파워가 센 선수의 파워 펀치는 가끔 크리티컬(2배)이 나고, 한 방에 KO될 수도 있어요. 카운터·정타 상황이면 확률이 올라가요</dd>
     <dt>다운</dt><dd>다운이 나오면 슬로모션 리플레이가 나와요(탭하면 건너뛰기). 보통 카운트 3쯤이면 일어나고, 일어나면 체력 30%. 강펀처에게 맞았을 땐 연타해도 못 일어날 수 있어요</dd>
@@ -1436,14 +1467,15 @@ function career(){
     <button class="back" data-act="reset" style="align-self:flex-start">커리어 초기화</button>
   </div>`);
 }
-let draft={name:'',skin:1,trunks:0,trait:'engine'};
+let draft={name:'',skin:1,trunks:0,trait:'engine',build:'balance'};
 function createFighter(){
-  draft={name:save.name||'',skin:save.skin,trunks:save.trunks,trait:TRAITS[save.trait]?save.trait:'engine'};
+  draft={name:save.name||'',skin:save.skin,trunks:save.trunks,trait:TRAITS[save.trait]?save.trait:'engine',build:BUILDS[save.build]?save.build:'balance'};
   showScreen(`<div class="sheet">
     <div class="sheet-h"><button class="back" data-act="menu">← 메뉴</button><h2>선수 등록</h2></div>
     <div class="field"><label class="lbl" for="nm">링 네임</label><input id="nm" maxlength="10" placeholder="예: 강펀치" value="${esc(draft.name)}"></div>
     <div class="field"><span class="lbl">피부</span><div class="sw" id="swSkin">${SKIN.map((s,i)=>`<button data-act="skin" data-i="${i}" class="${i===draft.skin?'on':''}" style="background:${s}" aria-label="피부 ${i+1}"></button>`).join('')}</div></div>
     <div class="field"><span class="lbl">트렁크</span><div class="sw" id="swTr">${TRUNKS.map((t,i)=>`<button data-act="trunk" data-i="${i}" class="${i===draft.trunks?'on':''}" style="background:linear-gradient(${t.t} 70%,${t.trim} 70%)" aria-label="트렁크 ${i+1}"></button>`).join('')}</div></div>
+    <div class="field"><span class="lbl">체형</span><div class="traits" id="bdPick">${Object.entries(BUILDS).map(([k,t])=>`<button class="trait ${k===draft.build?'on':''}" data-act="pbuild" data-k="${k}">${t.name}<small>${t.desc}</small></button>`).join('')}</div></div>
     <div class="field"><span class="lbl">특성</span><div class="traits" id="trPick">${Object.entries(TRAITS).map(([k,t])=>`<button class="trait ${k===draft.trait?'on':''}" data-act="ptrait" data-k="${k}">${t.name}<small>${t.desc}</small></button>`).join('')}</div></div>
     <button class="btn primary center" data-act="register">등록하고 시작</button>
   </div>`);
@@ -1534,10 +1566,13 @@ function pauseMenu(){
 }
 function launch(i,rounds,isCareer){audioStart();gyroStart();goFull();if(!GY.everTried)GY.everTried=performance.now();hideScreen();startFight({p:playerDef(),o:OPP[i],rounds,career:isCareer,oppIdx:i})}
 scr.addEventListener('click',e=>{
-  const b=e.target.closest('[data-act]');if(!b)return;audioStart();
+  const b=e.target.closest('[data-act]');
+  if(!b){if(G.demo&&SET.demoFight&&scr.classList.contains('menu-bg')){SET.demoFight=false;persistSet();menu()}return}
+  audioStart();
   const act=b.dataset.act;
   switch(act){
     case'menu':menu();break;
+    case'demotog':SET.demoFight=!SET.demoFight;persistSet();menu();break;
     case'career':G.pendingBack='career';if(!G.demo)startDemo();career();break;
     case'quick':if(!G.demo)startDemo();quick();break;
     case'howto':howto();break;
@@ -1552,7 +1587,8 @@ scr.addEventListener('click',e=>{
     case'skin':draft.name=$('#nm').value;draft.skin=+b.dataset.i;document.querySelectorAll('#swSkin button').forEach((x,j)=>x.classList.toggle('on',j===draft.skin));break;
     case'trunk':draft.name=$('#nm').value;draft.trunks=+b.dataset.i;document.querySelectorAll('#swTr button').forEach((x,j)=>x.classList.toggle('on',j===draft.trunks));break;
     case'register':{const n=$('#nm').value.trim();if(!n){$('#nm').focus();$('#nm').placeholder='링 네임을 입력해 주세요';break}
-      save.name=n.slice(0,10);save.skin=draft.skin;save.trunks=draft.trunks;save.trait=draft.trait;persist();career();break}
+      save.name=n.slice(0,10);save.skin=draft.skin;save.trunks=draft.trunks;save.trait=draft.trait;save.build=draft.build;persist();career();break}
+    case'pbuild':draft.build=b.dataset.k;if($('#nm'))draft.name=$('#nm').value;document.querySelectorAll('#bdPick .trait').forEach(x=>x.classList.toggle('on',x.dataset.k===draft.build));break;
     case'ptrait':draft.trait=b.dataset.k;if($('#nm'))draft.name=$('#nm').value;document.querySelectorAll('#trPick .trait').forEach(x=>x.classList.toggle('on',x.dataset.k===draft.trait));break;
     case'edit':createFighter();break;
     case'reset':if(b.dataset.confirm){save={...loadSave(),name:'',stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[]};persist();career()}
