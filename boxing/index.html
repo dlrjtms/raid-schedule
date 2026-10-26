@@ -67,9 +67,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .plus:disabled{opacity:.15}
 .pts{font-size:12px;color:var(--gold);margin-top:4px}
 .ladder{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
-.ladder li{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02)}
+.ladder li{display:grid;grid-template-columns:66px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02)}
 .ladder li.next{border-color:var(--red);background:rgba(217,48,44,.08)}
 .ladder li.locked{opacity:.45}
+.ladder li.me{border-color:var(--gold);background:rgba(232,193,90,.1)}
+.chip.me{color:var(--gold);border-color:rgba(232,193,90,.5)}
 .rank{font:600 20px/1 var(--f-num);color:var(--muted)}
 .rank.ch{color:var(--gold)}
 .lname{font:700 15px var(--f-body);min-width:0}
@@ -343,6 +345,16 @@ const OPP=[
     bio:'백발의 테크니션. 보였다 싶으면 이미 옆에 없고, 그 자리로 오른손이 온다.'},
   {id:'bdh',sig:'hookL',  name:'백도현',nick:'콤보 머신',  trait:'combo',   style:'swarmer', power:70,speed:80,chin:64,stamina:80,skill:76,aggr:.76,rec:'27-1 (19 KO)',h:180,wt:99, reach:182,skin:'#b97a52',hair:'#140e0a',trunks:'#d4a017',trim:'#141414',glove:'#141414',shoe:'#d4a017',rounds:6,
     bio:'한 번 손이 나오면 다섯 번은 나온다. 가드 위로도 쉬지 않고 두드린다.'},
+  {id:'hjs',sig:'cross',  name:'황진수',nick:'철권',       trait:'onepunch',style:'slugger', power:82,speed:58,chin:80,stamina:70,skill:72,aggr:.62,rec:'26-3 (22 KO)',h:188,wt:108,reach:192,skin:'#cf9670',hair:'#100b08',trunks:'#8a0f1e',trim:'#f2f2f2',glove:'#f2f2f2',shoe:'#8a0f1e',rounds:6,
+    bio:'전 동양 챔피언. 오른손이 닿는 순간 경기가 끝난다고 해서 붙은 이름.'},
+  {id:'osr',sig:'jab',  name:'오승룡',nick:'용',         trait:'flash',   style:'outboxer',power:66,speed:86,chin:66,stamina:84,skill:82,aggr:.5, rec:'28-2 (13 KO)',h:193,wt:96, reach:205,skin:'#ecbf9b',hair:'#1a120c',trunks:'#1b3f8f',trim:'#e8c15a',glove:'#e8c15a',shoe:'#1b3f8f',rounds:6,
+    bio:'올림픽 은메달리스트 출신. 링 전체를 쓰며 잽 하나로 판정을 가져간다.'},
+  {id:'jmk',sig:'cross',  name:'정민기',nick:'천재',       trait:'counter', style:'counter', power:72,speed:86,chin:70,stamina:78,skill:86,aggr:.45,rec:'29-1 (17 KO)',h:187,wt:97, reach:197,skin:'#e0aa82',hair:'#0d0a08',trunks:'#ffffff',trim:'#2a6fdb',glove:'#2a6fdb',shoe:'#ffffff',rounds:6,
+    bio:'열아홉에 데뷔해 한 번도 크게 맞은 적이 없다. 상대의 버릇을 2라운드 안에 읽는다.'},
+  {id:'kdy',sig:'b:hookL',  name:'김대영',nick:'탱크',       trait:'hunter',  style:'swarmer', power:78,speed:72,chin:86,stamina:88,skill:78,aggr:.8, rec:'30-2 (24 KO)',h:179,wt:104,reach:183,skin:'#b9784e',hair:'#120d0a',trunks:'#3b5d2a',trim:'#d9c27a',glove:'#d9c27a',shoe:'#3b5d2a',rounds:7,
+    bio:'뒤로 가는 법을 모른다. 맞으면서 들어와 옆구리부터 무너뜨린다.'},
+  {id:'bsh',sig:'hay',  name:'배성훈',nick:'괴물',       trait:'rage',    style:'slugger', power:92,speed:62,chin:88,stamina:74,skill:76,aggr:.7, rec:'27-1 (26 KO)',h:197,wt:118,reach:206,skin:'#8f5a3a',hair:'#0b0807',trunks:'#141414',trim:'#c0392b',glove:'#c0392b',shoe:'#141414',rounds:7,
+    bio:'링에 올라온 가장 큰 남자. 판정까지 간 경기가 단 한 번뿐이다.'},
   {id:'ktm',sig:'cross',  name:'강태무',nick:'전설',       trait:'onepunch',style:'slugger', power:86,speed:70,chin:82,stamina:78,skill:84,aggr:.6, rec:'31-0 (27 KO)',h:194,wt:110,reach:203,skin:'#6a4029',hair:'#0b0807',trunks:'#101010',trim:'#d9b44a',glove:'#d9b44a',shoe:'#101010',rounds:7,champ:true,
     bio:'무패의 챔피언. 오른손 한 방으로 끝난 경기가 스물일곱 번.'},
 ];
@@ -369,11 +381,54 @@ function loadSave(){
   return Object.assign(d,s,{stats:Object.assign(d.stats,s.stats||{})});
 }
 let save=loadSave();
+/* ---- heavyweight rankings: save.rank[0] is the champion, the player is 'player' ---- */
+const ovr=o=>(o.power+o.speed+o.chin+o.stamina+(o.skill||50))/5;
+const parseRec=r=>{const m=/(\d+)-(\d+)(?:-(\d+))?\s*\((\d+)\s*KO\)/.exec(r||'');return m?{w:+m[1],l:+m[2],d:+(m[3]||0),ko:+m[4]}:{w:0,l:0,d:0,ko:0}};
+function initRanks(){
+  const npcs=OPP.slice().sort((a,b)=>(b.champ?1:0)-(a.champ?1:0)||ovr(b)-ovr(a)).map(o=>o.id);
+  save.rank=save.beaten.includes('ktm')?['player',...npcs]:[...npcs,'player'];
+  save.defenses=save.defenses||0;save.defIdx=0;save.lossStreak=0;
+}
+function fixRanks(){ // keep the list in sync with the roster
+  if(!Array.isArray(save.rank))initRanks();
+  save.rank=save.rank.filter((id,i,a)=>a.indexOf(id)===i&&(id==='player'||OPP.some(o=>o.id===id)));
+  for(const o of OPP)if(!save.rank.includes(o.id))save.rank.splice(Math.max(0,save.rank.length-1),0,o.id);
+  if(!save.rank.includes('player'))save.rank.push('player');
+  save.npc=save.npc||{};for(const o of OPP)if(!save.npc[o.id])save.npc[o.id]=parseRec(o.rec);
+}
+// v22: five strong contenders join; count them as beaten (+15) and build the rankings
+if(!save.rankV){if(save.name&&(save.w||save.beaten.length)){for(const id of['hjs','osr','jmk','kdy','bsh'])if(!save.beaten.includes(id))save.beaten.push(id);save.points=(save.points||0)+15}initRanks();save.rankV=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
+fixRanks();
+const rankOf=id=>save.rank.indexOf(id);
+const isChamp=()=>rankOf('player')===0;
+const rankLabel=i=>i===0?'CHAMP':'#'+i;
+function nextChallenger(){const n=Math.min(5,save.rank.length-1);return save.rank[1+((save.defIdx||0)%n)]}
+function recOf(o){const r=save.npc&&save.npc[o.id];if(!r)return o.rec;return`${r.w}-${r.l}${r.d?'-'+r.d:''} (${r.ko} KO)`}
+function fightCtx(id){
+  const pr=rankOf('player'),or=rankOf(id);
+  if(pr===0)return id===nextChallenger()?'defense':'friendly';
+  if(or===0&&pr<=2)return'title';
+  if(or<pr)return pr-or<=2?'challenge':'locked';
+  return'ranked';
+}
+function moveRank(id,to){const a=save.rank,i=a.indexOf(id);a.splice(i,1);a.splice(clamp(to,0,a.length),0,id)}
+function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
+  const ctx=G.rankCtx||fightCtx(oppId),pr=rankOf('player'),or=rankOf(oppId),n=save.npc[oppId];const notes=[];
+  if(n){if(res==='W'){n.l++}else if(res==='L'){n.w++;if(ko)n.ko++}else n.d++}
+  if(res==='W'){save.lossStreak=0;
+    if(ctx==='defense'){save.defenses=(save.defenses||0)+1;save.defIdx=(save.defIdx||0)+1;notes.push(`타이틀 ${save.defenses}차 방어 성공!`)}
+    else if((ctx==='challenge'||ctx==='title')&&or<pr){moveRank('player',or);if(or===0){save.defenses=0;save.defIdx=0;notes.push('새로운 헤비급 챔피언!')}else notes.push(`랭킹 ${rankLabel(pr)} → ${rankLabel(or)}`)}
+  }else if(res==='L'){save.lossStreak=(save.lossStreak||0)+1;
+    if(ctx==='defense'||(ctx==='ranked'&&or>pr)){moveRank(oppId,pr);moveRank('player',pr+1);notes.push(ctx==='defense'?`벨트를 잃었어요. ${OPP.find(o=>o.id===oppId).name}이(가) 새 챔피언`:`랭킹 ${rankLabel(pr)} → ${rankLabel(pr+1)}`)}
+    if(save.lossStreak>=3){const now=rankOf('player'),to=Math.min(save.rank.length-1,now+2);if(to>now){moveRank('player',to);notes.push(`3연패로 랭킹 하락 ${rankLabel(now)} → ${rankLabel(to)}`)}save.lossStreak=0}
+  }
+  return notes;
+}
 // v21: wins used to pay out every time. Reset the stats and give 3 points per opponent beaten (once each) to spend again.
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v21';
+const APP_VER='v22';
 let SET={style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -1092,8 +1147,10 @@ function endFight(win,method){
   if(G.demo)return;
   if(G.career){
     const opp=OPP[G.oppIdx];
-    if(win===p){save.w++;if(method==='KO'||method==='TKO')save.ko++;if(!save.beaten.includes(opp.id)){save.beaten.push(opp.id);save.points+=3;G.firstWin=true}else G.firstWin=false}
+    const ko=method==='KO'||method==='TKO';
+    if(win===p){save.w++;if(ko)save.ko++;if(!save.beaten.includes(opp.id)){save.beaten.push(opp.id);save.points+=3;G.firstWin=true}else G.firstWin=false}
     else if(win===o)save.l++;else save.d++;
+    G.rankNotes=applyRanking(opp.id,win===p?'W':win===o?'L':'D',ko);
     persist();
   }
 }
@@ -1334,8 +1391,8 @@ function skinnedInk(sm){ // outline that bends with the skinned body: push the s
   m.onBeforeCompile=sh=>{sh.vertexShader=sh.vertexShader.replace('#include <begin_vertex>','vec3 transformed = vec3( position ) + normalize(objectNormal) * '+th+';')};
   const o=new T.SkinnedMesh(sm.geometry,m);o.bind(sm.skeleton,sm.bindMatrix);o.frustumCulled=false;o.userData.ink=true;sm.parent.add(o);return o;
 }
-const HAIRSTYLE={pjw:'short',nkh:'slick',ryd:'bald',ijs:'slick',obc:'spiky',hdj:'buzz',sgw:'slick',mts:'mohawk',cmh:'short',yjh:'slick',bdh:'spiky',ktm:'buzz',player:'spiky'};
-const EYES={pjw:'#3b2416',nkh:'#4a3018',ryd:'#1d1410',ijs:'#5a6a80',obc:'#3b2416',hdj:'#2a2a2a',sgw:'#3b2416',mts:'#1d1410',cmh:'#4a3018',yjh:'#262626',bdh:'#2e1d12',ktm:'#5a3a1a',player:'#3b2a1f'};
+const HAIRSTYLE={hjs:'buzz',osr:'slick',jmk:'short',kdy:'mohawk',bsh:'bald',pjw:'short',nkh:'slick',ryd:'bald',ijs:'slick',obc:'spiky',hdj:'buzz',sgw:'slick',mts:'mohawk',cmh:'short',yjh:'slick',bdh:'spiky',ktm:'buzz',player:'spiky'};
+const EYES={hjs:'#2a1a10',osr:'#3b2416',jmk:'#262626',kdy:'#1d1410',bsh:'#1a1009',pjw:'#3b2416',nkh:'#4a3018',ryd:'#1d1410',ijs:'#5a6a80',obc:'#3b2416',hdj:'#2a2a2a',sgw:'#3b2416',mts:'#1d1410',cmh:'#4a3018',yjh:'#262626',bdh:'#2e1d12',ktm:'#5a3a1a',player:'#3b2a1f'};
 function faceTex(def,state){
   const W=1024,H=512,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');g.scale(2,2);
   const ink='#2a1820',brow=def.hair||'#1a1411',iris=EYES[def.id]||'#3b2a1f',ref=!!def.ref;
@@ -2004,23 +2061,33 @@ function howto(back){
 function statRow(k,label){const v=save.stats[k];return`<div class="stat"><span>${label}</span><div class="bar"><i style="width:${v}%"></i></div><b>${v}</b><button class="plus" data-act="up" data-k="${k}" ${save.points<1||v>=99?'disabled':''} aria-label="${label} 올리기">+</button></div>`}
 function career(){
   if(!save.name)return createFighter();
-  const next=OPP.findIndex(o=>!save.beaten.includes(o.id)),champ=next<0;
+  fixRanks();
+  const pr=rankOf('player'),champ=pr===0,nc=champ?nextChallenger():null,streak=save.lossStreak||0;
+  const head=champ?`헤비급 챔피언 · 방어 ${save.defenses||0}회`:`헤비급 랭킹 ${rankLabel(pr)}`;
+  const tip=champ?`<p class="tip"><b>챔피언</b>입니다. 상위 랭커 5명이 돌아가며 도전해요. 다음 도전자: <b>${OPP.find(o=>o.id===nc).name}</b></p>`
+    :`<p class="tip">자기보다 <b>2계단 위</b>까지 도전할 수 있어요. 이기면 그 자리를 차지하고, 아래 순위에게 지면 자리를 내줘요. 3연패하면 2계단 떨어져요.${streak?` (현재 ${streak}연패)`:''}</p>`;
   showScreen(`<div class="sheet">
     <div class="sheet-h"><button class="back" data-act="menu">← 메뉴</button><h2>커리어</h2></div>
     <div class="pcard">
-      <div><p class="lbl">${champ?'헤비급 챔피언':'헤비급 도전자'}</p><p class="pname">${esc(save.name)}<span class="tchip">${TRAITS[playerDef().trait].name}</span></p>
+      <div><p class="lbl">${head}</p><p class="pname">${esc(save.name)}<span class="tchip">${TRAITS[playerDef().trait].name}</span></p>
         <div class="rec">${save.w}-${save.l}${save.d?'-'+save.d:''}<span>전적 · KO ${save.ko}</span></div>
         <p class="bio" style="margin-top:8px">${TRAITS[playerDef().trait].desc}</p><button class="back" data-act="edit" style="margin-top:8px">선수·특성 바꾸기</button></div>
       <div>${statRow('power','파워')}${statRow('speed','스피드')}${statRow('chin','맷집')}${statRow('stamina','스태미나')}
         <div class="pts">${save.points?`능력치 포인트 ${save.points} · + 한 번에 2씩 올라요`:'처음 이기는 상대마다 능력치 포인트 3 (재대결 승리는 포인트 없음)'}</div></div>
     </div>
+    ${tip}
     <div><p class="lbl">헤비급 랭킹</p><ol class="ladder">
-      ${OPP.map((o,i)=>{const won=save.beaten.includes(o.id),isNext=i===next,locked=!won&&!isNext;
-        return`<li class="${isNext?'next':''} ${locked?'locked':''}"><span class="rank ${o.champ?'ch':''}">${o.champ?'CHAMP':'#'+(OPP.length-1-i)}</span>
-        <span class="lname">${o.name}<span class="tchip">${TRAITS[o.trait].name}</span> <small>“${o.nick}” · ${STYLES[o.style].label} · ${o.rec} · ${o.rounds}R</small></span>
-        ${won?`<button class="chip won" data-act="pick" data-i="${i}">승리 · 재대결</button>`:isNext?`<button class="chip go" data-act="pick" data-i="${i}">도전</button>`:`<span class="chip">잠김</span>`}</li>`}).join('')}
+      ${save.rank.map((id,r)=>{
+        if(id==='player')return`<li class="me"><span class="rank ${r===0?'ch':''}">${rankLabel(r)}</span><span class="lname">${esc(save.name)} <small>나 · ${save.w}-${save.l}${save.d?'-'+save.d:''} (${save.ko} KO)${r===0?` · 방어 ${save.defenses||0}회`:''}</small></span><span class="chip me">나</span></li>`;
+        const i=OPP.findIndex(o=>o.id===id),o=OPP[i],c=fightCtx(id),won=save.beaten.includes(id);
+        const btn=c==='defense'?`<button class="chip go" data-act="pick" data-i="${i}">방어전</button>`
+          :c==='title'?`<button class="chip go" data-act="pick" data-i="${i}">타이틀전</button>`
+          :c==='challenge'?`<button class="chip go" data-act="pick" data-i="${i}">도전</button>`
+          :c==='locked'?`<span class="chip">잠김</span>`
+          :`<button class="chip ${won?'won':''}" data-act="pick" data-i="${i}">${c==='friendly'?'논타이틀':'경기'}</button>`;
+        return`<li class="${c==='defense'||c==='title'||c==='challenge'?'next':''} ${c==='locked'?'locked':''}"><span class="rank ${r===0?'ch':''}">${rankLabel(r)}</span>
+        <span class="lname">${o.name}<span class="tchip">${TRAITS[o.trait].name}</span> <small>“${o.nick}” · ${STYLES[o.style].label} · ${recOf(o)} · ${o.rounds}R${won?' · 승리 경험':''}</small></span>${btn}</li>`}).join('')}
     </ol></div>
-    ${champ?'<p class="tip"><b>챔피언!</b> 모든 랭커를 꺾었어요. 재대결로 타이틀을 방어해 보세요.</p>':''}
     <button class="back" data-act="reset" style="align-self:flex-start">커리어 초기화</button>
   </div>`);
 }
@@ -2046,7 +2113,7 @@ function tape(i,rounds){
     <div class="sheet-h"><button class="back" data-act="${G.pendingBack||'career'}">← 뒤로</button><h2>테일 오브 더 테이프</h2></div>
     <div class="tape">
       <div class="who"><small>${G.pendingBack==='quick'?'플레이어':'도전자'}</small>${esc(p.name)}</div><div class="vs">VS</div><div class="who r"><small>“${o.nick}”</small>${o.name}</div>
-      ${row('전적',p.rec,o.rec)}${row('신장',p.h+'cm',o.h+'cm')}${row('체중',p.wt+'kg',o.wt+'kg')}${row('리치',p.reach+'cm',o.reach+'cm')}
+      ${row('전적',p.rec,recOf(o))}${row('신장',p.h+'cm',o.h+'cm')}${row('체중',p.wt+'kg',o.wt+'kg')}${row('리치',p.reach+'cm',o.reach+'cm')}
       ${row('스타일','아웃복서',STYLES[o.style].label)}${row('특성',TRAITS[p.trait].name,TRAITS[o.trait].name)}${row('주무기','-',o.sig?SIGNAME[o.sig]:'-')}
       ${row('파워',p.power,o.power,cmp(p.power,o.power))}${row('스피드',p.speed,o.speed,cmp(p.speed,o.speed))}${row('맷집',p.chin,o.chin,cmp(p.chin,o.chin))}${row('스태미나',p.stamina,o.stamina,cmp(p.stamina,o.stamina))}
     </div>
@@ -2058,7 +2125,7 @@ function quick(){
   G.pendingBack='quick';
   showScreen(`<div class="sheet">
     <div class="sheet-h"><button class="back" data-act="menu">← 메뉴</button><h2>빠른 대전</h2></div>
-    <div><p class="lbl">상대</p><div class="opps">${OPP.map((o,i)=>`<button class="opp ${i===quickSel.opp?'on':''}" data-act="qopp" data-i="${i}"><span class="dot" style="background:linear-gradient(${o.trunks} 70%,${o.trim} 70%)"></span><div><b>${o.name}</b><small>“${o.nick}” · ${TRAITS[o.trait].name} · 종합 ${Math.round((o.power+o.speed+o.chin+o.stamina)/4)}</small></div></button>`).join('')}</div></div>
+    <div><p class="lbl">상대</p><div class="opps">${OPP.map((o,i)=>`<button class="opp ${i===quickSel.opp?'on':''}" data-act="qopp" data-i="${i}"><span class="dot" style="background:linear-gradient(${o.trunks} 70%,${o.trim} 70%)"></span><div><b>${o.name}</b><small>“${o.nick}” · ${recOf(o)} · ${TRAITS[o.trait].name} · 종합 ${Math.round((o.power+o.speed+o.chin+o.stamina)/4)}</small></div></button>`).join('')}</div></div>
     <div><p class="lbl">라운드</p><div class="seg">${[3,5,7].map(r=>`<button class="${r===quickSel.rounds?'on':''}" data-act="qr" data-r="${r}">${r}라운드</button>`).join('')}</div></div>
     <button class="btn primary center" data-act="qgo">테이프 확인</button>
   </div>`);
@@ -2090,7 +2157,7 @@ function showResult(){
   const title=draw?'무승부':pw?(method==='KO'||method==='TKO'?method+' 승리':'판정승'):(method==='KO'||method==='TKO'?method+' 패배':'판정패');
   const cards=G.cards&&(method!=='KO'&&method!=='TKO')?`<div class="cards">${G.cards.map(c=>`<span>${c[0]}-${c[1]}</span>`).join('')}</div>`:'';
   const opp=OPP[G.oppIdx];let extra='';
-  if(G.career&&pw)extra=opp.champ?'<p class="tip"><b>새로운 헤비급 챔피언!</b> 벨트를 차지했습니다. 능력치 포인트 3을 받았어요.</p>':'<p class="tip">능력치 포인트 <b>+3</b>. 커리어 화면에서 올려 주세요.</p>';
+  if(G.career){const notes=(G.rankNotes||[]).map(t=>`<b>${t}</b>`);if(pw&&G.firstWin)notes.push('첫 승리 보너스: 능력치 포인트 <b>+3</b>');if(notes.length)extra=`<p class="tip">${notes.join('<br>')}</p>`}
   G.cards=null;
   showScreen(`<div class="sheet">
     <div><p class="big-res ${pw?'win':'lose'}">${title}</p><p class="sub-res">${mname} · ${G.round}라운드</p></div>
@@ -2158,8 +2225,8 @@ scr.addEventListener('click',e=>{
     case'howto2':howto('pauseback');break;
     case'pauseback':showScreen(pauseHTML());break;
     case'up':{const k=b.dataset.k;if(save.points>0&&save.stats[k]<99){save.points--;save.stats[k]=Math.min(99,save.stats[k]+2);persist();career()}break}
-    case'pick':{const i=+b.dataset.i;G.pendingBack='career';tape(i,OPP[i].rounds);break}
-    case'go':gyroStart();launch(G.pending.i,G.pending.rounds,G.pendingBack==='career');break;
+    case'pick':{const i=+b.dataset.i,c=fightCtx(OPP[i].id);G.pendingBack='career';tape(i,(c==='defense'||c==='title')?Math.max(OPP[i].rounds,6):OPP[i].rounds);break}
+    case'go':gyroStart();G.rankCtx=G.pendingBack==='career'?fightCtx(OPP[G.pending.i].id):null;launch(G.pending.i,G.pending.rounds,G.pendingBack==='career');break;
     case'qopp':quickSel.opp=+b.dataset.i;quick();break;
     case'qr':quickSel.rounds=+b.dataset.r;quick();break;
     case'qgo':G.pendingBack='quick';tape(quickSel.opp,quickSel.rounds);break;
@@ -2170,10 +2237,10 @@ scr.addEventListener('click',e=>{
     case'pbuild':draft.build=b.dataset.k;if($('#nm'))draft.name=$('#nm').value;document.querySelectorAll('#bdPick .trait').forEach(x=>x.classList.toggle('on',x.dataset.k===draft.build));break;
     case'ptrait':draft.trait=b.dataset.k;if($('#nm'))draft.name=$('#nm').value;document.querySelectorAll('#trPick .trait').forEach(x=>x.classList.toggle('on',x.dataset.k===draft.trait));break;
     case'edit':createFighter();break;
-    case'reset':if(b.dataset.confirm){save={...loadSave(),name:'',stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[],statFix:1};persist();career()}
+    case'reset':if(b.dataset.confirm){save={...loadSave(),name:'',stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[],statFix:1,rankV:1,npc:null,rank:null,defenses:0};initRanks();fixRanks();persist();career()}
       else{b.dataset.confirm='1';b.textContent='한 번 더 누르면 초기화돼요';b.style.color='var(--red)'}break;
     case'next':nextRound();break;
-    case'rematch':launch(G.oppIdx,G.rounds,G.career);break;
+    case'rematch':if(G.career){const c=fightCtx(OPP[G.oppIdx].id);if(c==='locked'){career();break}G.rankCtx=c}launch(G.oppIdx,G.rounds,G.career);break;
     case'resume':hideScreen();G.phase=G.prevPhase||'fight';if(gyroLive())gyroCalib();break;
     case'full':SET.full=!isFull();persistSet();if(SET.full)goFull();else exitFull();setTimeout(()=>{if(G.phase==='paused')showScreen(pauseHTML())},300);break;
     case'fullnow':SET.full=true;persistSet();goFull();break;
@@ -2185,7 +2252,7 @@ scr.addEventListener('click',e=>{
     case'style':SET.style=b.dataset.v;persistSet();styleLights();rebuildModels();settingsScreen();break;
     case'gfx':SET.gfx=b.dataset.v;persistSet();setupPost();for(const f of G.F){if(SET.gfx==='low')detachXbot(f);else attachXbot(f)}if(spot){spot.shadow.mapSize.set(SET.gfx==='low'?1024:2048,SET.gfx==='low'?1024:2048);if(spot.shadow.map){spot.shadow.map.dispose();spot.shadow.map=null}}resize();settingsScreen();break;
     case'zones':SET.zones=!SET.zones;persistSet();G.phase==='paused'?showScreen(pauseHTML()):settingsScreen();break;
-    case'quit':{hideScreen();if(G.career){save.l++;persist()}G.prevPhase=null;menu();break}
+    case'quit':{hideScreen();if(G.career&&G.phase!=='over'){save.l++;applyRanking(OPP[G.oppIdx].id,'L',false);persist()}G.prevPhase=null;menu();break}
   }
 });
 scr.addEventListener('input',e=>{if(e.target.id==='nm')draft.name=e.target.value});
