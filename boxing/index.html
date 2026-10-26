@@ -28,6 +28,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 #gl,#hud{position:absolute;inset:0;width:100%;height:100%;display:block}
 #touch{position:absolute;inset:0;touch-action:none;z-index:2}
 #probe{position:absolute;visibility:hidden;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+#clinchBtn{position:absolute;left:50%;top:22%;transform:translateX(-50%);z-index:4;padding:10px 22px;border-radius:999px;border:2px solid #ffd36b;background:rgba(20,16,8,.72);color:#ffd36b;font:800 16px var(--f-body);letter-spacing:.04em;box-shadow:0 0 18px rgba(255,211,107,.35);animation:cpulse 1s ease-in-out infinite}
+@keyframes cpulse{50%{box-shadow:0 0 30px rgba(255,211,107,.7)}}
 #pauseBtn{position:absolute;left:50%;top:0;transform:translateX(-50%);width:150px;height:70px;border:0;background:transparent;color:transparent;z-index:3}
 #loading{position:absolute;inset:0;display:grid;place-items:center;font:500 14px var(--f-body);color:var(--muted);z-index:1}
 
@@ -94,6 +96,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .seg{display:flex;gap:6px}
 .seg button{flex:1;border:1px solid var(--line);background:transparent;border-radius:8px;padding:9px;font:600 14px var(--f-body)}
 .seg button.on{background:var(--ink);color:#111}
+.seg.corner{flex-wrap:wrap}.seg.corner button{display:flex;flex-direction:column;gap:2px;padding:8px 6px;min-width:0}.seg.corner small{font:500 11px var(--f-body);opacity:.75}
 .tape{display:grid;grid-template-columns:1fr auto 1fr;gap:6px 12px;align-items:center}
 .tape .who{font:400 22px/1.1 var(--f-disp);text-wrap:balance}
 .tape .who small{display:block;font:500 12px var(--f-body);color:var(--gold);margin-bottom:4px}
@@ -150,6 +153,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
   <div id="touch" aria-label="펀치 터치 영역"></div>
   <div id="probe"></div>
   <button id="pauseBtn" aria-label="일시정지" hidden>일시정지</button>
+  <button id="clinchBtn" hidden>클린치</button>
   <div id="screen"></div>
 </div>
 
@@ -428,7 +432,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v23';
+const APP_VER='v24';
 let SET={style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -722,18 +726,39 @@ function startFight(o){
   G.camAng=null;
 }
 function roundStart(){
-  G.phase='intro';G.phaseT=0;G.clock=ROUND_SEC;
+  G.phase='intro';G.phaseT=0;G.clock=ROUND_SEC;G.clinch=null;G.clinchCD=0;
   const a=Math.random()*Math.PI*2*0;
   G.F.forEach(f=>{f.x=f.side?.55:-.55;f.z=0;f.facing=f.side?-Math.PI/2:Math.PI/2;f.action=null;f.queued=null;f.stunT=0;f.hitT=0;f.kdR=0;f.rs=newRS();f.down=null;f.fallA=0;f.fallR=0;f.celebrate=false;
-    f.vx=f.vz=0;f.rageOn=false;initFeet(f);if(f.ai){f.ai.combo=[];f.ai.cool=rnd(.6,1.3)}});
+    f.vx=f.vz=0;f.rageOn=false;f.clinchLeft=3;initFeet(f);if(f.ai){f.ai.combo=[];f.ai.cool=rnd(.6,1.3)}});
   if(!G.demo&&gyroLive())gyroCalib();
   pop(G.round===G.rounds&&G.rounds>1?'마지막 라운드':'ROUND '+G.round,'#ffffff',true,1.3);
 }
 
 /* ================= actions ================= */
+/* clinch: tie the other man up to survive; the referee breaks it after a couple of seconds */
+function canClinch(f,o){return G.phase==='fight'&&!G.clinch&&(G.clinchCD||0)<=0&&(f.clinchLeft||0)>0&&!f.down&&!o.down&&Math.hypot(o.x-f.x,o.z-f.z)<1.05&&!(f.action&&f.action.kind==='punch')}
+function startClinch(f){
+  const o=G.F[0]===f?G.F[1]:G.F[0];if(!canClinch(f,o))return false;
+  f.clinchLeft--;G.clinch={by:f,t:0,dur:rnd(1.7,2.3)};
+  for(const x of[f,o]){x.action=null;x.queued=null;x.charge=null;x.guardHeld=false;if(x.ai){x.ai.combo.length=0;x.ai.react=null}}
+  f.stunT=0;sfx.block();
+  if(!G.demo)pop(f===G.F[0]?'클린치! 숨 고르기':'상대가 붙잡았다!','#ffd36b',false,.9);
+  return true;
+}
+function updClinch(dt){
+  const C=G.clinch,[p,o]=G.F,f=C.by,x=f===p?o:p;C.t+=dt;
+  const mid=(p.x+o.x)/2,dir=Math.sign(o.x-p.x)||1;
+  p.x=lerp(p.x,mid-dir*.34,1-Math.exp(-dt*8));o.x=lerp(o.x,mid+dir*.34,1-Math.exp(-dt*8));
+  for(const q of[p,o]){q.vx=q.vz=0;q.mvF=q.mvS=0;q.guardHeld=false;q.anim+=dt;if(q.hitT>0)q.hitT-=dt;q.walk+=dt*.2}
+  f.st=Math.min(f.stMax,f.st+16*dt);f.hp=Math.min(f.cap,f.hp+1.2*dt);f.stunT=0;
+  x.st=Math.max(0,x.st-3*dt);
+  if(C.t>=C.dur){G.clinch=null;G.clinchCD=1.2;
+    for(const q of[p,o]){const d=q===p?-dir:dir;q.x+=d*.22;q.vx=d*1.6;q.noHitT=0}
+    if(!G.demo)pop('브레이크!','#ffffff',false,.7);sfx.block()}
+}
 function isGuarding(f){return f.guardHeld&&!f.action&&f.stunT<=0&&!f.down}
 function doAction(f,type,hand,body){
-  if(f.down||f.stunT>0)return false;
+  if(f.down||f.stunT>0||G.clinch)return false;
   if(f.action){f.queued={type,hand,body,link:f.action.kind==='evade'&&!!PUNCH[type]?f.action.ev:null};return false}
   let tf=(1.18-f.def.speed/280)*(1+(1-f.st/100)*.55)*(f.st<15?1.25:1);
   if(hasT(f,'rage')&&f.hp<35)tf*=.87;
@@ -747,7 +772,7 @@ function doAction(f,type,hand,body){
   const charged=type==='hay'&&f.charge&&f.charge.k>=1;f.charge=null;f.chargeReady=false;
   if(type==='hay'){G.slow=.5;G.slowT=.14;sfx.heavy();if(charged){G.fovKick=Math.max(G.fovKick||0,3);if(!G.demo&&f===G.F[0])pop('헤이메이커!','#ff6a3d',false,.7)}}
   f.action={kind:'punch',type,hand,body:!!body,charged,t:0,s:(charged?.16:D.s)*tf,a:D.a,r:D.r*tf*(hasT(f,'combo')?.7:1),done:false,id:++UID};
-  f.st=Math.max(0,f.st-D.cost*(type==='hay'?1:(1.2-f.def.stamina/250))*(hasT(f,'engine')?.75:1)*(charged?1.15:1));
+  f.st=Math.max(0,f.st-D.cost*(type==='hay'?1:(1.2-f.def.stamina/250))*(hasT(f,'engine')?.75:1)*(charged?1.15:1)*(f.tactic==='press'?1.12:1));
   if(type==='hay'&&f===G.F[0]&&!G.demo)pop('스태미나 -'+Math.round(D.cost*(charged?1.15:1)*(hasT(f,'engine')?.75:1)),'#e3b23c',false,.8);
   if(f===G.F[0]&&!G.demo&&f.st<18&&!f.tiredMsg){f.tiredMsg=true;pop('숨이 차요 · 펀치가 느려짐','#e3b23c',false,1.1);setTimeout(()=>{f.tiredMsg=false},6000)}
   if(hasT(f,'rage')&&f.hp<35&&!f.rageOn){f.rageOn=true;if(!G.demo)pop(f.def.name+' 폭주!','#ff5a4a',false,1)}
@@ -781,12 +806,13 @@ function resolveHit(at,df){
   const rising=!a.body&&((wa&&wa.kind==='evade'&&wa.t/wa.d>=.82)||(df.evadeEnd!=null&&G.time-df.evadeEnd<.22));
   let dmg=D.dmg*DS*(.7+at.def.power/100*.6)*(.3+.7*Math.pow(at.st/100,.8));
   if(hasT(at,'rage')&&at.hp<35)dmg*=1.35;
+  if(at.tactic==='press')dmg*=1.1;if(at.tactic==='out'&&a.type==='jab')dmg*=1.15;
   if(hasT(at,'onepunch')&&(a.type==='cross'||a.type==='upper'))dmg*=1.3;
   const sig=isSig(at,a);if(sig)dmg*=1.3;
   // a heavily used arm gets heavy: up to 35% less behind the punch
   dmg*=1-.35*(a.hand==='L'?at.fatL||0:at.fatR||0);
   const counter=at.counterT>0||(wa&&wa.kind==='punch'&&wa.t<wa.s+wa.a)||(ducking&&a.type==='upper')||df.offT>0;
-  if(counter)dmg*=hasT(at,'counter')?2:1.55;
+  if(counter)dmg*=(hasT(at,'counter')?2:1.55)*(at.tactic==='counter'?1.15:1);
   at.counterT=0;
   if(temple)dmg*=1.8;else if(rising)dmg*=1.5;
   if(a.linked){dmg*=1.25;if(!G.demo&&(at===G.F[0]||df===G.F[0]))pop({duck:'더킹 ',weave:'위빙 ',pull:'풀백 ',slipL:'슬립 ',slipR:'슬립 '}[a.linked]+D.name+'!','#ffd36b',false,.8)}
@@ -801,6 +827,17 @@ function resolveHit(at,df){
   }
   const tgt=a.body?df.bodyW:df.headW;
   if(isGuarding(df)&&!temple&&!rising){
+    // parry: guard snapped up just before the punch lands
+    let parry=df.guardOnT!=null&&G.time-df.guardOnT<.2+(df.tactic==='counter'?.08:0);
+    if(df.ai)parry=Math.random()<Math.max(0,(df.def.skill-25)/100)*.35*(a.type==='hay'?.5:1);
+    if(parry){
+      at.offT=.8;at.stunT=Math.max(at.stunT,a.type==='hay'?.7:.32);at.st=Math.max(0,at.st-(a.type==='hay'?12:6));
+      at.action=null;at.queued=null;at.charge=null;if(at.ai)at.ai.combo.length=0;
+      df.counterT=1.2;df.st=Math.min(df.stMax,df.st+4);df.guardOnT=-9;
+      {const ux=(at.x-df.x)/dist,uz=(at.z-df.z)/dist;at.vx+=ux*.35;at.vz+=uz*.35}
+      sfx.block();spark(tgt);spark(tgt);df.hitT=.1;df.hitKind='block';df.hitPow=1;
+      if(!G.demo&&(df===G.F[0]||at===G.F[0])){pop(df===G.F[0]?'패리! 반격 찬스':'패리 당함!',df===G.F[0]?'#7fe0ff':'#ff8a3d',false,.9);G.slow=.4;G.slowT=.28;if(df===G.F[0])buzz(25)}
+      return}
     const wall=hasT(df,'wall');let through=a.body?(wall?.3:.45):a.type==='upper'?(wall?.28:.4):(wall?.03:.08);
     if(a.type==='hay'){through=wall?.45:.6;df.stunT=Math.max(df.stunT,a.charged?.6:.35);df.st=Math.max(0,df.st-(a.charged?25:12));sfx.boom();G.shake=Math.max(G.shake,.06);if(!G.demo)pop('가드 브레이크!','#ff8a3d',false,.8)}
     if(wall)at.st=Math.max(0,at.st-4);
@@ -909,6 +946,7 @@ function aiThink(f,o,dt){
   if(f.down)return;
   const dist=Math.hypot(o.x-f.x,o.z-f.z);
   ai.cool-=dt;ai.guardT-=dt;ai.phase+=dt;ai.strafeT-=dt;
+  if((f.stunT>0||f.hp<28||f.st<16)&&canClinch(f,o)&&Math.random()<dt*(.5+sk*1.2)&&startClinch(f))return;
   if(f.stunT>0){f.charge=null;f.mvF=-1;ai.combo.length=0;f.guardHeld=Math.random()<sk*.5;return}
   const oa=o.action;
   if(oa&&(oa.kind==='punch'||oa.kind==='feint')&&oa.id!==ai.lastSeen){
@@ -977,6 +1015,7 @@ function aiThink(f,o,dt){
 function faceTo(f,o){f.facing=Math.atan2(o.x-f.x,o.z-f.z)}
 function updFighter(f,o,dt){
   f.anim+=dt;
+  {const g=isGuarding(f);if(g&&!f._g)f.guardOnT=G.time;f._g=g}
   if(f.hitT>0)f.hitT-=dt;if(f.stunT>0)f.stunT-=dt;if(f.counterT>0)f.counterT-=dt;if(f.offT>0)f.offT-=dt;
   f.noHitT+=dt;
   const a=f.action;
@@ -994,7 +1033,7 @@ function updFighter(f,o,dt){
   if(f.charge){F*=.45;S*=.45}
   if(f.action&&f.action.kind==='punch'){F*=.3;S*=.3}
   const m=Math.hypot(F,S);if(m>1){F/=m;S/=m}
-  const sp=1.5*(.8+f.def.speed/250)*(hasT(f,'flash')?1.25:1)*(isGuarding(f)?.7:1)*(f.stunT>0?.45:1)*(f.st<15?.75:1);
+  const sp=1.5*(.8+f.def.speed/250)*(hasT(f,'flash')?1.25:1)*(f.tactic==='out'?1.12:1)*(isGuarding(f)?.7:1)*(f.stunT>0?.45:1)*(f.st<15?.75:1);
   const fx=Math.sin(f.facing),fz=Math.cos(f.facing),lx=Math.cos(f.facing),lz=-Math.sin(f.facing);
   const tvx=(fx*F+lx*S)*sp,tvz=(fz*F+lz*S)*sp,ka=1-Math.exp(-dt*(m>.05?7:7));
   f.vx+=(tvx-f.vx)*ka;f.vz+=(tvz-f.vz)*ka;f.x+=f.vx*dt;f.z+=f.vz*dt;
@@ -1049,8 +1088,10 @@ function step(raw){
     G.fightT+=raw;
     G.lastDt=dt;const idle=G.demo&&!SET.demoFight;
     if(idle){for(const f of G.F){f.mvF=f.mvS=0;f.guardHeld=false;f.charge=null}}
+    else if(G.clinch)updClinch(dt);
     else{if(!G.demo){playerControl(p);playerCharge(p)}else aiThink(p,o,dt);aiThink(o,p,dt)}
-    updFighter(p,o,dt);updFighter(o,p,dt);separate();faceTo(p,o);faceTo(o,p);
+    if(G.clinchCD>0)G.clinchCD-=dt;
+    if(G.clinch){faceTo(p,o);faceTo(o,p)}else{updFighter(p,o,dt);updFighter(o,p,dt);separate();faceTo(p,o);faceTo(o,p)}
     if(G.phase==='fight'&&!idle){G.clock-=dt;if(G.clock<=0){G.clock=0;endRound()}}
   }else if(G.phase==='intro'){
     G.phaseT+=dt;
@@ -1058,7 +1099,7 @@ function step(raw){
     faceTo(p,o);faceTo(o,p);
     if(G.phaseT>1.5){G.phase='fight';pop('FIGHT!','#ffcf4a',true,.8);sfx.bell(1)}
   }else if(G.phase==='count')updateCount(dt);
-  else if(G.phase==='between'){p.anim+=dt;o.anim+=dt;G.phaseT+=dt;if(G.demo&&G.phaseT>1.5)nextRound()}
+  else if(G.phase==='between'){p.anim+=dt;o.anim+=dt;G.phaseT+=dt;if(G.demo&&G.phaseT>1.5){nextRound();aiCorner(p);aiCorner(o)}}
   else if(G.phase==='over'){
     G.overT+=raw;
     for(const f of G.F){f.anim+=dt;f.mvF=f.mvS=0;f.vx*=.9;f.vz*=.9;f.guardHeld=false;if(f.hitT>0)f.hitT-=dt;tickAction(f,dt);
@@ -1172,6 +1213,7 @@ function targetPose(f,o){
     if(F.arms<0)Object.assign(P,{lgx:.06,lgy:-.02,lgz:.2,rgx:-.07,rgy:-.06,rgz:.2});           // clutching the body
     else{const k=F.arms;Object.assign(P,{lgx:.18+.14*k,lgy:-.15+.45*k,lgz:.12-.08*k,rgx:-.2-.12*k,rgy:-.2+.38*k,rgz:.1-.1*k})}
     return P}
+  if(G.clinch&&G.phase==='fight'){const me=G.clinch.by===f;Object.assign(P,{lgx:me?.2:.16,lgy:me?.3:.22,lgz:.44,rgx:me?-.2:-.16,rgy:me?.28:.2,rgz:.44,lean:me?.38:.3,ht:.25,cr:.12,tw:0,ptw:0});return P}
   if(f.celebrate){const w=Math.sin(t*7)*.04;Object.assign(P,{lgx:.2,lgy:.42+w,lgz:.05,rgx:-.2,rgy:.4-w,rgz:.05,lean:-.08,ht:-.25,tw:0,ptw:0,cr:.02});return P}
   // rhythm: light bounce on the balls of the feet, a little upper-body sway
   const spd=Math.hypot(f.vx,f.vz);
@@ -1979,6 +2021,7 @@ addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT')return;
   if(e.code==='Escape'||e.code==='KeyP'){if(G.phase==='paused'){hideScreen();G.phase=G.prevPhase||'fight'}else pauseMenu();return}
   if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();
+  if(e.code==='KeyC'&&G.F[0]&&!G.demo){startClinch(G.F[0]);return}
   keys[e.code]=true;if(e.repeat)return;audioStart();
   if(G.phase==='count'&&G.downF===G.F[0]&&G.F[0].down){G.F[0].down.mash+=1;return}
   const a=KACT[e.code];if(a&&!G.demo)playerAct(a[0],a[1],!!keys.ShiftLeft||!!keys.ShiftRight,W0*(a[1]==='L'?.25:.75),H0*.35);
@@ -2052,6 +2095,9 @@ function howto(back){
     <dt>위험한 순간</dt><dd>위빙·더킹 중에 바디 훅이나 어퍼가 오면 숙인 머리 관자놀이에 맞아요(1.8배). 회피 동작이 끝나 머리를 드는 순간 맞으면 정타(1.5배)</dd>
     <dt>크리티컬</dt><dd>파워가 센 선수의 파워 펀치는 가끔 크리티컬(2배)이 나고, 한 방에 KO될 수도 있어요. 카운터·정타 상황이면 확률이 올라가요</dd>
     <dt>다운</dt><dd>다운이 나오면 슬로모션 리플레이가 나와요(탭하면 건너뛰기). 보통 카운트 3쯤이면 일어나고, 일어나면 체력 30%. 강펀처에게 맞았을 땐 연타해도 못 일어날 수 있어요</dd>
+    <dt>패리</dt><dd>상대 펀치가 닿기 직전(0.2초 안)에 가드를 올리면 패리! 데미지 없이 상대가 휘청이고, 바로 치는 펀치가 카운터가 돼요</dd>
+    <dt>클린치</dt><dd>휘청이거나 지쳤을 때 가까이 있으면 화면 위에 '클린치' 버튼이 떠요. 상대를 붙잡고 숨을 고르고, 심판이 떼어 놓아요(라운드당 3번)</dd>
+    <dt>코너</dt><dd>라운드 사이에 컷맨·응급 처치·호흡 정리 중 하나와 다음 라운드 작전(압박·아웃복싱·카운터)을 골라요</dd>
     <dt>카운터</dt><dd>회피에 성공하거나 상대가 헛치면 반격 기회. 그때 맞히는 펀치는 1.55배</dd>
     <dt>다운 연타</dt><dd>카운트 10 전에 화면을 연타하면 일어나요. 한 라운드 3번 다운이면 TKO</dd>
     <dt>특성</dt><dd>선수마다 하나씩 가진 고유 능력이에요. 커리어 화면의 '선수·특성 바꾸기'에서 내 특성을 고를 수 있어요</dd>
@@ -2130,6 +2176,22 @@ function quick(){
     <button class="btn primary center" data-act="qgo">테이프 확인</button>
   </div>`);
 }
+const CORNER_REC={cut:['컷맨','상처·붓기 크게 회복'],hp:['응급 처치','체력 +14'],breath:['호흡 정리','최대 스태미나 +18, 팔 피로 회복']};
+const CORNER_TAC={none:['그대로','변화 없음'],press:['압박','펀치 위력 +10%, 소모 +12%'],out:['아웃복싱','이동 +12%, 잽 +15%'],counter:['카운터','패리 판정 넓게, 카운터 +15%']};
+function cornerUI(){
+  const [p]=G.F;const c=G.corner||(G.corner={rec:(p.faceDmg||0)>90?'cut':p.stMax<75?'breath':'hp',tac:p.tactic||'none'});
+  const seg=(act,obj,cur)=>`<div class="seg corner">${Object.entries(obj).map(([k,v])=>`<button class="${k===cur?'on':''}" data-act="${act}" data-v="${k}"><b>${v[0]}</b><small>${v[1]}</small></button>`).join('')}</div>`;
+  return`<div><p class="lbl">코너 — 쉬는 동안 무엇을 할까요</p>${seg('crec',CORNER_REC,c.rec)}</div><div><p class="lbl">다음 라운드 작전</p>${seg('ctac',CORNER_TAC,c.tac)}</div>`;
+}
+function applyCorner(f,c){
+  if(c.rec==='cut'){f.faceDmg=Math.max(0,(f.faceDmg||0)-45);f.cap=Math.min(100,f.cap+3)}
+  else if(c.rec==='hp'){f.cap=Math.min(100,f.cap+3);f.hp=Math.min(f.cap,f.hp+14)}
+  else if(c.rec==='breath'){f.stMax=Math.min(100,f.stMax+18);f.st=f.stMax;f.fatL=f.fatR=0}
+  f.tactic=c.tac==='none'?null:c.tac;
+}
+function aiCorner(f){
+  applyCorner(f,{rec:(f.faceDmg||0)>90?'cut':f.stMax<75?'breath':'hp',tac:{slugger:'press',swarmer:'press',outboxer:'out',counter:'counter'}[f.def.style]||'none'});
+}
 function showBetween(){
   const[p,o]=G.F;let tip;
   if(p.st<40)tip='숨이 차요. <b>가드를 올리고 잽으로 거리</b>를 벌리면서 스태미나를 채우세요.';
@@ -2148,6 +2210,7 @@ function showBetween(){
       ${r('체력',Math.round(p.hp),Math.round(o.hp))}
     </tbody></table>
     <p class="tip">${tip}</p>
+    ${cornerUI()}
     <button class="btn primary center" data-act="next">${G.round+1===G.rounds?'마지막 라운드':G.round+1+'라운드'} 시작</button>
   </div>`);
 }
@@ -2239,7 +2302,9 @@ scr.addEventListener('click',e=>{
     case'edit':createFighter();break;
     case'reset':if(b.dataset.confirm){save={...loadSave(),name:'',stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[],statFix:1,rankV:1,npc:null,rank:null,defenses:0};initRanks();fixRanks();persist();career()}
       else{b.dataset.confirm='1';b.textContent='한 번 더 누르면 초기화돼요';b.style.color='var(--red)'}break;
-    case'next':nextRound();break;
+    case'next':{const c=G.corner||{rec:'hp',tac:'none'};nextRound();applyCorner(G.F[0],c);aiCorner(G.F[1]);G.corner=null;
+      if(c.tac!=='none')pop('작전: '+CORNER_TAC[c.tac][0],'#ffd36b',false,1.2);break}
+    case'crec':case'ctac':{const k=b.dataset.act==='crec'?'rec':'tac';G.corner[k]=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));break}
     case'rematch':if(G.career){const c=fightCtx(OPP[G.oppIdx].id);if(c==='locked'){career();break}G.rankCtx=c}launch(G.oppIdx,G.rounds,G.career);break;
     case'resume':hideScreen();G.phase=G.prevPhase||'fight';if(gyroLive())gyroCalib();break;
     case'full':SET.full=!isFull();persistSet();if(SET.full)goFull();else exitFull();setTimeout(()=>{if(G.phase==='paused')showScreen(pauseHTML())},300);break;
@@ -2257,6 +2322,8 @@ scr.addEventListener('click',e=>{
 });
 scr.addEventListener('input',e=>{if(e.target.id==='nm')draft.name=e.target.value});
 $('#pauseBtn').addEventListener('click',pauseMenu);
+{const cb=$('#clinchBtn');const go=e=>{e.preventDefault();e.stopPropagation();if(G.F[0]&&startClinch(G.F[0]))cb.hidden=true};cb.addEventListener('pointerdown',go);
+ setInterval(()=>{const[p,o]=G.F;const show=!!(p&&o&&!G.demo&&canClinch(p,o)&&(p.stunT>0||p.hp<45||p.st<35));if(cb.hidden===show){cb.hidden=!show}if(show)cb.textContent='클린치 ('+p.clinchLeft+')'},120)}
 
 /* ================= loop ================= */
 let last=performance.now();
