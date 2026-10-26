@@ -165,7 +165,7 @@ const PUNCH={
   cross:{s:.17,a:.07,r:.27,dmg:6.6,cost:6.5,range:1.14,power:true, name:'스트레이트',lunge:.9,whiff:.35},
   hook: {s:.29,a:.09,r:.36,dmg:11.5,cost:9.5,range:1.02,power:true, name:'훅',lunge:.7,whiff:.6},
   upper:{s:.26,a:.06,r:.38,dmg:13.5,cost:10,range:.84,power:true, name:'어퍼컷',lunge:.5,whiff:.7},
-  hay:  {s:.42,a:.09,r:.46,dmg:17,cost:14,range:1.1,power:true, name:'헤이메이커',lunge:1.2,whiff:1.1},
+  hay:  {s:.42,a:.09,r:.46,dmg:17,cost:24,range:1.1,power:true, name:'헤이메이커',lunge:1.2,whiff:1.1},
 };
 const EVADE={slipL:{d:.36,beats:['jab','cross'],name:'왼쪽 슬립'},slipR:{d:.36,beats:['jab','cross'],name:'오른쪽 슬립'},
   pull:{d:.4,beats:['jab','cross','hook'],name:'풀백'},weave:{d:.55,beats:['jab','cross','hook'],name:'위빙'},duck:{d:.42,beats:['jab','cross','hook'],name:'더킹'}};
@@ -500,7 +500,8 @@ function doAction(f,type,hand,body){
   const charged=type==='hay'&&f.charge&&f.charge.k>=1;f.charge=null;f.chargeReady=false;
   if(type==='hay'){G.slow=.5;G.slowT=.14;sfx.heavy();if(charged){G.fovKick=Math.max(G.fovKick||0,3);if(!G.demo&&f===G.F[0])pop('헤이메이커!','#ff6a3d',false,.7)}}
   f.action={kind:'punch',type,hand,body:!!body,charged,t:0,s:(charged?.16:D.s)*tf,a:D.a,r:D.r*tf*(hasT(f,'combo')?.7:1),done:false,id:++UID};
-  f.st=Math.max(0,f.st-D.cost*(1.2-f.def.stamina/250)*(hasT(f,'engine')?.75:1));
+  f.st=Math.max(0,f.st-D.cost*(type==='hay'?1:(1.2-f.def.stamina/250))*(hasT(f,'engine')?.75:1)*(charged?1.15:1));
+  if(type==='hay'&&f===G.F[0]&&!G.demo)pop('스태미나 -'+Math.round(D.cost*(charged?1.15:1)*(hasT(f,'engine')?.75:1)),'#e3b23c',false,.8);
   if(f===G.F[0]&&!G.demo&&f.st<18&&!f.tiredMsg){f.tiredMsg=true;pop('숨이 차요 · 펀치가 느려짐','#e3b23c',false,1.1);setTimeout(()=>{f.tiredMsg=false},6000)}
   if(hasT(f,'rage')&&f.hp<35&&!f.rageOn){f.rageOn=true;if(!G.demo)pop(f.def.name+' 폭주!','#ff5a4a',false,1)}
   f.stats.thrown++;f.rs.thrown++;
@@ -548,7 +549,7 @@ function resolveHit(at,df){
   const tgt=a.body?df.bodyW:df.headW;
   if(isGuarding(df)&&!temple&&!rising){
     const wall=hasT(df,'wall');let through=a.body?(wall?.3:.45):a.type==='upper'?(wall?.28:.4):(wall?.03:.08);
-    if(a.type==='hay'){through=wall?.3:.45;df.stunT=Math.max(df.stunT,a.charged?.6:.35);df.st=Math.max(0,df.st-(a.charged?25:12));sfx.boom();G.shake=Math.max(G.shake,.06);if(!G.demo)pop('가드 브레이크!','#ff8a3d',false,.8)}
+    if(a.type==='hay'){through=wall?.45:.6;df.stunT=Math.max(df.stunT,a.charged?.6:.35);df.st=Math.max(0,df.st-(a.charged?25:12));sfx.boom();G.shake=Math.max(G.shake,.06);if(!G.demo)pop('가드 브레이크!','#ff8a3d',false,.8)}
     if(wall)at.st=Math.max(0,at.st-4);
     dmg*=through;df.st=Math.max(0,df.st-D.dmg*.55);
     if(through<.2){{const ux=(df.x-at.x)/dist,uz=(df.z-at.z)/dist;df.vx+=ux*.22;df.vz+=uz*.22;}df.hp-=dmg;sfx.block();spark(tgt);df.hitT=.12;df.hitKind='block';df.hitPow=2;if(df===G.F[0])buzz(10);
@@ -1244,7 +1245,8 @@ function drawCharge(c){ // a ring fills while a finger is held for a haymaker
   for(const t of PT.values()){if(t.stick||t.used||t.guard||t.zone==='bot')continue;const k=Math.min(1,(now-t.t0-120)/360);if(k<=0)continue;
     c.save();c.lineWidth=4;c.strokeStyle='rgba(255,255,255,.18)';c.beginPath();c.arc(t.x/SC,t.y/SC,34,0,7);c.stroke();
     c.strokeStyle=k>=1?'#ff5a4a':'#e3b23c';c.beginPath();c.arc(t.x/SC,t.y/SC,34,-Math.PI/2,-Math.PI/2+k*Math.PI*2);c.stroke();
-    if(k>=1){c.fillStyle='#fff';c.font='400 16px "Black Han Sans", sans-serif';c.textAlign='center';c.fillText('헤이메이커',t.x/SC,t.y/SC-44)}c.restore()}
+    c.fillStyle=k>=1?'#fff':'rgba(255,255,255,.7)';c.font='400 16px "Black Han Sans", sans-serif';c.textAlign='center';
+    c.fillText((t.half==='L'?'왼손':'오른손')+(t.zone==='mid'?' 바디':'')+' 헤이메이커'+(k>=1?' · 떼면 발사':''),t.x/SC,t.y/SC-44);c.restore()}
 }
 function drawRipples(c){for(const r of G.ripples){const k=r.t/.45;c.save();c.globalAlpha=1-k;c.strokeStyle=r.c||'#fff';c.lineWidth=2;c.beginPath();c.arc(r.x/SC,r.y/SC,18+k*30,0,7);c.stroke();
   if(r.label){c.fillStyle='#fff';c.font='400 18px "Black Han Sans", sans-serif';c.textAlign='center';c.fillText(r.label,r.x/SC,r.y/SC-34-k*10)}c.restore()}}
@@ -1300,7 +1302,8 @@ touchEl.addEventListener('pointermove',e=>{
   if(t.stick){updStick(x,y);return}
   t.x=x;t.y=y;
   if(t.used&&!t.guard)return;
-  const dx=x-t.x0,dy=y-t.y0;if(Math.hypot(dx,dy)<SWIPE)return;
+  const dx=x-t.x0,dy=y-t.y0,held=performance.now()-t.t0;
+  if(Math.hypot(dx,dy)<(!t.guard&&t.zone!=='bot'&&held>220?90:SWIPE))return;
   if(!t.guard&&performance.now()-t.t0<70)return; // give a second finger a moment to land for guard
   if(t.guard){ // guard held: head movement in swipe direction
     if(t.slipped)return;t.slipped=true;
@@ -1319,8 +1322,8 @@ function ptEnd(e){
   const t=PT.get(e.pointerId);if(!t)return;PT.delete(e.pointerId);
   if(t.stick){IN.mx=IN.my=0;return}
   if(t.guard){IN.guard=false;for(const o of PT.values())if(o.guard){o.guard=false;o.used=true}return}
-  if(t.used||e.type==='pointercancel')return;
   const dur=performance.now()-t.t0;
+  if(t.used||(e.type==='pointercancel'&&dur<480))return;
   if(dur>=480&&t.zone!=='bot'){playerAct('hay',t.half,t.zone==='mid',t.x,t.y);return}
   if(dur>360)return;
   if(t.zone==='top')playerAct(t.half==='L'?'jab':'cross',t.half,false,t.x,t.y);
@@ -1388,7 +1391,7 @@ function howto(back){
     <div><b>왼쪽 아래</b>쓸기: 위빙</div><div><b>오른쪽 아래</b>쓸기: 더킹</div>
   </div></div>
   <dl class="keys">
-    <dt>헤이메이커</dt><dd>위·가운데 구역을 손가락으로 0.5초 누르고 있다 떼면 온몸을 실은 큰 펀치. 가장 세지만 느려서 읽히면 카운터 맞아요</dd>
+    <dt>헤이메이커</dt><dd>왼쪽·오른쪽 어디든 위(얼굴)나 가운데(바디) 구역을 0.5초 꾹 누르고 있다 떼면 그 손·그 높이로 온몸을 실은 큰 펀치. 가드 위로도 60%가 들어가지만, 던지는 쪽 스태미나가 한 번에 크게(약 24~28) 빠져요</dd>
     <dt>어퍼컷</dt><dd>그 손 쪽을 아래에서 위로 쓸기. 더킹·위빙하는 상대에게 카운터</dd>
     <dt>가드</dt><dd>화면 어디든 왼쪽·오른쪽을 동시에 누르고 있기</dd>
     <dt>머리 회피</dt><dd>가드를 누른 채 손가락을 쓸면 그 방향으로 회피. 왼쪽·오른쪽 = 슬립, 아래 = 풀백</dd>
