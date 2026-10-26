@@ -576,7 +576,7 @@ function buildModel(def){
   const M={root,body};
   // torso group
   const pelvis=new T.Group();body.add(pelvis);M.pelvis=pelvis;
-  const tr=ball(1,trunks,pelvis,.178,.165,.138);tr.position.set(0,.02,0);
+  M.trunksMat=trunks;const tr=ball(1,trunks,pelvis,.178,.165,.138);tr.position.set(0,.02,0);
   const wb=new T.Mesh(new T.CylinderGeometry(.168,.168,.07,20),trim);wb.scale.set(1.05,1,.83);wb.position.y=.15;wb.castShadow=true;pelvis.add(wb);
   const torso=new T.Group();body.add(torso);M.torso=torso;
   ball(1,shirt,torso,.162,.17,.122).position.set(0,.05,.01);
@@ -1484,11 +1484,29 @@ function updMuscleLines(M){
     m.matrix.multiplyMatrices(_mB,_mA);m.matrixWorldNeedsUpdate=true}
 }
 
+/* paint the hips/thighs of the skinned body in the trunks colour, so if skin pokes through the shorts it still reads as shorts */
+function paintTrunks(sm,mat,tplMesh){
+  if(!mat)return;const tm=tplMesh||sm;
+  XB.tpl.updateMatrixWorld(true);const sk=tm.skeleton,bi=n=>sk.bones.findIndex(b=>b.name.replace('mixamorig','')===n);
+  const hi=bi('Hips');if(hi<0)return;
+  const RM=new T.Matrix4().copy(tm.matrixWorld).multiply(tm.bindMatrixInverse).multiply(sk.bones[hi].matrixWorld).multiply(sk.boneInverses[hi]).multiply(tm.bindMatrix);
+  const wy=n=>{const i=bi(n);return i<0?null:sk.bones[i].getWorldPosition(V(0,0,0)).y};
+  const hipY=wy('Hips'),legY=wy('LeftUpLeg')??hipY-.08,kneeY=wy('LeftLeg')??.5;
+  const bottom=legY-(legY-kneeY)*.6,top=hipY+.15;
+  const g=sm.geometry,P=g.attributes.position,v=V(0,0,0),Y=new Float32Array(P.count);
+  for(let i=0;i<P.count;i++){v.set(P.getX(i),P.getY(i),P.getZ(i)).applyMatrix4(RM);Y[i]=v.y}
+  const idx=g.index?g.index.array:null,tri=idx?idx.length:P.count,sk0=[],tr=[];
+  for(let t=0;t<tri;t+=3){const a=idx?idx[t]:t,b=idx?idx[t+1]:t+1,c=idx?idx[t+2]:t+2,y=(Y[a]+Y[b]+Y[c])/3;
+    (y>bottom&&y<top?tr:sk0).push(a,b,c)}
+  if(!tr.length)return;
+  const ng=g.clone();ng.setIndex([...sk0,...tr]);ng.clearGroups();ng.addGroup(0,sk0.length,0);ng.addGroup(sk0.length,tr.length,1);
+  sm.geometry=ng;sm.material=[sm.material,mat];
+}
 function attachXbot(f){
   const M=f.M;if(!XB.ready||!M||M.xb||f.isRef||SET.gfx==='low')return;
   const inst=FX.SkeletonUtils.clone(XB.tpl),bones={};
   inst.traverse(o=>{if(o.isBone){const n=o.name.replace('mixamorig','');bones[n]=o}
-    if(o.isSkinnedMesh){o.castShadow=true;o.frustumCulled=false;o.material=M.skinMat;try{shapeBody(o,physOf(f.def))}catch(e){}}});
+    if(o.isSkinnedMesh){o.castShadow=true;o.frustumCulled=false;o.material=M.skinMat;try{shapeBody(o,physOf(f.def))}catch(e){}try{let tm=null;XB.tpl.traverse(x=>{if(x.isSkinnedMesh&&x.name===o.name)tm=x});paintTrunks(o,M.trunksMat,tm)}catch(e){console.warn(e)}}});
   M.body.add(inst);M.xb={inst,bones};
   if(SET.style!=='real'){inst.traverse(o=>{if(o.isSkinnedMesh&&/Surface/i.test(o.name))M.xb.ink=skinnedInk(o)});if(bones.Head)bones.Head.scale.setScalar(.02);try{addMuscleLines(f)}catch(e){}}
   // hide the primitive anatomy; keep trunks, gloves, boots and hair
