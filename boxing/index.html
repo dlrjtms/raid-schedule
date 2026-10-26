@@ -72,6 +72,8 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .ladder li{display:grid;grid-template-columns:66px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02)}
 .ladder li.next{border-color:var(--red);background:rgba(217,48,44,.08)}
 .ladder li.locked{opacity:.45}
+.news{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;font:500 13px var(--f-body);color:var(--mute,#aab)}
+.news li::before{content:'•';color:var(--gold);margin-right:6px}
 .ladder li.me{border-color:var(--gold);background:rgba(232,193,90,.1)}
 .chip.me{color:var(--gold);border-color:rgba(232,193,90,.5)}
 .rank{font:600 20px/1 var(--f-num);color:var(--muted)}
@@ -416,6 +418,24 @@ function fightCtx(id){
   return'ranked';
 }
 function moveRank(id,to){const a=save.rank,i=a.indexOf(id);a.splice(i,1);a.splice(clamp(to,0,a.length),0,id)}
+/* the rest of the division fights too: after each of your fights, neighbouring contenders meet */
+function simWorld(n){
+  const news=[];
+  for(let k=0;k<n;k++){
+    const npcs=save.rank.filter(id=>id!=='player');if(npcs.length<2)break;
+    const i=Math.floor(Math.random()*(npcs.length-1)),a=npcs[i],b=npcs[i+1];  // a is ranked above b
+    const A=OPP.find(o=>o.id===a),B=OPP.find(o=>o.id===b);
+    const pa=clamp(.5+(ovr(A)-ovr(B))*.025+.06,.15,.85),aw=Math.random()<pa,W=aw?A:B,L=aw?B:A;
+    const ko=Math.random()<clamp((W.power-L.chin)*.012+.35,.1,.8);
+    const rw=save.npc[W.id],rl=save.npc[L.id];rw.w++;if(ko)rw.ko++;rl.l++;
+    let moved='';
+    if(!aw){const ia=save.rank.indexOf(a),ib=save.rank.indexOf(b);save.rank[ia]=b;save.rank[ib]=a;moved=` → ${rankLabel(ia)} 등극`}
+    const champ=save.rank.indexOf(W.id)===0&&!aw&&save.rank.indexOf(W.id)===0;
+    news.push(`${W.name}, ${L.name}에게 ${ko?'KO':'판정'}승${moved}${champ?' (새 챔피언!)':''}`);
+  }
+  save.news=[...news,...(save.news||[])].slice(0,8);
+  return news;
+}
 function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
   const ctx=G.rankCtx||fightCtx(oppId),pr=rankOf('player'),or=rankOf(oppId),n=save.npc[oppId];const notes=[];
   if(n){if(res==='W'){n.l++}else if(res==='L'){n.w++;if(ko)n.ko++}else n.d++}
@@ -432,7 +452,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v24';
+const APP_VER='v25';
 let SET={style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -739,11 +759,23 @@ function roundStart(){
 function canClinch(f,o){return G.phase==='fight'&&!G.clinch&&(G.clinchCD||0)<=0&&(f.clinchLeft||0)>0&&!f.down&&!o.down&&Math.hypot(o.x-f.x,o.z-f.z)<1.05&&!(f.action&&f.action.kind==='punch')}
 function startClinch(f){
   const o=G.F[0]===f?G.F[1]:G.F[0];if(!canClinch(f,o))return false;
-  f.clinchLeft--;G.clinch={by:f,t:0,dur:rnd(1.7,2.3)};
-  for(const x of[f,o]){x.action=null;x.queued=null;x.charge=null;x.guardHeld=false;if(x.ai){x.ai.combo.length=0;x.ai.react=null}}
-  f.stunT=0;sfx.block();
-  if(!G.demo)pop(f===G.F[0]?'클린치! 숨 고르기':'상대가 붙잡았다!','#ffd36b',false,.9);
+  f.clinchLeft--;G.clinch={id:Math.random(),by:f,ph:'reach',t:0,dur:rnd(1.7,2.3),brk:0};
+  f.action=null;f.queued=null;f.charge=null;f.guardHeld=false;if(f.ai){f.ai.combo.length=0;f.ai.react=null}
+  if(!G.demo&&f===G.F[0])pop('붙잡으러 간다!','#ffd36b',false,.6);
   return true;
+}
+// the reach-in (0.35s): the other man can back off, slip/pull, or punch him on the way in
+function failClinch(msg){const C=G.clinch,f=C.by;G.clinch=null;G.clinchCD=.8;f.offT=Math.max(f.offT,.6);f.st=Math.max(0,f.st-4);
+  if(!G.demo)pop(f===G.F[0]?'클린치 실패!':msg,f===G.F[0]?'#ff8a3d':'#9fd3ff',false,.8)}
+function reachClinch(){
+  const C=G.clinch,f=C.by,x=G.F[0]===f?G.F[1]:G.F[0];C.t+=G.lastDt||1/60;
+  const d=Math.hypot(x.x-f.x,x.z-f.z);
+  if(x.action&&x.action.kind==='evade'){failClinch(x.action.ev==='pull'?'뒤로 빠져 클린치 회피!':'흘려서 클린치 회피!');return}
+  if(C.t>=.35){if(d>1.1){failClinch('거리를 벌려 클린치 회피!');return}
+    C.ph='hold';C.t=0;
+    for(const q of[f,x]){q.action=null;q.queued=null;q.charge=null;q.guardHeld=false;if(q.ai){q.ai.combo.length=0;q.ai.react=null}}
+    f.stunT=0;sfx.block();
+    if(!G.demo)pop(f===G.F[0]?'클린치! 숨 고르기':'붙잡혔다! 연타해서 뿌리쳐요','#ffd36b',false,1)}
 }
 function updClinch(dt){
   const C=G.clinch,[p,o]=G.F,f=C.by,x=f===p?o:p;C.t+=dt;
@@ -752,13 +784,18 @@ function updClinch(dt){
   for(const q of[p,o]){q.vx=q.vz=0;q.mvF=q.mvS=0;q.guardHeld=false;q.anim+=dt;if(q.hitT>0)q.hitT-=dt;q.walk+=dt*.2}
   f.st=Math.min(f.stMax,f.st+16*dt);f.hp=Math.min(f.cap,f.hp+1.2*dt);f.stunT=0;
   x.st=Math.max(0,x.st-3*dt);
-  if(C.t>=C.dur){G.clinch=null;G.clinchCD=1.2;
+  if(x.ai)C.brk+=dt*(.15+x.def.skill/100*.45);           // the AI wrestles free at its own pace
+  const brk=C.brk>=1,end=C.t>=C.dur;
+  if(brk||end){G.clinch=null;G.clinchCD=1.2;
     for(const q of[p,o]){const d=q===p?-dir:dir;q.x+=d*.22;q.vx=d*1.6;q.noHitT=0}
-    if(!G.demo)pop('브레이크!','#ffffff',false,.7);sfx.block()}
+    if(brk){f.offT=.7;f.stunT=Math.max(f.stunT,.3);x.counterT=1;if(!G.demo)pop(x===G.F[0]?'뿌리쳤다! 반격 찬스':'상대가 뿌리쳤다!',x===G.F[0]?'#7fe0ff':'#ff8a3d',false,.9)}
+    else if(!G.demo)pop('브레이크!','#ffffff',false,.7);
+    sfx.block()}
 }
 function isGuarding(f){return f.guardHeld&&!f.action&&f.stunT<=0&&!f.down}
 function doAction(f,type,hand,body){
-  if(f.down||f.stunT>0||G.clinch)return false;
+  if(G.clinch){const C=G.clinch;if(C.ph==='hold'){if(f!==C.by){C.brk+=.12;buzz(8)}return false}if(f===C.by)return false}
+  if(f.down||f.stunT>0)return false;
   if(f.action){f.queued={type,hand,body,link:f.action.kind==='evade'&&!!PUNCH[type]?f.action.ev:null};return false}
   let tf=(1.18-f.def.speed/280)*(1+(1-f.st/100)*.55)*(f.st<15?1.25:1);
   if(hasT(f,'rage')&&f.hp<35)tf*=.87;
@@ -790,6 +827,7 @@ function evading(f,type,body){
 function resolveHit(at,df){
   const a=at.action,D=PUNCH[a.type];
   if(df.down)return;
+  if(G.clinch&&G.clinch.ph==='reach'&&G.clinch.by===df&&Math.hypot(df.x-at.x,df.z-at.z)<=D.range+reachOf(at)){failClinch('들어오는 걸 맞받아쳤다!');at.counterT=1}
   const dist=Math.hypot(df.x-at.x,df.z-at.z);
   if(dist>D.range+reachOf(at)-(a.body?.05:0)){sfx.whoosh();at.st=Math.max(0,at.st-1.5-D.cost*.3);whiffed(at,df,D);return}
   const wa=df.action;
@@ -946,6 +984,8 @@ function aiThink(f,o,dt){
   if(f.down)return;
   const dist=Math.hypot(o.x-f.x,o.z-f.z);
   ai.cool-=dt;ai.guardT-=dt;ai.phase+=dt;ai.strafeT-=dt;
+  if(G.clinch&&G.clinch.ph==='reach'&&G.clinch.by===o&&ai.clId!==G.clinch.id){ai.clId=G.clinch.id;if(Math.random()<.2+sk*.55){if(Math.random()<.5)doAction(f,'pull','L');else{doAction(f,'jab','L')}}}
+  if(G.clinch&&G.clinch.by===f)return;
   if((f.stunT>0||f.hp<28||f.st<16)&&canClinch(f,o)&&Math.random()<dt*(.5+sk*1.2)&&startClinch(f))return;
   if(f.stunT>0){f.charge=null;f.mvF=-1;ai.combo.length=0;f.guardHeld=Math.random()<sk*.5;return}
   const oa=o.action;
@@ -1088,10 +1128,12 @@ function step(raw){
     G.fightT+=raw;
     G.lastDt=dt;const idle=G.demo&&!SET.demoFight;
     if(idle){for(const f of G.F){f.mvF=f.mvS=0;f.guardHeld=false;f.charge=null}}
-    else if(G.clinch)updClinch(dt);
-    else{if(!G.demo){playerControl(p);playerCharge(p)}else aiThink(p,o,dt);aiThink(o,p,dt)}
+    else if(G.clinch&&G.clinch.ph==='hold')updClinch(dt);
+    else{if(!G.demo){playerControl(p);playerCharge(p)}else aiThink(p,o,dt);aiThink(o,p,dt);
+      if(G.clinch){const f=G.clinch.by;f.mvF=1.2;f.guardHeld=false;f.charge=null}}
     if(G.clinchCD>0)G.clinchCD-=dt;
-    if(G.clinch){faceTo(p,o);faceTo(o,p)}else{updFighter(p,o,dt);updFighter(o,p,dt);separate();faceTo(p,o);faceTo(o,p)}
+    if(G.clinch&&G.clinch.ph==='reach')reachClinch();
+    if(G.clinch&&G.clinch.ph==='hold'){faceTo(p,o);faceTo(o,p)}else{updFighter(p,o,dt);updFighter(o,p,dt);separate();faceTo(p,o);faceTo(o,p)}
     if(G.phase==='fight'&&!idle){G.clock-=dt;if(G.clock<=0){G.clock=0;endRound()}}
   }else if(G.phase==='intro'){
     G.phaseT+=dt;
@@ -1192,6 +1234,7 @@ function endFight(win,method){
     if(win===p){save.w++;if(ko)save.ko++;if(!save.beaten.includes(opp.id)){save.beaten.push(opp.id);save.points+=3;G.firstWin=true}else G.firstWin=false}
     else if(win===o)save.l++;else save.d++;
     G.rankNotes=applyRanking(opp.id,win===p?'W':win===o?'L':'D',ko);
+    G.worldNews=simWorld(2+Math.floor(Math.random()*2));
     persist();
   }
 }
@@ -1213,7 +1256,7 @@ function targetPose(f,o){
     if(F.arms<0)Object.assign(P,{lgx:.06,lgy:-.02,lgz:.2,rgx:-.07,rgy:-.06,rgz:.2});           // clutching the body
     else{const k=F.arms;Object.assign(P,{lgx:.18+.14*k,lgy:-.15+.45*k,lgz:.12-.08*k,rgx:-.2-.12*k,rgy:-.2+.38*k,rgz:.1-.1*k})}
     return P}
-  if(G.clinch&&G.phase==='fight'){const me=G.clinch.by===f;Object.assign(P,{lgx:me?.2:.16,lgy:me?.3:.22,lgz:.44,rgx:me?-.2:-.16,rgy:me?.28:.2,rgz:.44,lean:me?.38:.3,ht:.25,cr:.12,tw:0,ptw:0});return P}
+  if(G.clinch&&G.clinch.ph==='hold'&&G.phase==='fight'){const me=G.clinch.by===f;Object.assign(P,{lgx:me?.2:.16,lgy:me?.3:.22,lgz:.44,rgx:me?-.2:-.16,rgy:me?.28:.2,rgz:.44,lean:me?.38:.3,ht:.25,cr:.12,tw:0,ptw:0});return P}
   if(f.celebrate){const w=Math.sin(t*7)*.04;Object.assign(P,{lgx:.2,lgy:.42+w,lgz:.05,rgx:-.2,rgy:.4-w,rgz:.05,lean:-.08,ht:-.25,tw:0,ptw:0,cr:.02});return P}
   // rhythm: light bounce on the balls of the feet, a little upper-body sway
   const spd=Math.hypot(f.vx,f.vz);
@@ -2097,6 +2140,7 @@ function howto(back){
     <dt>다운</dt><dd>다운이 나오면 슬로모션 리플레이가 나와요(탭하면 건너뛰기). 보통 카운트 3쯤이면 일어나고, 일어나면 체력 30%. 강펀처에게 맞았을 땐 연타해도 못 일어날 수 있어요</dd>
     <dt>패리</dt><dd>상대 펀치가 닿기 직전(0.2초 안)에 가드를 올리면 패리! 데미지 없이 상대가 휘청이고, 바로 치는 펀치가 카운터가 돼요</dd>
     <dt>클린치</dt><dd>휘청이거나 지쳤을 때 가까이 있으면 화면 위에 '클린치' 버튼이 떠요. 상대를 붙잡고 숨을 고르고, 심판이 떼어 놓아요(라운드당 3번)</dd>
+    <dt>클린치 막기</dt><dd>상대가 붙잡으러 들어올 때(0.35초) 뒤로 빠지거나, 풀백·슬립하거나, 펀치로 맞받아치면 실패시키고 반격 찬스. 이미 붙잡혔으면 화면을 연타해서 뿌리치면 상대가 휘청여요</dd>
     <dt>코너</dt><dd>라운드 사이에 컷맨·응급 처치·호흡 정리 중 하나와 다음 라운드 작전(압박·아웃복싱·카운터)을 골라요</dd>
     <dt>카운터</dt><dd>회피에 성공하거나 상대가 헛치면 반격 기회. 그때 맞히는 펀치는 1.55배</dd>
     <dt>다운 연타</dt><dd>카운트 10 전에 화면을 연타하면 일어나요. 한 라운드 3번 다운이면 TKO</dd>
@@ -2122,6 +2166,7 @@ function career(){
         <div class="pts">${save.points?`능력치 포인트 ${save.points} · + 한 번에 2씩 올라요`:'처음 이기는 상대마다 능력치 포인트 3 (재대결 승리는 포인트 없음)'}</div></div>
     </div>
     ${tip}
+    ${(save.news&&save.news.length)?`<div><p class="lbl">헤비급 소식</p><ul class="news">${save.news.slice(0,5).map(t=>`<li>${t}</li>`).join('')}</ul></div>`:''}
     <div><p class="lbl">헤비급 랭킹</p><ol class="ladder">
       ${save.rank.map((id,r)=>{
         if(id==='player')return`<li class="me"><span class="rank ${r===0?'ch':''}">${rankLabel(r)}</span><span class="lname">${esc(save.name)} <small>나 · ${save.w}-${save.l}${save.d?'-'+save.d:''} (${save.ko} KO)${r===0?` · 방어 ${save.defenses||0}회`:''}</small></span><span class="chip me">나</span></li>`;
@@ -2220,7 +2265,8 @@ function showResult(){
   const title=draw?'무승부':pw?(method==='KO'||method==='TKO'?method+' 승리':'판정승'):(method==='KO'||method==='TKO'?method+' 패배':'판정패');
   const cards=G.cards&&(method!=='KO'&&method!=='TKO')?`<div class="cards">${G.cards.map(c=>`<span>${c[0]}-${c[1]}</span>`).join('')}</div>`:'';
   const opp=OPP[G.oppIdx];let extra='';
-  if(G.career){const notes=(G.rankNotes||[]).map(t=>`<b>${t}</b>`);if(pw&&G.firstWin)notes.push('첫 승리 보너스: 능력치 포인트 <b>+3</b>');if(notes.length)extra=`<p class="tip">${notes.join('<br>')}</p>`}
+  if(G.career){const notes=(G.rankNotes||[]).map(t=>`<b>${t}</b>`);if(pw&&G.firstWin)notes.push('첫 승리 보너스: 능력치 포인트 <b>+3</b>');if(notes.length)extra=`<p class="tip">${notes.join('<br>')}</p>`;
+    if(G.worldNews&&G.worldNews.length)extra+=`<div><p class="lbl">같은 날 다른 경기</p><ul class="news">${G.worldNews.map(t=>`<li>${t}</li>`).join('')}</ul></div>`;G.worldNews=null}
   G.cards=null;
   showScreen(`<div class="sheet">
     <div><p class="big-res ${pw?'win':'lose'}">${title}</p><p class="sub-res">${mname} · ${G.round}라운드</p></div>
@@ -2317,7 +2363,7 @@ scr.addEventListener('click',e=>{
     case'style':SET.style=b.dataset.v;persistSet();styleLights();rebuildModels();settingsScreen();break;
     case'gfx':SET.gfx=b.dataset.v;persistSet();setupPost();for(const f of G.F){if(SET.gfx==='low')detachXbot(f);else attachXbot(f)}if(spot){spot.shadow.mapSize.set(SET.gfx==='low'?1024:2048,SET.gfx==='low'?1024:2048);if(spot.shadow.map){spot.shadow.map.dispose();spot.shadow.map=null}}resize();settingsScreen();break;
     case'zones':SET.zones=!SET.zones;persistSet();G.phase==='paused'?showScreen(pauseHTML()):settingsScreen();break;
-    case'quit':{hideScreen();if(G.career&&G.phase!=='over'){save.l++;applyRanking(OPP[G.oppIdx].id,'L',false);persist()}G.prevPhase=null;menu();break}
+    case'quit':{hideScreen();if(G.career&&G.phase!=='over'){save.l++;applyRanking(OPP[G.oppIdx].id,'L',false);simWorld(2);persist()}G.prevPhase=null;menu();break}
   }
 });
 scr.addEventListener('input',e=>{if(e.target.id==='nm')draft.name=e.target.value});
