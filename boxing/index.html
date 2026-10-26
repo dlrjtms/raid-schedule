@@ -369,8 +369,11 @@ function loadSave(){
   return Object.assign(d,s,{stats:Object.assign(d.stats,s.stats||{})});
 }
 let save=loadSave();
+// v21: wins used to pay out every time. Reset the stats and give 3 points per opponent beaten (once each) to spend again.
+if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
+  save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v20';
+const APP_VER='v21';
 let SET={style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -666,7 +669,7 @@ function startFight(o){
 function roundStart(){
   G.phase='intro';G.phaseT=0;G.clock=ROUND_SEC;
   const a=Math.random()*Math.PI*2*0;
-  G.F.forEach(f=>{f.x=f.side?.55:-.55;f.z=0;f.facing=f.side?-Math.PI/2:Math.PI/2;f.action=null;f.queued=null;f.stunT=0;f.hitT=0;f.kdR=0;f.rs=newRS();f.down=null;f.fallA=0;f.celebrate=false;
+  G.F.forEach(f=>{f.x=f.side?.55:-.55;f.z=0;f.facing=f.side?-Math.PI/2:Math.PI/2;f.action=null;f.queued=null;f.stunT=0;f.hitT=0;f.kdR=0;f.rs=newRS();f.down=null;f.fallA=0;f.fallR=0;f.celebrate=false;
     f.vx=f.vz=0;f.rageOn=false;initFeet(f);if(f.ai){f.ai.combo=[];f.ai.cool=rnd(.6,1.3)}});
   if(!G.demo&&gyroLive())gyroCalib();
   pop(G.round===G.rounds&&G.rounds>1?'마지막 라운드':'ROUND '+G.round,'#ffffff',true,1.3);
@@ -803,6 +806,27 @@ function stayDownChance(d,a,info){
   if(hasT(d,'undying'))q*=.35;
   return clamp(q,0,.92);
 }
+/* how a man goes down depends on the shot */
+function fallKind(info,act){
+  act=act||{};if(info&&(info.flash||info.crit)&&!act.body&&Math.random()<.45)return'crumple';
+  if(act.body)return'body';if(act.type==='upper')return'upper';if(act.type==='hook')return'spin';
+  if(act.type==='hay')return Math.random()<.5?'spin':'back';return'back'}
+function fallAt(kd,t){
+  const c=x=>clamp(x,0,1),eI=x=>x*x,sg=kd.s,bo=(t0,amp,fr)=>t>t0?amp*Math.exp(-(t-t0)*9)*Math.sin((t-t0)*fr):0;
+  let p=0,r=0,cr=.18,lean=-.1,tw=0,ht=-.4,roll=0,arms=0;
+  switch(kd.kind){
+    case'back':{const a=c(t/.18),b=c((t-.18)/.5);p=.22*a+1.28*eI(b)+bo(.68,.07,28);cr=.12+.22*a-.14*b;lean=-.1-.22*a;ht=-.4-.3*a;arms=b;roll=.15*sg*a;break}
+    case'upper':{const a=c(t/.14),b=c((t-.14)/.46);p=.42*a+1.13*eI(b)+bo(.6,.1,26);cr=.04+.12*b;lean=-.35*a;ht=-.45-.5*a;arms=.4+.6*b;break}
+    case'spin':{const a=c(t/.26),b=c((t-.26)/.55);tw=.75*sg*a;roll=.3*sg*a;r=.35*sg*a+1.0*sg*eI(b)+sg*bo(.81,.06,26);p=.12*a+.22*b;cr=.15+.26*a-.16*b;ht=-.3;arms=.5+.5*b;break}
+    case'body':{const a=c(t/.35),b=c((t-.35)/.4),e=c((t-.9)/.5);p=-.28*a+.08*b-.12*e;lean=.12+.62*a;cr=.15+.27*a+.18*b-.1*e;ht=.3*a;r=1.25*sg*eI(e);arms=-1;break}
+    case'crumple':{const a=c(t/.3),b=c((t-.24)/.5);cr=.15+.38*a-.22*b;lean=.25*a;p=-1.42*eI(b)-bo(.74,.06,28);ht=.25;arms=b;break}
+  }
+  return{p,r,cr,lean,tw,ht,roll,arms}}
+function updFall(d){
+  const D=d.down;if(!D)return;
+  if(!D.kd)D.kd={kind:'back',s:1};
+  if(D.rising){const e=easeIO(clamp(D.rising/.8,0,1)),L=D.lie||{p:1.5,r:0};d.fallA=L.p*(1-e);d.fallR=L.r*(1-e);D.F=null;return}
+  const F=fallAt(D.kd,D.t);D.F=F;D.lie={p:F.p,r:F.r};d.fallA=F.p;d.fallR=F.r}
 function knockdown(d,a,info){
   a.hp=Math.min(100,a.hp+10);a.cap=Math.max(a.cap,a.hp);if(!G.demo&&a===G.F[0])pop('체력 +10','#7fd39a',false,1);
   {const back=-Math.sin(d.facing),end=d.x+back*1.75;d.slideX=end>2.9?2.9-back*1.75:end<-2.9?-2.9-back*1.75:d.x}
@@ -813,7 +837,7 @@ function knockdown(d,a,info){
   const r=Math.random();
   // AI: rises at 2–3 normally; when the shot was too heavy it either struggles up late (6–9) or stays down
   const willRise=r>=q*.6,late=r<q;
-  d.down={t:0,mash:0,rising:0,ai:isAI,q,willRise,riseAt:late?6+Math.floor(Math.random()*4):2+Math.floor(Math.random()*2),
+  const act=a.action||a.lastAct||null;d.down={kd:{kind:fallKind(info,act),s:act&&act.hand==='L'?-1:1},t:0,mash:0,rising:0,ai:isAI,q,willRise,riseAt:late?6+Math.floor(Math.random()*4):2+Math.floor(Math.random()*2),
     need:Math.round(7+q*30+(info&&info.flash?10:0))};
   if(d.kdR>=3)d.down.willRise=false;
   G.phase='count';G.countN=0;G.countT=0;G.downF=d;G.upF=a;G.slow=.35;G.slowT=.9;IN.guard=false;
@@ -983,7 +1007,7 @@ function step(raw){
   else if(G.phase==='over'){
     G.overT+=raw;
     for(const f of G.F){f.anim+=dt;f.mvF=f.mvS=0;f.vx*=.9;f.vz*=.9;f.guardHeld=false;if(f.hitT>0)f.hitT-=dt;tickAction(f,dt);
-      if(f.down){f.down.t+=dt;f.fallA=1.5*easeOut(Math.min(1,f.down.t/.55))}}
+      if(f.down){f.down.t+=dt;updFall(f)}}
     if(G.overT>2.4&&!G.resultShown){G.resultShown=true;if(G.demo)setTimeout(()=>{if(G.demo)startDemo()},1500);else showResult()}
   }
   for(const f of G.F){const T2=targetPose(f,f===p?o:p);smooth(f,T2,dt);updFeet(f,dt);skeleton(f)}
@@ -1005,9 +1029,9 @@ function updateCount(dt){
   if(dist<1.9){const fx=Math.sin(a.facing),fz=Math.cos(a.facing);a.x=clamp(a.x-fx*1.2*dt,-RING_L,RING_L);a.z=clamp(a.z-fz*.7*dt,-RING_L,RING_L);a.walk+=dt;a.mvF=-1}
   d.anim+=dt;
   if(d.down.rising){
-    d.down.rising+=dt;d.fallA=1.5*(1-easeIO(clamp(d.down.rising/.8,0,1)));
+    d.down.rising+=dt;updFall(d);
     if(d.down.rising>=.8){
-      d.cap=Math.max(30,d.cap*.9);d.hp=Math.min(d.cap,hasT(d,'undying')?40:30);d.st=Math.max(d.st,50);d.down=null;d.fallA=0;d.noHitT=0;
+      d.cap=Math.max(30,d.cap*.9);d.hp=Math.min(d.cap,hasT(d,'undying')?40:30);d.st=Math.max(d.st,50);d.down=null;d.fallA=0;d.fallR=0;d.noHitT=0;
       G.phase='intro';G.phaseT=.6;G.downF=null;
       const[p,o]=G.F;const mx=clamp((p.x+o.x)/2,-RING_L+.8,RING_L-.8),mz=clamp((p.z+o.z)/2,-RING_L+.8,RING_L-.8);
       const ang=Math.atan2(o.x-p.x,o.z-p.z);p.x=mx-Math.sin(ang)*.55;p.z=mz-Math.cos(ang)*.55;o.x=mx+Math.sin(ang)*.55;o.z=mz+Math.cos(ang)*.55;p.vx=p.vz=o.vx=o.vz=0;initFeet(p);initFeet(o);
@@ -1015,7 +1039,7 @@ function updateCount(dt){
     }
     return;
   }
-  d.fallA=1.5*easeOut(Math.min(1,d.down.t/.55));
+  updFall(d);
   if(d.down.t<.75||(G.ref&&!G.ref.atBody&&d.down.t<2.2))return;
   G.countT+=dt;
   if(G.countT>=1.05){G.countT=0;G.countN++;sfx.count();
@@ -1068,7 +1092,7 @@ function endFight(win,method){
   if(G.demo)return;
   if(G.career){
     const opp=OPP[G.oppIdx];
-    if(win===p){save.w++;if(method==='KO'||method==='TKO')save.ko++;save.points+=3;if(!save.beaten.includes(opp.id))save.beaten.push(opp.id)}
+    if(win===p){save.w++;if(method==='KO'||method==='TKO')save.ko++;if(!save.beaten.includes(opp.id)){save.beaten.push(opp.id);save.points+=3;G.firstWin=true}else G.firstWin=false}
     else if(win===o)save.l++;else save.d++;
     persist();
   }
@@ -1085,7 +1109,12 @@ function phaseOf(a){const t=a.t,s=a.s,ac=a.a,r=a.r;
   return{e,eh,wu}}
 function targetPose(f,o){
   const P=basePose(),t=f.anim;
-  if(f.down){Object.assign(P,{lgx:.25,lgy:-.3,lgz:.05,rgx:-.25,rgy:-.32,rgz:0,cr:.18,lean:-.1,ht:-.4,tw:.1,ptw:.1});return P}
+  if(f.down){const F=f.down.F;
+    if(!F){Object.assign(P,{lgx:.25,lgy:-.3,lgz:.05,rgx:-.25,rgy:-.32,rgz:0,cr:.18,lean:-.1,ht:-.4,tw:.1,ptw:.1});return P}
+    Object.assign(P,{cr:F.cr,lean:F.lean,ht:F.ht,tw:F.tw,ptw:F.tw*.6,roll:F.roll});
+    if(F.arms<0)Object.assign(P,{lgx:.06,lgy:-.02,lgz:.2,rgx:-.07,rgy:-.06,rgz:.2});           // clutching the body
+    else{const k=F.arms;Object.assign(P,{lgx:.18+.14*k,lgy:-.15+.45*k,lgz:.12-.08*k,rgx:-.2-.12*k,rgy:-.2+.38*k,rgz:.1-.1*k})}
+    return P}
   if(f.celebrate){const w=Math.sin(t*7)*.04;Object.assign(P,{lgx:.2,lgy:.42+w,lgz:.05,rgx:-.2,rgy:.4-w,rgz:.05,lean:-.08,ht:-.25,tw:0,ptw:0,cr:.02});return P}
   // rhythm: light bounce on the balls of the feet, a little upper-body sway
   const spd=Math.hypot(f.vx,f.vz);
@@ -1204,7 +1233,7 @@ function initFeet(f){f.feet={};for(const s of['L','R']){const d=footDesired(f,s,
 function updFeet(f,dt){
   if(!f.feet)initFeet(f);
   const F=f.feet,des={L:footDesired(f,'L',{x:0,z:0}),R:footDesired(f,'R',{x:0,z:0})};
-  if(f.down||f.fallA>.01){for(const s of['L','R']){F[s].x=des[s].x;F[s].z=des[s].z;F[s].lift=0;F[s].st=-1}return}
+  if(f.down||Math.abs(f.fallA)>.01||Math.abs(f.fallR||0)>.01){for(const s of['L','R']){F[s].x=des[s].x;F[s].z=des[s].z;F[s].lift=0;F[s].st=-1}return}
   const spd=Math.hypot(f.vx,f.vz),dur=clamp(.15-spd*.02,.09,.15);
   for(const s of['L','R']){const ft=F[s];if(ft.st>=0){ft.st+=dt/dur;const k=easeIO(Math.min(1,ft.st));ft.x=lerp(ft.fx,ft.tx,k);ft.z=lerp(ft.fz,ft.tz,k);ft.lift=Math.sin(Math.PI*Math.min(1,ft.st))*(.035+spd*.012);if(ft.st>=1){ft.st=-1;ft.lift=0}}}
   const busy=s=>F[s].st>=0&&F[s].st<.6;
@@ -1240,7 +1269,7 @@ function skeleton(f){
   else{k.ftL.set(STANCE.L.x,.1,STANCE.L.z);k.ftR.set(STANCE.R.x,.1,STANCE.R.z)}
   ik3(k.hipL,k.ftL,.45,.45,V(.25,0,1),k.lL);ik3(k.hipR,k.ftR,.45,.45,V(-.1,0,1),k.lR);
   const c=Math.cos(f.facing),s=Math.sin(f.facing);
-  const W=(o,q)=>{const fa=f.fallA;let y=q.y,z=q.z;if(fa){y=q.y*Math.cos(fa)+q.z*Math.sin(fa);z=-q.y*Math.sin(fa)+q.z*Math.cos(fa)}const hk=hsOf(f);o.set(f.x+(q.x*c+z*s)*hk,y*hk,f.z+(-q.x*s+z*c)*hk)};
+  const W=(o,q)=>{const fa=f.fallA,fr=f.fallR||0;let x=q.x,y=q.y,z=q.z;if(fr){const cx=Math.cos(fr),sx=Math.sin(fr);x=q.x*cx-q.y*sx;y=q.x*sx+q.y*cx;q={x,y,z}}if(fa){y=q.y*Math.cos(fa)+q.z*Math.sin(fa);z=-q.y*Math.sin(fa)+q.z*Math.cos(fa)}const hk=hsOf(f);o.set(f.x+(x*c+z*s)*hk,y*hk,f.z+(-x*s+z*c)*hk)};
   W(f.headW,k.head);W(f.bodyW,k.belly);
 }
 const _qa=new T.Quaternion(),_ax=V(0,1,0),_bruise=new T.Color('#9b3a31');
@@ -1250,7 +1279,7 @@ function applyModel(f){
   {const fd=f.faceDmg||0,k=clamp(fd/80,0,.55);M.headMat.color.copy(M.baseSkin).lerp(_bruise,k);
    const sw=clamp((fd-15)/50,0,1);M.swell[0].scale.set(.03*sw+.001,.024*sw+.001,.022*sw+.001);M.swell[1].scale.set(.02*sw+.001,.016*sw+.001,.016*sw+.001);
    M.cut.visible=fd>60;const wet=clamp((G.fightT||0)/240,0,1);if(M.skinMat.isMeshPhysicalMaterial){M.skinMat.roughness=.52-.18*wet;M.skinMat.clearcoat=.1+.55*wet}if(M.headMat.isMeshPhysicalMaterial){M.headMat.roughness=.5-.18*wet;M.headMat.clearcoat=.1+.5*wet}}
-  M.body.rotation.x=-f.fallA;M.body.position.z=-f.fallA*.05;
+  M.body.rotation.set(-f.fallA,0,f.fallR||0);M.body.position.z=-f.fallA*.05;
   M.pelvis.position.copy(k.pel);M.pelvis.rotation.copy(k.pe);
   M.torso.position.copy(k.waist);M.torso.rotation.copy(k.ce);
   M.head.position.copy(k.head);M.head.rotation.copy(k.rh);
@@ -1380,7 +1409,7 @@ function buildAnimeHead(M,def){
   inkOutline(H);
 }
 function setFace(f){const F=f.M&&f.M.face;if(!F)return;let st='neutral';
-  if(f.down||(G.phase==='over'&&G.result&&G.result.win&&G.result.win!==f&&f.fallA>.5))st='ko';
+  if(f.down||(G.phase==='over'&&G.result&&G.result.win&&G.result.win!==f&&Math.abs(f.fallA)+Math.abs(f.fallR||0)>.5))st='ko';
   else if(f.stunT>0)st='dizzy';else if(f.hitT>.08&&f.hitKind!=='block')st='hurt';
   else if(f.action&&f.action.kind==='punch'||f.charge||f.celebrate)st='attack';
   if(st!==F.state){F.state=st;F.mesh.material.map=F.tex[st];F.mesh.material.needsUpdate=true}}
@@ -1607,8 +1636,8 @@ function updRef(dt){
 }
 
 /* ================= replay ================= */
-function snap(f){return{x:f.x,z:f.z,facing:f.facing,fallA:f.fallA,pose:Object.assign({},f.pose),feet:f.feet?{L:{...f.feet.L},R:{...f.feet.R}}:null}}
-function putSnap(f,s){f.x=s.x;f.z=s.z;f.facing=s.facing;f.fallA=s.fallA;Object.assign(f.pose,s.pose);if(s.feet)f.feet={L:{...s.feet.L},R:{...s.feet.R}};skeleton(f)}
+function snap(f){return{x:f.x,z:f.z,facing:f.facing,fallA:f.fallA,fallR:f.fallR||0,pose:Object.assign({},f.pose),feet:f.feet?{L:{...f.feet.L},R:{...f.feet.R}}:null}}
+function putSnap(f,s){f.x=s.x;f.z=s.z;f.facing=s.facing;f.fallA=s.fallA;f.fallR=s.fallR||0;Object.assign(f.pose,s.pose);if(s.feet)f.feet={L:{...s.feet.L},R:{...s.feet.R}};skeleton(f)}
 function record(){(G.rec=G.rec||[]).push({rt:G.rt,F:G.F.map(snap)});if(G.rec.length>260)G.rec.splice(0,G.rec.length-260)}
 function startReplay(){
   const h=G.replayHit;G.replayAt=null;if(!h||!G.rec||G.rec.length<10)return;
@@ -1676,7 +1705,7 @@ function updateCamera(raw){
   if(G.phase==='replay'){replayCamera(raw);return}
   G.camAng=0; // fixed broadcast side: no swinging around the ring
   let mx=(p.x+o.x)/2,mz=(p.z+o.z)/2;
-  if(G.phase==='count'&&G.downF){const d=G.downF,u=d===p?o:p,bc=d.x-Math.sin(d.facing)*.8*Math.min(1,d.fallA/1.4);mx=(bc*2+u.x+(G.ref?G.ref.x:bc))/4}
+  if(G.phase==='count'&&G.downF){const d=G.downF,u=d===p?o:p,bc=d.x-Math.sin(d.facing)*.8*clamp(d.fallA/1.4,-1,1);mx=(bc*2+u.x+(G.ref?G.ref.x:bc))/4}
   G.camMid.x=lerp(G.camMid.x,mx,1-Math.exp(-raw*1.8));G.camMid.z=0;
   const asp=W0/H0,vf=camera.fov*Math.PI/180,hf=2*Math.atan(Math.tan(vf/2)*asp);
   const need=Math.max(d/2+.6,.85);let D=Math.max(need/Math.tan(hf/2),2.3);
@@ -1983,7 +2012,7 @@ function career(){
         <div class="rec">${save.w}-${save.l}${save.d?'-'+save.d:''}<span>전적 · KO ${save.ko}</span></div>
         <p class="bio" style="margin-top:8px">${TRAITS[playerDef().trait].desc}</p><button class="back" data-act="edit" style="margin-top:8px">선수·특성 바꾸기</button></div>
       <div>${statRow('power','파워')}${statRow('speed','스피드')}${statRow('chin','맷집')}${statRow('stamina','스태미나')}
-        <div class="pts">${save.points?`능력치 포인트 ${save.points} · + 한 번에 2씩 올라요`:'승리하면 능력치 포인트 3을 받아요'}</div></div>
+        <div class="pts">${save.points?`능력치 포인트 ${save.points} · + 한 번에 2씩 올라요`:'처음 이기는 상대마다 능력치 포인트 3 (재대결 승리는 포인트 없음)'}</div></div>
     </div>
     <div><p class="lbl">헤비급 랭킹</p><ol class="ladder">
       ${OPP.map((o,i)=>{const won=save.beaten.includes(o.id),isNext=i===next,locked=!won&&!isNext;
@@ -2141,7 +2170,7 @@ scr.addEventListener('click',e=>{
     case'pbuild':draft.build=b.dataset.k;if($('#nm'))draft.name=$('#nm').value;document.querySelectorAll('#bdPick .trait').forEach(x=>x.classList.toggle('on',x.dataset.k===draft.build));break;
     case'ptrait':draft.trait=b.dataset.k;if($('#nm'))draft.name=$('#nm').value;document.querySelectorAll('#trPick .trait').forEach(x=>x.classList.toggle('on',x.dataset.k===draft.trait));break;
     case'edit':createFighter();break;
-    case'reset':if(b.dataset.confirm){save={...loadSave(),name:'',stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[]};persist();career()}
+    case'reset':if(b.dataset.confirm){save={...loadSave(),name:'',stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[],statFix:1};persist();career()}
       else{b.dataset.confirm='1';b.textContent='한 번 더 누르면 초기화돼요';b.style.color='var(--red)'}break;
     case'next':nextRound();break;
     case'rematch':launch(G.oppIdx,G.rounds,G.career);break;
