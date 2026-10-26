@@ -165,12 +165,13 @@ const PUNCH={
   cross:{s:.17,a:.07,r:.27,dmg:6.6,cost:6.5,range:1.14,power:true, name:'스트레이트',lunge:.9,whiff:.35},
   hook: {s:.29,a:.09,r:.36,dmg:11.5,cost:9.5,range:1.02,power:true, name:'훅',lunge:.7,whiff:.6},
   upper:{s:.26,a:.06,r:.38,dmg:13.5,cost:10,range:.84,power:true, name:'어퍼컷',lunge:.5,whiff:.7},
+  hay:  {s:.42,a:.09,r:.46,dmg:17,cost:14,range:1.1,power:true, name:'헤이메이커',lunge:1.2,whiff:1.1},
 };
 const EVADE={slipL:{d:.36,beats:['jab','cross'],name:'왼쪽 슬립'},slipR:{d:.36,beats:['jab','cross'],name:'오른쪽 슬립'},
   pull:{d:.4,beats:['jab','cross','hook'],name:'풀백'},weave:{d:.55,beats:['jab','cross','hook'],name:'위빙'},duck:{d:.42,beats:['jab','cross','hook'],name:'더킹'}};
 const STYLES={
   outboxer:{label:'아웃복서',dist:1.0, ev:['slipL','slipR','pull'],combos:['jab','jab jab','jab cross','jab jab cross','jab cross hookL','jab b:jab','jab cross b:hookL','f:jab cross','f:jab jab cross']},
-  slugger: {label:'슬러거',  dist:.86,ev:['pull','duck'],        combos:['hookL','cross hookL','hookL upperR','b:hookL hookL','jab cross hookL upperR','upperR hookL','cross','hookR']},
+  slugger: {label:'슬러거',  dist:.86,ev:['pull','duck'],        combos:['hookL','cross hookL','hookL upperR','b:hookL hookL','jab cross hookL upperR','upperR hookL','cross','hookR','jab hayR','hayR']},
   swarmer: {label:'인파이터',dist:.8, ev:['weave','duck','slipL'],combos:['b:hookL b:hookR hookL','jab jab hookL upperR','b:upperR hookL','hookL hookR','jab b:cross hookL','upperL cross','f:jab b:hookL hookL','jab cross hookL cross']},
   counter: {label:'카운터',  dist:.93,ev:['slipL','slipR','weave','duck'],combos:['jab','cross','jab cross','hookL cross','b:cross hookL','upperR hookL','f:jab','f:cross hookL']},
 };
@@ -357,7 +358,7 @@ function buildArena(){
     ropeY.forEach(y=>{const pad=new T.Mesh(new T.BoxGeometry(.2,.26,.2),mat(red?0xb52323:0x2346a8,.7));pad.position.set(x*.985,y,z*.985);pad.rotation.y=Math.PI/4;scene.add(pad)});
   }
   const ropeGeo=new T.CylinderGeometry(.022,.022,2*C,8);ropeGeo.rotateZ(Math.PI/2);
-  ropeY.forEach((y,i)=>{const m=mat(ropeC[i],.45);[[0,y,C,0],[0,y,-C,0],[C,y,0,1],[-C,y,0,1]].forEach(([x,yy,z,rot])=>{const r=new T.Mesh(ropeGeo,m);r.position.set(x,yy,z);if(rot)r.rotation.y=Math.PI/2;r.castShadow=true;scene.add(r)})});
+  ropeY.forEach((y,i)=>{const m=mat(ropeC[i],.45);[[0,y,-C,0],[C,y,0,1],[-C,y,0,1]].forEach(([x,yy,z,rot])=>{const r=new T.Mesh(ropeGeo,m);r.position.set(x,yy,z);if(rot)r.rotation.y=Math.PI/2;r.castShadow=true;scene.add(r)})});
   // stands + crowd
   const standM=mat(0x0b0e14,.95);
   const bodyGeo=new T.BoxGeometry(.44,.62,.3),headGeo=new T.SphereGeometry(.12,8,6);
@@ -410,11 +411,14 @@ function buildModel(def){
   ball(1,skin,torso,.06,.05,.05).position.set(.16,.27,0);ball(1,skin,torso,.06,.05,.05).position.set(-.16,.27,0);
   // head
   const head=new T.Group();body.add(head);M.head=head;
-  ball(1,skin,head,.098,.122,.112);
-  ball(1,skin,head,.075,.06,.07).position.set(0,-.07,.04);
+  const hs=mat(def.skin,.5);M.headMat=hs;M.baseSkin=new T.Color(def.skin);M.skinMat=skin;
+  ball(1,hs,head,.098,.122,.112);
+  ball(1,hs,head,.075,.06,.07).position.set(0,-.07,.04);
+  M.swell=[ball(1,hs,head,.03,.022,.02),ball(1,hs,head,.03,.022,.02)];M.swell[0].position.set(.045,.0,.09);M.swell[1].position.set(-.045,.0,.09);M.swell.forEach(m=>m.scale.setScalar(.001));
+  M.cut=ball(1,mat(0x7a0d0d,.3),head,.022,.006,.008);M.cut.position.set(.04,.045,.103);M.cut.visible=false;
   const hc=new T.Mesh(new T.SphereGeometry(.104,18,10,0,Math.PI*2,0,Math.PI*.42),hair);hc.scale.set(1,1.18,1.08);hc.position.set(0,.012,-.008);hc.rotation.x=-.25;hc.castShadow=true;head.add(hc);
   ball(.025,skinD,head,.6,1,1).position.set(.098,-.005,-.01);ball(.025,skinD,head,.6,1,1).position.set(-.098,-.005,-.01);
-  const nose=new T.Mesh(new T.BoxGeometry(.03,.05,.035),skin);nose.position.set(0,-.02,.115);nose.rotation.x=.25;head.add(nose);
+  const nose=new T.Mesh(new T.BoxGeometry(.03,.05,.035),hs);nose.position.set(0,-.02,.115);nose.rotation.x=.25;head.add(nose);
   ball(.013,dark,head).position.set(.038,.012,.1);ball(.013,dark,head).position.set(-.038,.012,.1);
   const brow=new T.Mesh(new T.BoxGeometry(.11,.016,.02),hair);brow.position.set(0,.035,.104);head.add(brow);
   M.neck=seg(.052,.058,skin,body);
@@ -460,7 +464,7 @@ function newAI(){return{cool:rnd(.4,1.2),combo:[],react:null,lastSeen:0,guardT:0
 function startFight(o){
   G.F.forEach(disposeFighter);
   G.demo=!!o.demo;G.career=!!o.career;G.oppIdx=o.oppIdx||0;G.rounds=o.rounds;G.round=1;G.scores=[];G.result=null;G.fightT=0;
-  G.F=[makeFighter(o.p,0,G.demo),makeFighter(o.o,1,true)];
+  G.F=[makeFighter(o.p,0,G.demo),makeFighter(o.o,1,true)];G.rec=[];G.rp=null;G.replayAt=null;
   G.parts=[];G.texts=[];G.shake=0;G.slow=1;G.slowT=0;G.hitStop=0;G.downF=null;
   IN.guard=false;IN.mx=IN.my=0;
   roundStart();
@@ -527,7 +531,7 @@ function resolveHit(at,df){
   let crit=false,flash=false;
   if(!a.body&&D.power&&!isGuarding(df)){
     const pw=at.def.power+(hasT(at,'onepunch')?8:0);
-    const cc=Math.max(0,(pw-58)*.0028)*(counter||temple||rising?2.2:1)*(df.st<25?1.4:1);
+    const cc=Math.max(0,(pw-58)*.0028)*(a.type==='hay'?1.8:1)*(counter||temple||rising?2.2:1)*(df.st<25?1.4:1);
     if(Math.random()<cc){crit=true;dmg*=2;
       const fk=(.05+Math.max(0,pw-68)*.012)*(1.45-df.def.chin/100)*(hasT(df,'undying')?.4:1);
       if(pw>=68&&Math.random()<fk)flash=true}
@@ -545,7 +549,8 @@ function resolveHit(at,df){
     if(df.bodyChain>1){dmg*=1+.3*(df.bodyChain-1);if(!G.demo&&(at===G.F[0]||df===G.F[0]))pop('바디 '+df.bodyChain+'연타','#ffb36b',false,.7)}
     if(df.bodyChain>=4&&!df.stunT)df.stunT=.45;
     df.hp-=dmg*.6;df.st=Math.max(0,df.st-dmg*3.2*(hasT(at,'hunter')?2:1));df.stMax=Math.max(50,df.stMax-dmg*.6)}
-  else{dmg*=(1.25-df.def.chin/250);df.hp-=dmg;df.cap=Math.max(30,df.cap-dmg*.2)}
+  else{dmg*=(1.25-df.def.chin/250);df.hp-=dmg;df.cap=Math.max(30,df.cap-dmg*.2);df.faceDmg=(df.faceDmg||0)+dmg;
+    if(df.faceDmg>45&&Math.random()<.6)for(let i=0;i<6;i++)G.parts.push({x:tgt.x,y:tgt.y+.04,z:tgt.z,vx:Math.sin(at.facing)*rnd(.3,1)+rnd(-.3,.3),vy:rnd(0,.8),vz:rnd(-.3,.3),life:rnd(.4,.7),t:0,r:rnd(1.4,2.6),c:'#a3141a'})}
   const v=dmg/DS;
   at.stats.landed++;at.rs.landed++;if(D.power){at.stats.power++;at.rs.power++}at.rs.dmg+=dmg;at.stats.dmg+=dmg;
   df.hitT=.3;df.hitKind=a.body?'body':a.type;df.hitHand=a.hand;df.hitPow=v;df.noHitT=0;
@@ -583,6 +588,7 @@ function stayDownChance(d,a,info){
   return clamp(q,0,.92);
 }
 function knockdown(d,a,info){
+  if(!G.demo){G.replayAt=G.rt+1.1;G.replayHit={rt:G.rt,x:d.headW.x,y:d.headW.y,z:d.headW.z,att:a.side}}
   d.hp=0;d.action=null;d.queued=null;d.stunT=0;d.guardHeld=false;d.mvF=d.mvS=0;d.kdR++;d.kdT++;a.rs.kd++;
   const isAI=!!d.ai,q=stayDownChance(d,a,info);
   const r=Math.random();
@@ -632,10 +638,10 @@ function aiThink(f,o,dt){
   else if(ai.moveT>0){ai.moveT-=dt;f.mvF=-1}
   else if(dist>want+.1)f.mvF=.7;else if(dist<want-.1)f.mvF=-.6;
   if(ai.strafeT<=0){ai.strafe=Math.random()<.6?0:(Math.random()<.5?-1:1);ai.strafeT=rnd(1.5,3.5)}
-  f.mvS=ai.strafe*.4;
+  f.mvS=0;
   if(!ai.combo.length&&dist>want+.05&&Math.random()<dt*.6*df.aggr)ai.moveT=-.35;
   // keep away from ropes: steer toward center
-  const r=Math.hypot(f.x,f.z);if(r>RING_L-.7){const lx=Math.cos(f.facing),lz=-Math.sin(f.facing);f.mvS=-Math.sign(f.x*lx+f.z*lz)||1;if(Math.random()<dt*.8)ai.strafeT=0}
+  if(Math.abs(f.x)>RING_L-.35&&f.mvF<0)f.mvF=0;
   if(ai.guardT<=0&&!f.action&&!ai.combo.length&&dist<1.25&&Math.random()<dt*(.6+sk*1.1)*(f.st<30?2:1))ai.guardT=rnd(.4,1.1)*(f.st<30?1.6:1);
   f.guardHeld=ai.guardT>0;
   if(!ai.combo.length&&ai.cool<=0&&!f.action&&f.st>14){
@@ -688,24 +694,28 @@ function updFighter(f,o,dt){
 }
 function separate(){
   const[p,q]=G.F;
+  for(const f of G.F){f.z=0;f.vz=0} // side-view bout: fighters stay on one line, no circling
   for(const f of G.F){f.x=clamp(f.x,-RING_L,RING_L);f.z=clamp(f.z,-RING_L,RING_L)}
   let dx=q.x-p.x,dz=q.z-p.z,d=Math.hypot(dx,dz)||1e-3;
   if(d<MIN_D){const k=(MIN_D-d)/2/d;p.x-=dx*k;p.z-=dz*k;q.x+=dx*k;q.z+=dz*k}
   for(const f of G.F){f.x=clamp(f.x,-RING_L,RING_L);f.z=clamp(f.z,-RING_L,RING_L)}
 }
 function playerControl(p){
-  let x=IN.mx,y=IN.my;
+  let x=IN.mx,y=0;
   const gi=gyroInput();x+=gi.x;y+=gi.y;
   if(keys.KeyD||keys.ArrowRight)x+=1;if(keys.KeyA||keys.ArrowLeft)x-=1;if(keys.KeyW||keys.ArrowUp)y+=1;if(keys.KeyS||keys.ArrowDown)y-=1;
   x=clamp(x,-1,1);y=clamp(y,-1,1);
   // smooth the stick/tilt so the boxer eases in and out of steps instead of twitching
   const k=1-Math.exp(-(G.lastDt||1/60)*4.5);IN.sx=(IN.sx||0)+(x-(IN.sx||0))*k;IN.sy=(IN.sy||0)+(y*.7-(IN.sy||0))*k;
   // screen-relative: right = toward opponent (side camera), into screen = player's left
-  p.mvF=IN.sx;p.mvS=IN.sy;
+  p.mvF=IN.sx;p.mvS=0;
   p.guardHeld=IN.guard||!!keys.Space;
 }
 function step(raw){
   if(G.phase==='paused')return;
+  G.rt=(G.rt||0)+raw;
+  if(G.phase==='replay'){stepReplay(raw);return}
+  if(G.replayAt&&G.rt>=G.replayAt&&(G.phase==='count'||G.phase==='over')){startReplay();return}
   let dt=raw;
   if(G.hitStop>0){G.hitStop-=raw;dt*=.08}
   if(G.slowT>0){G.slowT-=raw;if(G.slowT<=0)G.slow=1}
@@ -731,6 +741,7 @@ function step(raw){
     if(G.overT>2.4&&!G.resultShown){G.resultShown=true;if(G.demo)setTimeout(()=>{if(G.demo)startDemo()},1500);else showResult()}
   }
   for(const f of G.F){const T2=targetPose(f,f===p?o:p);smooth(f,T2,dt);updFeet(f,dt);skeleton(f)}
+  if(!G.demo&&(G.phase==='fight'||G.phase==='count'||G.phase==='over'))record();
   for(const q of G.parts){q.t+=dt;if(!q.flash){q.vy-=4.5*dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.z+=q.vz*dt}}
   G.parts=G.parts.filter(q=>q.t<q.life);
   for(const t of G.texts)t.t+=raw;G.texts=G.texts.filter(t=>t.t<t.life);
@@ -894,6 +905,12 @@ function punchPose(f,o,P,a){
       if(L){P.lHeel=.9*eh;P.lPiv=-.65*eh}else{P.rHeel=.9*eh;P.rPiv=.65*eh}
       P[K+'Rot']=side*1.5*k;
       break}
+    case'hay':{ // load all the way back, then an overhand that lands with the whole body behind it
+      const ex=txL*.5,ey=ty+.02,ez=oz;const k=Math.max(0,e);
+      put(bez(g0.x,side*.28,ex,k)+side*.2*wu,bez(g0.y,.24,ey,k)+.06*wu,bez(g0.z,-.05,ez,k)-.3*wu);
+      P[K+'Up']=k>.1?1:0;P.ptw+=side*(.35*wu-.6*eh);P.tw+=side*(.7*wu-1.15*e);P.lean+=.2*e-.08*wu;P.hz+=.1*e-.06*wu;P.cr+=.06*wu+.04*e;
+      if(L){P.lHeel=eh;P.lPiv=-.6*eh}else{P.rHeel=1;P.rPiv=-.8*eh}P[K+'Rot']=side*1.2*k;
+      break}
     case'upper':{ // dip to the punching side, then drive up with the legs and rotate through
       const ex=txL*.5+side*.02,ey=ty-.03,ez=oz-.03;
       const k=Math.max(0,e);
@@ -967,10 +984,13 @@ function skeleton(f){
   const W=(o,q)=>{const fa=f.fallA;let y=q.y,z=q.z;if(fa){y=q.y*Math.cos(fa)+q.z*Math.sin(fa);z=-q.y*Math.sin(fa)+q.z*Math.cos(fa)}o.set(f.x+q.x*c+z*s,y,f.z-q.x*s+z*c)};
   W(f.headW,k.head);W(f.bodyW,k.belly);
 }
-const _qa=new T.Quaternion(),_ax=V(0,1,0);
+const _qa=new T.Quaternion(),_ax=V(0,1,0),_bruise=new T.Color('#9b3a31');
 function applyModel(f){
   const M=f.M;if(!M)return;const k=f.sk,p=f.pose;
   M.root.position.set(f.x,0,f.z);M.root.rotation.y=f.facing;
+  {const fd=f.faceDmg||0,k=clamp(fd/80,0,.55);M.headMat.color.copy(M.baseSkin).lerp(_bruise,k);
+   const sw=clamp((fd-15)/50,0,1);M.swell[0].scale.set(.03*sw+.001,.024*sw+.001,.022*sw+.001);M.swell[1].scale.set(.02*sw+.001,.016*sw+.001,.016*sw+.001);
+   M.cut.visible=fd>45;const wet=clamp((G.fightT||0)/240,0,1);M.skinMat.roughness=.5-.2*wet;M.headMat.roughness=.5-.2*wet}
   M.body.rotation.x=-f.fallA;M.body.position.z=-f.fallA*.05;
   M.pelvis.position.copy(k.pel);M.pelvis.rotation.copy(k.pe);
   M.torso.position.copy(k.waist);M.torso.rotation.copy(k.ce);
@@ -989,6 +1009,40 @@ function applyModel(f){
     const bt=M['bt'+s],heel=s==='L'?p.lHeel:p.rHeel,piv=s==='L'?p.lPiv:p.rPiv;
     bt.position.copy(Lg.h);bt.rotation.set(-heel*.45,STANCE[s].yaw*(s==='L'?1:1)*(s==='L'?1:1)+piv,0,'YXZ');
   }
+}
+
+/* ================= replay ================= */
+function snap(f){return{x:f.x,z:f.z,facing:f.facing,fallA:f.fallA,pose:Object.assign({},f.pose),feet:f.feet?{L:{...f.feet.L},R:{...f.feet.R}}:null}}
+function putSnap(f,s){f.x=s.x;f.z=s.z;f.facing=s.facing;f.fallA=s.fallA;Object.assign(f.pose,s.pose);if(s.feet)f.feet={L:{...s.feet.L},R:{...s.feet.R}};skeleton(f)}
+function record(){(G.rec=G.rec||[]).push({rt:G.rt,F:G.F.map(snap)});if(G.rec.length>260)G.rec.splice(0,G.rec.length-260)}
+function startReplay(){
+  const h=G.replayHit;G.replayAt=null;if(!h||!G.rec||G.rec.length<10)return;
+  const frames=G.rec.filter(r=>r.rt>=h.rt-1.5);
+  G.rp={frames,t:0,start:frames[0].rt,hit:h,burst:false,back:G.phase,live:G.F.map(snap),ang:h.att===0?.9:-.9};
+  G.phase='replay';IN.guard=false;PT.clear();sfx.crowd(.2);
+}
+function stepReplay(raw){
+  const R=G.rp;R.t+=raw*.32;const tt=R.start+R.t;
+  let i=0;while(i<R.frames.length-1&&R.frames[i+1].rt<=tt)i++;
+  const fr=R.frames[i];G.F.forEach((f,j)=>putSnap(f,fr.F[j]));
+  if(!R.burst&&tt>=R.hit.rt){R.burst=true;const at=G.F[R.hit.att];sweat({x:R.hit.x,y:R.hit.y,z:R.hit.z},at,16);G.parts.forEach(q=>{q.life*=2.5});sfx.hit(1.2)}
+  for(const q of G.parts){q.t+=raw*.32;if(!q.flash){q.vy-=4.5*raw*.32;q.x+=q.vx*raw*.32;q.y+=q.vy*raw*.32;q.z+=q.vz*raw*.32}}
+  G.parts=G.parts.filter(q=>q.t<q.life);
+  if(tt>=R.frames[R.frames.length-1].rt)endReplay();
+}
+function endReplay(){
+  const R=G.rp;if(!R)return;G.F.forEach((f,j)=>putSnap(f,R.live[j]));G.phase=R.back;G.rp=null;G.parts=[];
+}
+function replayCamera(raw){
+  // slow orbit on the broadcast side of the ring, centred between the two fighters
+  const R=G.rp,h=R.hit,[p,o]=G.F;const mx=(p.x+o.x)/2*.5+h.x*.5;const a=-.55+R.t*1.4;
+  camera.position.set(mx+Math.sin(a)*2.5,1.38+Math.sin(R.t*1.5)*.1,Math.cos(a)*2.5);camera.lookAt(mx,1.2,0);
+  if(Math.abs(camera.fov-34)>.01){camera.fov=34;camera.updateProjectionMatrix()}
+}
+function drawReplayHUD(c){
+  const bar=VH*.09;c.fillStyle='#000';c.fillRect(0,0,VW,bar);c.fillRect(0,VH-bar,VW,bar);
+  c.save();c.fillStyle='#d9302c';c.fillRect(INS.l+18,bar+14,92,26);c.fillStyle='#fff';c.font='600 24px Teko, sans-serif';c.textAlign='center';c.fillText('REPLAY',INS.l+64,bar+35);
+  c.fillStyle='rgba(255,255,255,.6)';c.font='500 12px "Noto Sans KR", sans-serif';c.textAlign='right';c.fillText('탭하면 건너뛰기',VW-INS.r-18,VH-bar-12);c.restore();
 }
 
 /* ================= effects ================= */
@@ -1018,22 +1072,19 @@ function updateCamera(raw){
   const[p,o]=G.F;
   const dx=o.x-p.x,dz=o.z-p.z,d=Math.hypot(dx,dz)||1;
   const nx=-dz/d,nz=dx/d;const ang=Math.atan2(nx,nz);
-  if(G.camAng==null)G.camAng=ang;
-  {// only follow when the fighters have turned well off the broadcast line, and then slowly
-    let df2=((ang-G.camAng+Math.PI*3)%(Math.PI*2))-Math.PI;const band=.45;
-    if(Math.abs(df2)>band){const want=df2-Math.sign(df2)*band;G.camAng+=clamp(want*(1-Math.exp(-raw*1.2)),-.5*raw,.5*raw)}}
+  if(G.phase==='replay'){replayCamera(raw);return}
+  G.camAng=0; // fixed broadcast side: no swinging around the ring
   const mx=(p.x+o.x)/2,mz=(p.z+o.z)/2;
-  G.camMid.x=lerp(G.camMid.x,mx,1-Math.exp(-raw*2.2));G.camMid.z=lerp(G.camMid.z,mz,1-Math.exp(-raw*2.2));
+  G.camMid.x=lerp(G.camMid.x,mx,1-Math.exp(-raw*1.8));G.camMid.z=0;
   const asp=W0/H0,vf=camera.fov*Math.PI/180,hf=2*Math.atan(Math.tan(vf/2)*asp);
   const need=Math.max(d/2+.6,.85);let D=Math.max(need/Math.tan(hf/2),2.3);
-  D=Math.max(D,1.15/Math.tan(vf/2));
+  D=Math.max(D,1.02/Math.tan(vf/2));
   if(G.demo)D*=1.08;
   G.camD=lerp(G.camD,D*1.06,1-Math.exp(-raw*1.2));
   const sh=G.shake;
-  _cam.set(G.camMid.x+Math.sin(G.camAng)*G.camD+rnd(-sh,sh),1.42+G.camD*.06+rnd(-sh,sh),G.camMid.z+Math.cos(G.camAng)*G.camD);
-  {const rr=Math.hypot(_cam.x,_cam.z);if(rr>4.8){_cam.x*=4.8/rr;_cam.z*=4.8/rr;_cam.y+=Math.min(.8,(rr-4.8)*.35)}}
-  _look.set(G.camMid.x,1.05,G.camMid.z);
-  G.fovKick=(G.fovKick||0)*Math.exp(-raw*6);const fov=40-G.fovKick;if(Math.abs(camera.fov-fov)>.01){camera.fov=fov;camera.updateProjectionMatrix()}
+  _cam.set(G.camMid.x+rnd(-sh,sh),1.32+G.camD*.05+rnd(-sh,sh),G.camD);
+  _look.set(G.camMid.x,1.08,0);
+  G.fovKick=(G.fovKick||0)*Math.exp(-raw*6);const fov=38-G.fovKick;if(Math.abs(camera.fov-fov)>.01){camera.fov=fov;camera.updateProjectionMatrix()}
   camera.position.copy(_cam);camera.lookAt(_look);
 }
 function render(raw){
@@ -1056,7 +1107,8 @@ function drawHUDLayer(){
     else{c.globalAlpha=k;c.fillStyle=q.c;c.beginPath();c.arc(s.x,s.y,q.r,0,7);c.fill();c.globalAlpha=1}
   }
   const v=c.createRadialGradient(VW/2,VH*.55,VH*.35,VW/2,VH*.55,Math.max(VW,VH)*.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(0,0,0,.5)');c.fillStyle=v;c.fillRect(0,0,VW,VH);
-  if(!G.demo){drawZones(c);drawHUD(c);drawRipples(c);drawStick(c)}
+  if(G.phase==='replay'){drawReplayHUD(c);return}
+  if(!G.demo){drawZones(c);drawHUD(c);drawRipples(c);drawCharge(c);drawStick(c)}
   drawTexts(c);
   if(G.phase==='count'&&G.countN>0&&!(G.downF&&G.downF.down&&G.downF.down.rising)){
     c.save();c.textAlign='center';c.fillStyle='rgba(255,255,255,.95)';c.font='600 150px Teko, sans-serif';c.shadowColor='rgba(0,0,0,.6)';c.shadowBlur=20;
@@ -1114,6 +1166,13 @@ function drawZones(c){
   c.textAlign='left';lab.forEach(l=>c.fillText(l[0],INS.l+16,l[2]));c.textAlign='right';rab.forEach(l=>c.fillText(l[0],VW-INS.r-16,l[2]));
   c.restore();
 }
+function drawCharge(c){ // a ring fills while a finger is held for a haymaker
+  if(G.phase!=='fight')return;const now=performance.now();
+  for(const t of PT.values()){if(t.stick||t.used||t.guard||t.zone==='bot')continue;const k=Math.min(1,(now-t.t0-120)/360);if(k<=0)continue;
+    c.save();c.lineWidth=4;c.strokeStyle='rgba(255,255,255,.18)';c.beginPath();c.arc(t.x/SC,t.y/SC,34,0,7);c.stroke();
+    c.strokeStyle=k>=1?'#ff5a4a':'#e3b23c';c.beginPath();c.arc(t.x/SC,t.y/SC,34,-Math.PI/2,-Math.PI/2+k*Math.PI*2);c.stroke();
+    if(k>=1){c.fillStyle='#fff';c.font='400 16px "Black Han Sans", sans-serif';c.textAlign='center';c.fillText('헤이메이커',t.x/SC,t.y/SC-44)}c.restore()}
+}
 function drawRipples(c){for(const r of G.ripples){const k=r.t/.45;c.save();c.globalAlpha=1-k;c.strokeStyle=r.c||'#fff';c.lineWidth=2;c.beginPath();c.arc(r.x/SC,r.y/SC,18+k*30,0,7);c.stroke();
   if(r.label){c.fillStyle='#fff';c.font='400 18px "Black Han Sans", sans-serif';c.textAlign='center';c.fillText(r.label,r.x/SC,r.y/SC-34-k*10)}c.restore()}}
 function drawStick(c){
@@ -1137,7 +1196,7 @@ function drawTexts(c){
 /* ================= touch gestures ================= */
 const PT=new Map();const SWIPE=34;
 const touchEl=$('#touch');
-function inGame(){return!G.demo&&(G.phase==='fight'||G.phase==='intro'||G.phase==='count')}
+function inGame(){return!G.demo&&(G.phase==='fight'||G.phase==='intro'||G.phase==='count'||G.phase==='replay')}
 function ripple(x,y,label,c){G.ripples.push({x,y,label,c,t:0})}
 function playerAct(type,hand,body,x,y){
   const p=G.F[0];if(G.phase!=='fight')return;
@@ -1152,6 +1211,7 @@ touchEl.addEventListener('pointerdown',e=>{
   e.preventDefault();audioStart();
   const r=touchEl.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
   if(!inGame())return;
+  if(G.phase==='replay'){endReplay();return}
   if(G.phase==='count'&&G.downF===G.F[0]&&G.F[0].down){G.F[0].down.mash+=1;ripple(x,y,'','#d9302c');return}
   try{touchEl.setPointerCapture(e.pointerId)}catch(_){}
   const s=stickGeom();
@@ -1187,7 +1247,9 @@ function ptEnd(e){
   if(t.stick){IN.mx=IN.my=0;return}
   if(t.guard){IN.guard=false;for(const o of PT.values())if(o.guard){o.guard=false;o.used=true}return}
   if(t.used||e.type==='pointercancel')return;
-  const dur=performance.now()-t.t0;if(dur>450)return;
+  const dur=performance.now()-t.t0;
+  if(dur>=480&&t.zone!=='bot'){playerAct('hay',t.half,t.zone==='mid',t.x,t.y);return}
+  if(dur>360)return;
   if(t.zone==='top')playerAct(t.half==='L'?'jab':'cross',t.half,false,t.x,t.y);
   else if(t.zone==='mid')playerAct(t.half==='L'?'jab':'cross',t.half,true,t.x,t.y);
 }
@@ -1196,7 +1258,7 @@ touchEl.addEventListener('touchend',()=>gyroStart(),{passive:true});touchEl.addE
 touchEl.addEventListener('contextmenu',e=>e.preventDefault());
 
 /* ================= keyboard ================= */
-const KACT={KeyJ:['jab','L',0],KeyK:['cross','R',0],KeyU:['hook','L',0],KeyI:['hook','R',0],KeyN:['upper','L',0],KeyM:['upper','R',0],KeyH:['weave','L'],KeyL:['duck','R'],KeyQ:['slipL','L'],KeyE:['slipR','R'],KeyR:['pull','L']};
+const KACT={KeyO:['hay','R',0],KeyY:['hay','L',0],KeyJ:['jab','L',0],KeyK:['cross','R',0],KeyU:['hook','L',0],KeyI:['hook','R',0],KeyN:['upper','L',0],KeyM:['upper','R',0],KeyH:['weave','L'],KeyL:['duck','R'],KeyQ:['slipL','L'],KeyE:['slipR','R'],KeyR:['pull','L']};
 addEventListener('keydown',e=>{
   if(e.target.tagName==='INPUT')return;
   if(e.code==='Escape'||e.code==='KeyP'){if(G.phase==='paused'){hideScreen();G.phase=G.prevPhase||'fight'}else pauseMenu();return}
@@ -1253,16 +1315,17 @@ function howto(back){
     <div><b>왼쪽 아래</b>쓸기: 위빙</div><div><b>오른쪽 아래</b>쓸기: 더킹</div>
   </div></div>
   <dl class="keys">
+    <dt>헤이메이커</dt><dd>위·가운데 구역을 손가락으로 0.5초 누르고 있다 떼면 온몸을 실은 큰 펀치. 가장 세지만 느려서 읽히면 카운터 맞아요</dd>
     <dt>어퍼컷</dt><dd>그 손 쪽을 아래에서 위로 쓸기. 더킹·위빙하는 상대에게 카운터</dd>
     <dt>가드</dt><dd>화면 어디든 왼쪽·오른쪽을 동시에 누르고 있기</dd>
     <dt>머리 회피</dt><dd>가드를 누른 채 손가락을 쓸면 그 방향으로 회피. 왼쪽·오른쪽 = 슬립, 아래 = 풀백</dd>
-    <dt>이동</dt><dd>폰을 기울인 방향으로 움직여요. 좌우로 기울이면 앞(상대 쪽)·뒤, 위아래로 기울이면 링 안쪽·바깥쪽. 자이로 신호가 없을 때만 화면 아래 가운데 스틱이 나와요</dd>
+    <dt>이동</dt><dd>폰을 좌우로 기울이면 앞(상대 쪽)·뒤로만 움직여요. 링을 돌지 않는 측면 중계 시점이에요. 자이로 신호가 없을 때만 화면 아래 가운데 스틱이 나와요</dd>
     <dt>펀치 성격</dt><dd>잽은 빠르지만 약하고, 훅은 크게 휘둘러 느리지만 세요. 어퍼컷은 가까이서 타이밍이 맞아야 들어가고 가장 강해요. 크게 헛치면 빈틈이 생겨요</dd>
     <dt>바디 연타</dt><dd>바디를 연달아 맞히면 한 대마다 데미지가 30%씩 올라가고, 4연타면 상대가 잠깐 굳어요</dd>
     <dt>스태미나</dt><dd>지칠수록 펀치가 느려지고 약해져요. 맞지 않고 숨을 고르면 빨리 차요</dd>
     <dt>위험한 순간</dt><dd>위빙·더킹 중에 바디 훅이나 어퍼가 오면 숙인 머리 관자놀이에 맞아요(1.8배). 회피 동작이 끝나 머리를 드는 순간 맞으면 정타(1.5배)</dd>
     <dt>크리티컬</dt><dd>파워가 센 선수의 파워 펀치는 가끔 크리티컬(2배)이 나고, 한 방에 KO될 수도 있어요. 카운터·정타 상황이면 확률이 올라가요</dd>
-    <dt>다운</dt><dd>보통 카운트 3쯤이면 일어나고, 일어나면 체력 30%. 강펀처에게 맞았을 땐 연타해도 못 일어날 수 있어요</dd>
+    <dt>다운</dt><dd>다운이 나오면 슬로모션 리플레이가 나와요(탭하면 건너뛰기). 보통 카운트 3쯤이면 일어나고, 일어나면 체력 30%. 강펀처에게 맞았을 땐 연타해도 못 일어날 수 있어요</dd>
     <dt>카운터</dt><dd>회피에 성공하거나 상대가 헛치면 반격 기회. 그때 맞히는 펀치는 1.55배</dd>
     <dt>다운 연타</dt><dd>카운트 10 전에 화면을 연타하면 일어나요. 한 라운드 3번 다운이면 TKO</dd>
     <dt>특성</dt><dd>선수마다 하나씩 가진 고유 능력이에요. 커리어 화면의 '선수·특성 바꾸기'에서 내 특성을 고를 수 있어요</dd>
@@ -1384,7 +1447,7 @@ function pauseHTML(){
     <button class="btn center" data-act="howto2">조작법</button><button class="btn center" data-act="quit">기권하고 나가기</button></div>`;
 }
 function pauseMenu(){
-  if(G.demo||G.phase==='over'||G.phase==='between'||G.phase==='paused')return;
+  if(G.demo||G.phase==='over'||G.phase==='between'||G.phase==='paused'||G.phase==='replay')return;
   G.prevPhase=G.phase;G.phase='paused';IN.guard=false;IN.mx=IN.my=0;PT.clear();
   showScreen(pauseHTML());
 }
