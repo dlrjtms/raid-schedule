@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#05070b"><meta name="mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"></head><body>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#05070b"><meta name="mobile-web-app-capable" content="yes"><title>라스트 라운드</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"></head><body>
 <title>라스트 라운드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&family=Teko:wght@500;600;700&display=swap">
@@ -745,7 +745,7 @@ function resolveHit(at,df){
     if(df.bodyChain>=4&&!df.stunT)df.stunT=.45;
     df.hp-=dmg*.6;df.st=Math.max(0,df.st-dmg*3.2*(hasT(at,'hunter')?2:1));df.stMax=Math.max(50,df.stMax-dmg*.6)}
   else{dmg*=(1.25-df.def.chin/250);df.hp-=dmg;df.cap=Math.max(30,df.cap-dmg*.2);df.faceDmg=(df.faceDmg||0)+dmg;
-    if(df.faceDmg>60&&Math.random()<.6)for(let i=0;i<6;i++)G.parts.push({x:tgt.x,y:tgt.y+.04,z:tgt.z,vx:Math.sin(at.facing)*rnd(.3,1)+rnd(-.3,.3),vy:rnd(0,.8),vz:rnd(-.3,.3),life:rnd(.4,.7),t:0,r:rnd(1.4,2.6),c:'#a3141a'})}
+    if(df.faceDmg>60&&Math.random()<.6)for(let i=0;i<6;i++)G.parts.push({x:tgt.x,y:tgt.y+.04,z:tgt.z,vx:Math.sin(at.facing)*rnd(.3,1)+rnd(-.3,.3),vy:rnd(0,.8),vz:rnd(-.3,.3),life:rnd(.4,.7),t:0,r:SET.style!=='real'?rnd(2.6,4.4):rnd(1.4,2.6),c:'#b5121b',drop:SET.style!=='real'?'blood':null})}
   const v=dmg/DS;
   at.unans=0;if(D.power&&!a.body&&(df.stunT>0||df.hp<22))df.unans=(df.unans||0)+1;
   at.stats.landed++;at.rs.landed++;if(D.power){at.stats.power++;at.rs.power++}at.rs.dmg+=dmg;at.stats.dmg+=dmg;
@@ -766,7 +766,7 @@ function resolveHit(at,df){
   if(a.type==='hay'){G.hitStop=a.charged?.16:.11;G.shake=Math.max(G.shake,a.charged?.13:.08);G.fovKick=a.charged?6:4;sfx.boom();buzz(80);
     {const ux=(df.x-at.x)/dist;df.vx+=ux*(a.charged?1.6:1)}if(a.charged){G.slow=.3;G.slowT=.35}}
   comicHit(tgt,v,crit||temple||(a.type==='hay'&&a.charged)||df.hp<=0);if((crit||df.hp<=0)&&!G.demo){G.whiteFlash=.06;G.impactF=.1}
-  sweat(tgt,at,v);sfx.hit(clamp(v/10,.3,1.4));sfx.crowd(v/35);
+  sweat(tgt,at,v,{head:!a.body});sfx.hit(clamp(v/10,.3,1.4));sfx.crowd(v/35);
   if(df===G.F[0])buzz(v>8?45:20);
   if(!wasStun&&df.stunT>0){if(df===G.F[0])sfx.ring();if(!G.demo)pop(df===G.F[0]?'휘청…':'상대가 휘청!','#ffcf4a',false,.8)}
   const show=!G.demo||window.__SHOWALL;
@@ -1262,7 +1262,7 @@ function applyModel(f){
     const bt=M['bt'+s],heel=s==='L'?p.lHeel:p.rHeel,piv=s==='L'?p.lPiv:p.rPiv;
     bt.position.copy(Lg.h);bt.rotation.set(-heel*.45,STANCE[s].yaw*(s==='L'?1:1)*(s==='L'?1:1)+piv,0,'YXZ');
   }
-  if(M.xb)driveXbot(f);
+  if(M.xb){driveXbot(f);updMuscleLines(M)}
   setFace(f);
   // fist trails while a punch is travelling
   {const a=f.action;f.trail=f.trail||[];if(a&&a.kind==='punch'&&a.t<a.s+a.a&&a.t>a.s*.35&&SET.style!=='real'){const g=M['gl'+a.hand];const w=g.getWorldPosition(V(0,0,0));f.trail.push(w);if(f.trail.length>7)f.trail.shift()}else if(f.trail.length)f.trail.shift()}
@@ -1411,13 +1411,86 @@ function loadXbot(){
     },()=>{});
   }catch(e){}
 }
+
+/* ---- per-fighter physique: inflate the body by bone region (no shear, works while skinned) ---- */
+const PHYS={ // chest, belly, arms, legs, neck, shoulders
+  slugger:{ch:1.10,bel:1.12,arm:1.10,leg:1.06,nk:1.12,sh:1.06},
+  outboxer:{ch:.96,bel:.92,arm:.94,leg:.94,nk:.95,sh:.98},
+  swarmer:{ch:1.07,bel:1.0,arm:1.08,leg:1.10,nk:1.06,sh:1.05},
+  counter:{ch:1.0,bel:.95,arm:1.0,leg:.98,nk:1.0,sh:1.0}};
+function physOf(def){
+  if(def.id==='player'){const b=save.build;return b==='reach'?PHYS.outboxer:b==='power'?PHYS.slugger:{ch:1.02,bel:.97,arm:1.02,leg:1.0,nk:1.0,sh:1.0}}
+  const p=Object.assign({},PHYS[def.style]||PHYS.counter);
+  if(def.champ){p.ch*=1.05;p.arm*=1.04;p.sh*=1.03;p.bel=Math.min(p.bel,1)}
+  const w=((def.wt||98)-98)/100;p.bel+=w*.6;p.ch+=w*.3; // heavier men carry it in the middle
+  return p;
+}
+const XB_REGION=n=>{n=n.replace('mixamorig','');
+  if(/Spine2|Shoulder/.test(n))return'ch';if(/^Spine1$/.test(n))return'ch2';if(/^Spine$|Hips/.test(n))return'bel';
+  if(/Arm|Hand/.test(n))return'arm';if(/UpLeg|^LeftLeg$|^RightLeg$/.test(n))return'leg';if(/Neck/.test(n))return'nk';return null};
+function shapeBody(sm,ph){
+  const g=sm.geometry.clone(),P=g.attributes.position,N=g.attributes.normal,SI=g.attributes.skinIndex,SW=g.attributes.skinWeight;
+  if(!P||!N||!SI||!SW)return;
+  g.computeBoundingBox();const bb=g.boundingBox,H=Math.max(bb.max.x-bb.min.x,bb.max.y-bb.min.y,bb.max.z-bb.min.z);
+  const reg=sm.skeleton.bones.map(b=>XB_REGION(b.name));
+  const amt={ch:(ph.ch-1)*.05,ch2:((ph.ch+ph.bel)/2-1)*.045,bel:(ph.bel-1)*.05,arm:(ph.arm-1)*.03,leg:(ph.leg-1)*.035,nk:(ph.nk-1)*.03};
+  const out=new Float32Array(P.count*3);
+  for(let i=0;i<P.count;i++){
+    let d=0,belly=0;for(let j=0;j<4;j++){const w=SW.getComponent?SW.getComponent(i,j):[SW.getX(i),SW.getY(i),SW.getZ(i),SW.getW(i)][j];if(!w)continue;const r=reg[SI.getComponent?SI.getComponent(i,j):[SI.getX(i),SI.getY(i),SI.getZ(i),SI.getW(i)][j]];if(!r)continue;d+=w*amt[r];if(r==='bel'||r==='ch2')belly+=w}
+    const nx=N.getX(i),ny=N.getY(i),nz=N.getZ(i),nl=Math.hypot(nx,ny,nz)||1;
+    let k=d*H;if(belly>0&&nz/nl>.2)k+=belly*(ph.bel-1)*.05*H*(nz/nl); // a gut pushes forward, not sideways
+    out[i*3]=P.getX(i)+nx/nl*k;out[i*3+1]=P.getY(i)+ny/nl*k;out[i*3+2]=P.getZ(i)+nz/nl*k;
+  }
+  g.setAttribute('position',new T.BufferAttribute(out,3));g.computeBoundingSphere();sm.geometry=g;
+}
+/* ---- anime muscle lines: short ink strokes riding the chest and belly bones ---- */
+XB.lines=null;
+function prepMuscleLines(){
+  if(XB.lines||!XB.tpl)return;let surf=null;XB.tpl.traverse(o=>{if(o.isSkinnedMesh&&/Surface/i.test(o.name))surf=o});if(!surf)return;
+  XB.tpl.updateMatrixWorld(true);surf.skeleton.update();const g=surf.geometry,P=g.attributes.position,m=surf.matrixWorld,v=V(0,0,0),pts=[];
+  const sk=surf.skeleton,hi=sk.bones.findIndex(b=>/Hips/.test(b.name));const RM=new T.Matrix4().copy(m).multiply(surf.bindMatrixInverse).multiply(sk.bones[hi].matrixWorld).multiply(sk.boneInverses[hi]).multiply(surf.bindMatrix);
+  for(let i=0;i<P.count;i++){v.set(P.getX(i),P.getY(i),P.getZ(i)).applyMatrix4(RM);if(v.z>.02&&v.y>1.2&&v.y<1.5&&Math.abs(v.x)<.2)pts.push(v.clone())}
+  const front=(x,y)=>{let bz=-9;for(const q of pts){if(Math.abs(q.x)<.16&&Math.abs(q.y-y)<.06&&q.z>bz)bz=q.z}return bz>0?V(x,y,bz-2.4*x*x):null};
+  const strokes=[ // [x1,y1,x2,y2,bone] in metres on the rest pose (the trunks cover below ~1.28)
+    [-.085,1.395,-.012,1.37,'Spine2'],[.085,1.395,.012,1.37,'Spine2'],        // under the pecs
+    [0,1.43,0,1.30,'Spine2'],                                                  // centre line
+    [-.04,1.34,-.01,1.336,'Spine1'],[.04,1.34,.01,1.336,'Spine1'],            // top ab row
+    [-.038,1.31,-.01,1.307,'Spine1'],[.038,1.31,.01,1.307,'Spine1'],
+    [-.095,1.36,-.08,1.30,'Spine1'],[.095,1.36,.08,1.30,'Spine1']];           // obliques
+  XB.lines=[];
+  for(const [x1,y1,x2,y2,bn] of strokes){const a=front(x1,y1),b=front(x2,y2);if(!a||!b)continue;XB.lines.push({a,b,bn})}
+}
+function addMuscleLines(f){
+  const M=f.M;if(!M.xb||SET.style==='real')return;prepMuscleLines();if(!XB.lines)return;
+  const mat=new T.MeshBasicMaterial({color:0x6b3a32,transparent:true,opacity:.75});
+  const tpl={};XB.tpl.traverse(o=>{if(o.isBone)tpl[o.name.replace('mixamorig','')]=o});
+  const ph=physOf(f.def);let surfT=null;XB.tpl.traverse(o=>{if(o.isSkinnedMesh&&/Surface/i.test(o.name))surfT=o});
+  M.xb.inst.traverse(o=>{if(o.isSkinnedMesh&&/Surface/i.test(o.name))M.xb.surf=o});M.xb.lines=[];
+  for(const L of XB.lines){const bone=M.xb.bones[L.bn],tb=tpl[L.bn];if(!bone||!tb)continue;
+    const push=.011+Math.max(0,(L.bn==='Spine2'?ph.ch:ph.bel)-1)*.06;
+    const a=L.a.clone().add(V(0,0,push)),b=L.b.clone().add(V(0,0,push));
+    const len=a.distanceTo(b),geo=new T.CylinderGeometry(.0042,.0042,len,5);const m=new T.Mesh(geo,mat);m.userData.noInk=true;
+    // place in rest-pose world space, then express it in the template bone's frame and hang it on the fighter's bone
+    const mid=a.clone().add(b).multiplyScalar(.5);m.position.copy(mid);m.quaternion.setFromUnitVectors(UP,b.clone().sub(a).normalize());m.updateMatrix();
+    const A=surfT.matrixWorld.clone().multiply(surfT.bindMatrixInverse);
+    m.userData.L=tb.matrixWorld.clone().invert().multiply(A.invert()).multiply(m.matrix);m.userData.bone=bone;m.matrixAutoUpdate=false;M.root.add(m);M.xb.lines.push(m)}
+}
+const _mA=new T.Matrix4(),_mB=new T.Matrix4();
+function updMuscleLines(M){
+  const xb=M.xb;if(!xb||!xb.lines||!xb.lines.length||!xb.surf)return;
+  M.root.updateWorldMatrix(true,true);
+  _mB.copy(M.root.matrixWorld).invert();
+  for(const m of xb.lines){_mA.copy(xb.surf.matrixWorld).multiply(xb.surf.bindMatrixInverse).multiply(m.userData.bone.matrixWorld).multiply(m.userData.L);
+    m.matrix.multiplyMatrices(_mB,_mA);m.matrixWorldNeedsUpdate=true}
+}
+
 function attachXbot(f){
   const M=f.M;if(!XB.ready||!M||M.xb||f.isRef||SET.gfx==='low')return;
   const inst=FX.SkeletonUtils.clone(XB.tpl),bones={};
   inst.traverse(o=>{if(o.isBone){const n=o.name.replace('mixamorig','');bones[n]=o}
-    if(o.isSkinnedMesh){o.castShadow=true;o.frustumCulled=false;o.material=M.skinMat}});
+    if(o.isSkinnedMesh){o.castShadow=true;o.frustumCulled=false;o.material=M.skinMat;try{shapeBody(o,physOf(f.def))}catch(e){}}});
   M.body.add(inst);M.xb={inst,bones};
-  if(SET.style!=='real'){inst.traverse(o=>{if(o.isSkinnedMesh&&/Surface/i.test(o.name))M.xb.ink=skinnedInk(o)});if(bones.Head)bones.Head.scale.setScalar(.02)}
+  if(SET.style!=='real'){inst.traverse(o=>{if(o.isSkinnedMesh&&/Surface/i.test(o.name))M.xb.ink=skinnedInk(o)});if(bones.Head)bones.Head.scale.setScalar(.02);try{addMuscleLines(f)}catch(e){}}
   // hide the primitive anatomy; keep trunks, gloves, boots and hair
   for(const o of [M.torso,M.neck])o.visible=false;
   for(const s of['L','R'])for(const k of['ua','fa','sh','el','th','sn','kn','bi','fo','ca','tr'])if(M[k+s])M[k+s].visible=false;
@@ -1541,9 +1614,11 @@ function drawReplayHUD(c){
 }
 
 /* ================= effects ================= */
-function sweat(p,at,v){
-  const n=8+Math.floor(v*1.6),fx=Math.sin(at.facing),fz=Math.cos(at.facing);
-  for(let i=0;i<n;i++)G.parts.push({x:p.x,y:p.y,z:p.z,vx:fx*rnd(.4,1.6)+rnd(-.4,.4),vy:rnd(-.2,1.4),vz:fz*rnd(.4,1.6)+rnd(-.4,.4),life:rnd(.35,.75),t:0,r:rnd(1.3,3),c:'#dbe9ff'});
+function sweat(p,at,v,opt){
+  const an=SET.style!=='real',wet=clamp((G.fightT||0)/200,0,1);
+  const n=(an?5:8)+Math.floor(v*(an?.9:1.6)*(.6+wet*.6)),fx=Math.sin(at.facing),fz=Math.cos(at.facing);
+  for(let i=0;i<n;i++)G.parts.push({x:p.x,y:p.y,z:p.z,vx:fx*rnd(.4,1.6)+rnd(-.4,.4),vy:rnd(-.2,1.4),vz:fz*rnd(.4,1.6)+rnd(-.4,.4),life:rnd(.35,.75),t:0,r:an?rnd(2.4,4.6):rnd(1.3,3),c:'#dbe9ff',drop:an?'sweat':null});
+  if(an&&opt&&opt.head&&v>5)for(let i=0;i<2+Math.floor(v/6);i++)G.parts.push({x:p.x,y:p.y-.05,z:p.z,vx:fx*rnd(1,2.2),vy:rnd(.2,1),vz:fz*rnd(1,2.2)+rnd(-.3,.3),life:rnd(.25,.4),t:0,r:rnd(2,3.5),c:'#ffffff',drop:'spit'});
   G.parts.push({x:p.x,y:p.y,z:p.z,flash:true,t:0,life:.13,r:18+v*2.4,c:'255,240,210'});
 }
 function spark(p){for(let i=0;i<6;i++)G.parts.push({x:p.x,y:p.y-.05,z:p.z,vx:rnd(-.6,.6),vy:rnd(0,1),vz:rnd(-.6,.6),life:.25,t:0,r:1.8,c:'#ffffff'});
@@ -1606,6 +1681,14 @@ function drawHUDLayer(){
   if(renderer)for(const q of G.parts){
     const s=project(q.x,q.y,q.z);if(!s.ok)continue;const k=1-q.t/q.life;
     if(q.flash){const g=c.createRadialGradient(s.x,s.y,0,s.x,s.y,q.r);g.addColorStop(0,`rgba(${q.c},${.85*k})`);g.addColorStop(1,`rgba(${q.c},0)`);c.fillStyle=g;c.beginPath();c.arc(s.x,s.y,q.r,0,7);c.fill()}
+    else if(q.drop){ // teardrop pointing back along its flight, inked outline and a highlight
+      const s2=project(q.x-q.vx*.03,q.y-q.vy*.03,q.z-q.vz*.03),ang=Math.atan2(s.y-s2.y,s.x-s2.x),r=q.r*(q.drop==='spit'?.8:1);
+      c.save();c.globalAlpha=Math.min(1,k*1.6);c.translate(s.x,s.y);c.rotate(ang);
+      const tail=q.drop==='spit'?r*4:r*2.4;
+      c.beginPath();c.moveTo(-tail,0);c.quadraticCurveTo(-r*.6,-r,0,-r);c.arc(0,0,r,-Math.PI/2,Math.PI/2);c.quadraticCurveTo(-r*.6,r,-tail,0);c.closePath();
+      c.fillStyle=q.c;c.fill();c.lineWidth=1.3;c.strokeStyle=q.drop==='blood'?'#4a0508':'#24161c';c.stroke();
+      if(q.drop!=='blood'){c.fillStyle='rgba(255,255,255,.9)';c.beginPath();c.arc(r*.25,-r*.35,r*.3,0,7);c.fill()}
+      c.restore()}
     else{c.globalAlpha=k;c.fillStyle=q.c;c.beginPath();c.arc(s.x,s.y,q.r,0,7);c.fill();c.globalAlpha=1}
   }
   const v=c.createRadialGradient(VW/2,VH*.55,VH*.35,VW/2,VH*.55,Math.max(VW,VH)*.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,composer&&SET.gfx!=='low'?'rgba(0,0,0,.15)':'rgba(0,0,0,.5)');c.fillStyle=v;c.fillRect(0,0,VW,VH);
