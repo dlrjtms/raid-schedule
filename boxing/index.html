@@ -362,6 +362,7 @@ function loadSave(){
 }
 let save=loadSave();
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
+const APP_VER='v19';
 let SET={style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -2089,7 +2090,7 @@ function settingsScreen(){
     <div class="toggle"><span>앞뒤 방향 반전</span><button class="${SET.invX?'on':''}" data-act="invX">${SET.invX?'켬':'끔'}</button></div>
     <div class="toggle"><span>터치 구역 표시</span><button class="${SET.zones?'on':''}" data-act="zones">${SET.zones?'켬':'끔'}</button></div>
     <div class="toggle"><span>그림 스타일</span><div class="seg" style="width:170px"><button class="${SET.style!=='real'?'on':''}" data-act="style" data-v="anime">애니풍</button><button class="${SET.style==='real'?'on':''}" data-act="style" data-v="real">리얼풍</button></div></div>
-    <div class="toggle"><span>그래픽 품질</span><div class="seg" style="width:170px"><button class="${SET.gfx!=='low'?'on':''}" data-act="gfx" data-v="high">높음</button><button class="${SET.gfx==='low'?'on':''}" data-act="gfx" data-v="low">가볍게</button></div></div>
+    <div class="toggle"><span>게임 버전</span><b style="opacity:.8">${APP_VER}</b></div><div class="toggle"><span>그래픽 품질</span><div class="seg" style="width:170px"><button class="${SET.gfx!=='low'?'on':''}" data-act="gfx" data-v="high">높음</button><button class="${SET.gfx==='low'?'on':''}" data-act="gfx" data-v="low">가볍게</button></div></div>
     <p class="foot">'가볍게'는 빛 번짐·색보정·필름 효과를 끄고, 매끈한 인체 모델 대신 기본 도형 선수로 바꿔 오래된 폰이나 배터리 절약에 좋아요.</p>
   </div>`);
 }
