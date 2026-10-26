@@ -510,14 +510,29 @@ function resolveHit(at,df){
     return;
   }
   const ducking=wa&&wa.kind==='evade'&&(wa.ev==='duck'||wa.ev==='weave');
+  // head dropped into a body hook/uppercut: it lands on the temple instead of the ribs
+  let temple=false;
+  if(a.body&&ducking&&(a.type==='hook'||a.type==='upper')&&wa.t/wa.d>.15&&wa.t/wa.d<.9){temple=true;a.body=false}
+  // coming back up out of a weave/duck/slip, or the last moment of it: eats it clean
+  const rising=!a.body&&((wa&&wa.kind==='evade'&&wa.t/wa.d>=.82)||(df.evadeEnd!=null&&G.time-df.evadeEnd<.22));
   let dmg=D.dmg*DS*(.7+at.def.power/100*.6)*(.3+.7*Math.pow(at.st/100,.8));
   if(hasT(at,'rage')&&at.hp<35)dmg*=1.35;
   if(hasT(at,'onepunch')&&(a.type==='cross'||a.type==='upper'))dmg*=1.3;
   const counter=at.counterT>0||(wa&&wa.kind==='punch'&&wa.t<wa.s+wa.a)||(ducking&&a.type==='upper')||df.offT>0;
   if(counter)dmg*=hasT(at,'counter')?2:1.55;
   at.counterT=0;
+  if(temple)dmg*=1.8;else if(rising)dmg*=1.5;
+  // critical: heavy hitters can land the one that switches the lights off
+  let crit=false,flash=false;
+  if(!a.body&&D.power&&!isGuarding(df)){
+    const pw=at.def.power+(hasT(at,'onepunch')?8:0);
+    const cc=Math.max(0,(pw-58)*.0028)*(counter||temple||rising?2.2:1)*(df.st<25?1.4:1);
+    if(Math.random()<cc){crit=true;dmg*=2;
+      const fk=(.05+Math.max(0,pw-68)*.012)*(1.45-df.def.chin/100)*(hasT(df,'undying')?.4:1);
+      if(pw>=68&&Math.random()<fk)flash=true}
+  }
   const tgt=a.body?df.bodyW:df.headW;
-  if(isGuarding(df)){
+  if(isGuarding(df)&&!temple&&!rising){
     const wall=hasT(df,'wall');const through=a.body?(wall?.3:.45):a.type==='upper'?(wall?.28:.4):(wall?.03:.08);
     if(wall)at.st=Math.max(0,at.st-4);
     dmg*=through;df.st=Math.max(0,df.st-D.dmg*.55);
@@ -544,19 +559,36 @@ function resolveHit(at,df){
   G.hitStop=Math.min(.1,.025+v*.005);G.shake=Math.max(G.shake,v*.009);
   sweat(tgt,at,v);sfx.hit(clamp(v/10,.3,1.4));sfx.crowd(v/35);
   if(df===G.F[0])buzz(v>8?45:20);
-  if(counter&&v>5&&!G.demo)pop('카운터!','#ffcf4a',false,.8);
-  if(df.hp<=0)knockdown(df,at);
+  const show=!G.demo||window.__SHOWALL;
+  if(flash){df.hp=0;if(show)pop('크리티컬 K.O.!','#ff3b30',true,1.6)}
+  else if(crit){df.stunT=Math.max(df.stunT,1.1);if(show)pop('크리티컬 히트!','#ff7a3d',false,1)}
+  else if(temple){df.stunT=Math.max(df.stunT,.9);if(show)pop('관자놀이 강타!','#ff7a3d',false,.9)}
+  else if(rising){if(show)pop('정타!','#ffcf4a',false,.8)}
+  else if(counter&&v>5&&show)pop('카운터!','#ffcf4a',false,.8);
+  if(crit||temple){G.slow=.25;G.slowT=.45;G.shake=Math.max(G.shake,.12);G.fovKick=7}
+  if(df.hp<=0)knockdown(df,at,{flash,crit});
 }
 function whiffed(at,df,D){
   // a missed power shot over-rotates: longer recovery and a counter window for the other guy
   if(!D.whiff)return;const a=at.action;if(a&&a.kind==='punch')a.r*=1+D.whiff;at.offT=Math.max(at.offT,.25+D.whiff*.6);df.counterT=Math.max(df.counterT,.6+D.whiff);
   if(at===G.F[0]&&!G.demo&&D.whiff>.5)pop('헛스윙','#9aa4b5',false,.6);
 }
-function knockdown(d,a){
+function stayDownChance(d,a,info){
+  // most fighters beat the count by about 3; a big puncher can leave you unable to get up at all
+  const pw=a.def.power+(hasT(a,'onepunch')?8:0);
+  let q=Math.max(0,pw-60)*.011+(d.kdT-1)*.12+(d.kdR-1)*.1-(d.def.chin-55)*.006;
+  if(info&&info.crit)q+=.2;if(info&&info.flash)q+=.45;
+  if(hasT(d,'undying'))q*=.35;
+  return clamp(q,0,.92);
+}
+function knockdown(d,a,info){
   d.hp=0;d.action=null;d.queued=null;d.stunT=0;d.guardHeld=false;d.mvF=d.mvS=0;d.kdR++;d.kdT++;a.rs.kd++;
-  const isAI=!!d.ai;
-  let p=.32+d.def.chin/170-(d.kdT-1)*.22-(d.kdR-1)*.1+(d.cap-50)/220;if(hasT(d,'undying'))p+=.45;
-  d.down={t:0,mash:0,need:9+d.kdT*6,rising:0,ai:isAI,willRise:Math.random()<clamp(p,.05,.95),riseAt:2+Math.floor(Math.random()*7)};
+  const isAI=!!d.ai,q=stayDownChance(d,a,info);
+  const r=Math.random();
+  // AI: rises at 2–3 normally; when the shot was too heavy it either struggles up late (6–9) or stays down
+  const willRise=r>=q*.6,late=r<q;
+  d.down={t:0,mash:0,rising:0,ai:isAI,q,willRise,riseAt:late?6+Math.floor(Math.random()*4):2+Math.floor(Math.random()*2),
+    need:Math.round(7+q*30+(info&&info.flash?10:0))};
   if(d.kdR>=3)d.down.willRise=false;
   G.phase='count';G.countN=0;G.countT=0;G.downF=d;G.upF=a;G.slow=.35;G.slowT=.9;IN.guard=false;
   sfx.crowd(.3);buzz(120);if(!G.demo)pop('다운!','#ff5a4a',true,1.2);
@@ -616,6 +648,7 @@ function aiThink(f,o,dt){
       const list=(f.counterT>0||o.offT>0)?['hookL','cross','upperR hookL','cross hookL','hookR']:S.combos;
       const c=pick(list).split(' ').map(parseMove);
       if(isGuarding(o)&&Math.random()<.35+sk*.3)c.forEach(x=>{if(x.type!=='upper')x.body=Math.random()<.6});
+      if(o.action&&o.action.kind==='evade'&&(o.action.ev==='duck'||o.action.ev==='weave')&&Math.random()<sk)c.unshift({type:Math.random()<.5?'hook':'upper',hand:Math.random()<.5?'L':'R',body:true});
       ai.combo=c;ai.guardT=0;f.guardHeld=false;
     }
   }
@@ -639,7 +672,7 @@ function updFighter(f,o,dt){
     a.t+=dt;
     if(a.kind==='punch'&&!a.done&&a.t>=a.s){a.done=true;resolveHit(f,o)}
     const end=a.kind==='punch'?a.s+a.a+a.r:a.d;
-    if(f.action===a&&a.t>=end){f.action=null;if(f.queued){const q=f.queued;f.queued=null;doAction(f,q.type,q.hand,q.body)}}
+    if(f.action===a&&a.t>=end){if(a.kind==='evade')f.evadeEnd=G.time;f.action=null;if(f.queued){const q=f.queued;f.queued=null;doAction(f,q.type,q.hand,q.body)}}
   }
   let F=f.mvF,S=f.mvS;
   if(f.action&&f.action.kind==='punch'){F*=.3;S*=.3}
@@ -711,7 +744,7 @@ function updateCount(dt){
   if(d.down.rising){
     d.down.rising+=dt;d.fallA=1.5*(1-easeIO(clamp(d.down.rising/.8,0,1)));
     if(d.down.rising>=.8){
-      d.hp=Math.max(15,d.cap*(.62-.08*d.kdT)*(hasT(d,'undying')?1.35:1));d.cap=Math.max(30,d.cap*.9);d.st=Math.max(d.st,50);d.down=null;d.fallA=0;d.noHitT=0;
+      d.cap=Math.max(30,d.cap*.9);d.hp=Math.min(d.cap,hasT(d,'undying')?40:30);d.st=Math.max(d.st,50);d.down=null;d.fallA=0;d.noHitT=0;
       G.phase='intro';G.phaseT=.6;G.downF=null;
       const[p,o]=G.F;const mx=clamp((p.x+o.x)/2,-RING_L+.8,RING_L-.8),mz=clamp((p.z+o.z)/2,-RING_L+.8,RING_L-.8);
       const ang=Math.atan2(o.x-p.x,o.z-p.z);p.x=mx-Math.sin(ang)*.55;p.z=mz-Math.cos(ang)*.55;o.x=mx+Math.sin(ang)*.55;o.z=mz+Math.cos(ang)*.55;p.vx=p.vz=o.vx=o.vz=0;initFeet(p);initFeet(o);
@@ -727,8 +760,8 @@ function updateCount(dt){
     if(d.kdR>=3&&G.countN>=2){endFight(a,'TKO');return}
   }
   if(!d.down.ai){
-    d.down.mash=Math.max(0,d.down.mash-dt*1.6);
-    if(d.down.mash>=d.down.need*(hasT(d,'undying')?.6:1)&&G.countN>=1)d.down.rising=.001;
+    d.down.mash=Math.max(0,d.down.mash-dt*(1.4+d.down.q*1.6));
+    if(d.down.mash>=d.down.need&&G.countN>=2)d.down.rising=.001;
   }else if(d.down.willRise&&G.countN>=d.down.riseAt)d.down.rising=.001;
 }
 function endRound(){
@@ -1221,8 +1254,11 @@ function howto(back){
     <dt>펀치 성격</dt><dd>잽은 빠르지만 약하고, 훅은 크게 휘둘러 느리지만 세요. 어퍼컷은 가까이서 타이밍이 맞아야 들어가고 가장 강해요. 크게 헛치면 빈틈이 생겨요</dd>
     <dt>바디 연타</dt><dd>바디를 연달아 맞히면 한 대마다 데미지가 30%씩 올라가고, 4연타면 상대가 잠깐 굳어요</dd>
     <dt>스태미나</dt><dd>지칠수록 펀치가 느려지고 약해져요. 맞지 않고 숨을 고르면 빨리 차요</dd>
+    <dt>위험한 순간</dt><dd>위빙·더킹 중에 바디 훅이나 어퍼가 오면 숙인 머리 관자놀이에 맞아요(1.8배). 회피 동작이 끝나 머리를 드는 순간 맞으면 정타(1.5배)</dd>
+    <dt>크리티컬</dt><dd>파워가 센 선수의 파워 펀치는 가끔 크리티컬(2배)이 나고, 한 방에 KO될 수도 있어요. 카운터·정타 상황이면 확률이 올라가요</dd>
+    <dt>다운</dt><dd>보통 카운트 3쯤이면 일어나고, 일어나면 체력 30%. 강펀처에게 맞았을 땐 연타해도 못 일어날 수 있어요</dd>
     <dt>카운터</dt><dd>회피에 성공하거나 상대가 헛치면 반격 기회. 그때 맞히는 펀치는 1.55배</dd>
-    <dt>다운</dt><dd>카운트 10 전에 화면을 연타하면 일어나요. 한 라운드 3번 다운이면 TKO</dd>
+    <dt>다운 연타</dt><dd>카운트 10 전에 화면을 연타하면 일어나요. 한 라운드 3번 다운이면 TKO</dd>
     <dt>특성</dt><dd>선수마다 하나씩 가진 고유 능력이에요. 커리어 화면의 '선수·특성 바꾸기'에서 내 특성을 고를 수 있어요</dd>
     <dt>키보드</dt><dd>WASD 이동, Space 가드, J 잽 · K 스트레이트 · U/I 훅 · N/M 어퍼, Shift 누르면 바디, H 위빙 · L 더킹 · Q/E 슬립 · R 풀백</dd>
   </dl></div>`);
