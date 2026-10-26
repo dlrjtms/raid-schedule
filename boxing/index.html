@@ -122,6 +122,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .keys dt{font-weight:700;color:var(--gold);white-space:nowrap}
 .keys dd{margin:0}
 .keys dd span{color:var(--muted)}
+.traits{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:6px}
+.trait{border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.02);padding:9px 10px;text-align:left;font:700 14px var(--f-body)}
+.trait small{display:block;font:400 11.5px/1.4 var(--f-body);color:var(--muted);margin-top:3px}
+.trait.on{border-color:var(--gold);background:rgba(227,178,60,.12)}
+.tchip{display:inline-block;font:600 11px var(--f-body);color:var(--gold);border:1px solid rgba(227,178,60,.4);border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+.bio{margin:0;font-size:13px;line-height:1.55;color:var(--muted)}
 .toggle{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:14px}
 .toggle button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 14px;font:600 13px var(--f-body)}
 .toggle button.on{background:var(--gold);color:#111;border-color:var(--gold)}
@@ -161,20 +167,40 @@ const PUNCH={
 const EVADE={slipL:{d:.36,beats:['jab','cross'],name:'왼쪽 슬립'},slipR:{d:.36,beats:['jab','cross'],name:'오른쪽 슬립'},
   pull:{d:.4,beats:['jab','cross','hook'],name:'풀백'},weave:{d:.55,beats:['jab','cross','hook'],name:'위빙'},duck:{d:.42,beats:['jab','cross','hook'],name:'더킹'}};
 const STYLES={
-  outboxer:{label:'아웃복서',dist:1.0, ev:['slipL','slipR','pull'],combos:['jab','jab jab','jab cross','jab jab cross','jab cross hookL','jab b:jab','jab cross b:hookL']},
+  outboxer:{label:'아웃복서',dist:1.0, ev:['slipL','slipR','pull'],combos:['jab','jab jab','jab cross','jab jab cross','jab cross hookL','jab b:jab','jab cross b:hookL','f:jab cross','f:jab jab cross']},
   slugger: {label:'슬러거',  dist:.86,ev:['pull','duck'],        combos:['hookL','cross hookL','hookL upperR','b:hookL hookL','jab cross hookL upperR','upperR hookL','cross','hookR']},
-  swarmer: {label:'인파이터',dist:.8, ev:['weave','duck','slipL'],combos:['b:hookL b:hookR hookL','jab jab hookL upperR','b:upperR hookL','hookL hookR','jab b:cross hookL','upperL cross']},
-  counter: {label:'카운터',  dist:.93,ev:['slipL','slipR','weave','duck'],combos:['jab','cross','jab cross','hookL cross','b:cross hookL','upperR hookL']},
+  swarmer: {label:'인파이터',dist:.8, ev:['weave','duck','slipL'],combos:['b:hookL b:hookR hookL','jab jab hookL upperR','b:upperR hookL','hookL hookR','jab b:cross hookL','upperL cross','f:jab b:hookL hookL','jab cross hookL cross']},
+  counter: {label:'카운터',  dist:.93,ev:['slipL','slipR','weave','duck'],combos:['jab','cross','jab cross','hookL cross','b:cross hookL','upperR hookL','f:jab','f:cross hookL']},
 };
+const TRAITS={
+  rage:    {name:'폭주',      desc:'체력이 35% 아래로 떨어지면 공격력 +35%, 펀치 속도 +15%'},
+  wall:    {name:'철벽',      desc:'가드가 더 단단하고, 막힌 상대의 스태미나를 깎아요'},
+  flash:   {name:'번개발',    desc:'이동 속도 +25%, 회피 판정 시간이 길어요'},
+  undying: {name:'불사신',    desc:'다운돼도 거의 반드시 일어나고 체력을 더 회복해요'},
+  counter: {name:'카운터 장인',desc:'카운터 데미지가 1.55배에서 2배로'},
+  hunter:  {name:'바디 헌터', desc:'바디 공격이 상대 스태미나를 2배로 깎아요'},
+  engine:  {name:'무한 엔진', desc:'스태미나 회복 1.6배, 펀치 소모 25% 감소'},
+  combo:   {name:'콤보 머신', desc:'펀치 회수 동작이 30% 빨라서 연타가 이어져요'},
+  onepunch:{name:'원펀치',    desc:'스트레이트·어퍼컷 위력 1.3배, 한 방에 휘청이게 만들기 쉬워요'},
+};
+const hasT=(f,t)=>f.def.trait===t;
 const OPP=[
-  {id:'park',  name:'박태수',     nick:'골목대장',    style:'slugger', power:48,speed:40,chin:46,stamina:44,skill:24,aggr:.50,rec:'7-5 (4 KO)',  h:178,wt:92, reach:180,skin:'#e0b08a',hair:'#1a1411',trunks:'#2f6fd6',trim:'#ffffff',glove:'#c62828',shoe:'#1a1a1a',rounds:3},
-  {id:'reyes', name:'마르코 레예스',nick:'엘 토로',    style:'swarmer', power:55,speed:50,chin:54,stamina:60,skill:34,aggr:.70,rec:'14-4 (10 KO)',h:180,wt:95, reach:183,skin:'#c98d62',hair:'#120d0a',trunks:'#1f8a4c',trim:'#f2d14b',glove:'#f2d14b',shoe:'#1f8a4c',rounds:3},
-  {id:'okada', name:'오카다 켄',   nick:'사무라이',    style:'outboxer',power:52,speed:66,chin:50,stamina:64,skill:46,aggr:.50,rec:'16-2 (7 KO)', h:186,wt:94, reach:193,skin:'#e8bb95',hair:'#0f0c0a',trunks:'#f2f2f2',trim:'#c0392b',glove:'#f2f2f2',shoe:'#f2f2f2',rounds:4},
-  {id:'hayes', name:'다넬 헤이즈', nick:'브릭스',      style:'slugger', power:72,speed:48,chin:70,stamina:56,skill:50,aggr:.60,rec:'19-3 (17 KO)',h:191,wt:108,reach:198,skin:'#7a4a2e',hair:'#100b08',trunks:'#6b1d1d',trim:'#e8c15a',glove:'#6b1d1d',shoe:'#e8c15a',rounds:4},
-  {id:'sokol', name:'빅토르 소콜', nick:'시베리아 늑대',style:'outboxer',power:66,speed:60,chin:72,stamina:72,skill:60,aggr:.52,rec:'22-1 (15 KO)',h:198,wt:110,reach:203,skin:'#f0c9a8',hair:'#c9a36b',trunks:'#1c2e5a',trim:'#e0e6ef',glove:'#e0e6ef',shoe:'#1c2e5a',rounds:5},
-  {id:'kang',  name:'강도윤',     nick:'카운터 킹',   style:'counter', power:64,speed:74,chin:64,stamina:68,skill:72,aggr:.46,rec:'24-2 (12 KO)',h:184,wt:96, reach:190,skin:'#e2ae86',hair:'#0c0a09',trunks:'#151515',trim:'#e23b3b',glove:'#e23b3b',shoe:'#151515',rounds:5},
-  {id:'ortega',name:'루이스 오르테가',nick:'번개',     style:'swarmer', power:70,speed:80,chin:66,stamina:80,skill:76,aggr:.75,rec:'27-1 (21 KO)',h:183,wt:99, reach:188,skin:'#b97a52',hair:'#140e0a',trunks:'#d4a017',trim:'#141414',glove:'#141414',shoe:'#d4a017',rounds:6},
-  {id:'cole',  name:'아이제이아 콜',nick:'더 해머',    style:'slugger', power:84,speed:72,chin:82,stamina:80,skill:84,aggr:.62,rec:'31-0 (26 KO)',h:196,wt:112,reach:205,skin:'#5a3523',hair:'#0b0807',trunks:'#101010',trim:'#d9b44a',glove:'#d9b44a',shoe:'#101010',rounds:7,champ:true},
+  {id:'obc',  name:'오병철',nick:'동네 주먹',  trait:'rage',    style:'slugger', power:52,speed:40,chin:46,stamina:44,skill:24,aggr:.55,rec:'7-5 (5 KO)',  h:178,wt:92, reach:180,skin:'#e0b08a',hair:'#1a1411',trunks:'#2f6fd6',trim:'#ffffff',glove:'#c62828',shoe:'#1a1a1a',rounds:3,
+    bio:'골목에서 싸움으로 이름을 날리다 링에 올라왔다. 맞을수록 눈이 뒤집힌다.'},
+  {id:'hdj',  name:'한도진',nick:'철벽',       trait:'wall',    style:'counter', power:50,speed:48,chin:60,stamina:58,skill:36,aggr:.42,rec:'12-3 (4 KO)', h:182,wt:95, reach:186,skin:'#d9a47c',hair:'#120d0a',trunks:'#3d3d3d',trim:'#9fd3ff',glove:'#9fd3ff',shoe:'#3d3d3d',rounds:3,
+    bio:'가드를 올리면 문이 잠긴다. 지쳐서 손이 내려오는 순간을 기다리는 타입.'},
+  {id:'sgw',  name:'서강우',nick:'번개',       trait:'flash',   style:'outboxer',power:50,speed:72,chin:48,stamina:64,skill:46,aggr:.5, rec:'16-2 (6 KO)', h:184,wt:90, reach:191,skin:'#e8bb95',hair:'#0f0c0a',trunks:'#f2f2f2',trim:'#c0392b',glove:'#f2f2f2',shoe:'#f2f2f2',rounds:4,
+    bio:'잡히지 않는 발. 들어오면 이미 옆에 서 있다.'},
+  {id:'mts',  name:'마태식',nick:'불도저',     trait:'undying', style:'slugger', power:70,speed:44,chin:74,stamina:56,skill:48,aggr:.62,rec:'19-4 (16 KO)',h:191,wt:112,reach:196,skin:'#a86e47',hair:'#100b08',trunks:'#6b1d1d',trim:'#e8c15a',glove:'#6b1d1d',shoe:'#e8c15a',rounds:4,
+    bio:'쓰러뜨려도 다시 걸어 들어온다. 판정까지 가면 이쪽이 먼저 지친다.'},
+  {id:'cmh',  name:'차민혁',nick:'사냥개',     trait:'hunter',  style:'swarmer', power:62,speed:62,chin:62,stamina:76,skill:58,aggr:.74,rec:'21-2 (14 KO)',h:179,wt:96, reach:183,skin:'#c98d62',hair:'#120d0a',trunks:'#1f8a4c',trim:'#f2d14b',glove:'#f2d14b',shoe:'#1f8a4c',rounds:5,
+    bio:'파고들어 옆구리만 판다. 3라운드쯤 되면 상대 손이 저절로 내려간다.'},
+  {id:'yjh',  name:'윤재하',nick:'카운터',     trait:'counter', style:'counter', power:64,speed:74,chin:62,stamina:66,skill:74,aggr:.44,rec:'24-2 (12 KO)',h:185,wt:96, reach:190,skin:'#e2ae86',hair:'#0c0a09',trunks:'#151515',trim:'#e23b3b',glove:'#e23b3b',shoe:'#151515',rounds:5,
+    bio:'먼저 치는 법이 없다. 헛스윙 한 번이 그대로 다운으로 돌아온다.'},
+  {id:'bdh',  name:'백도현',nick:'콤보 머신',  trait:'combo',   style:'swarmer', power:68,speed:80,chin:64,stamina:80,skill:76,aggr:.76,rec:'27-1 (19 KO)',h:183,wt:99, reach:188,skin:'#b97a52',hair:'#140e0a',trunks:'#d4a017',trim:'#141414',glove:'#141414',shoe:'#d4a017',rounds:6,
+    bio:'한 번 손이 나오면 다섯 번은 나온다. 가드 위로도 쉬지 않고 두드린다.'},
+  {id:'ktm',  name:'강태무',nick:'전설',       trait:'onepunch',style:'slugger', power:86,speed:70,chin:82,stamina:78,skill:84,aggr:.6, rec:'31-0 (27 KO)',h:194,wt:110,reach:203,skin:'#6a4029',hair:'#0b0807',trunks:'#101010',trim:'#d9b44a',glove:'#d9b44a',shoe:'#101010',rounds:7,champ:true,
+    bio:'무패의 챔피언. 오른손 한 방으로 끝난 경기가 스물일곱 번.'},
 ];
 const TRUNKS=[
   {t:'#ededed',trim:'#141414',glove:'#2a2a2a',shoe:'#f2f2f2'},
@@ -194,7 +220,7 @@ const angLerp=(a,b,t)=>{let d=((b-a+Math.PI*3)%(Math.PI*2))-Math.PI;return a+d*t
 /* ================= save ================= */
 function loadSave(){
   let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-  const d={name:'',trunks:0,skin:1,stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[]};
+  const d={name:'',trait:'engine',trunks:0,skin:1,stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[]};
   if(!s||typeof s!=='object')return d;
   return Object.assign(d,s,{stats:Object.assign(d.stats,s.stats||{})});
 }
@@ -205,7 +231,7 @@ try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 function persistSet(){try{localStorage.setItem(SKEY,JSON.stringify(SET))}catch(e){}}
 function playerDef(){
   const tr=TRUNKS[save.trunks]||TRUNKS[0];
-  return {id:'player',name:save.name||'도전자',nick:'',style:'outboxer',...save.stats,skill:60,aggr:.55,
+  return {id:'player',name:save.name||'도전자',nick:'',trait:TRAITS[save.trait]?save.trait:'engine',style:'outboxer',...save.stats,skill:60,aggr:.55,
     rec:`${save.w}-${save.l}${save.d?'-'+save.d:''} (${save.ko} KO)`,h:185,wt:98,reach:193,
     skin:SKIN[save.skin]||SKIN[1],hair:'#14100d',trunks:tr.t,trim:tr.trim,glove:tr.glove,shoe:tr.shoe};
 }
@@ -369,13 +395,16 @@ function buildModel(def){
   const root=new T.Group(),body=new T.Group();root.add(body);
   const M={root,body};
   // torso group
+  const pelvis=new T.Group();body.add(pelvis);M.pelvis=pelvis;
+  const tr=ball(1,trunks,pelvis,.178,.165,.138);tr.position.set(0,.02,0);
+  const wb=new T.Mesh(new T.CylinderGeometry(.168,.168,.07,20),trim);wb.scale.set(1.05,1,.83);wb.position.y=.15;wb.castShadow=true;pelvis.add(wb);
   const torso=new T.Group();body.add(torso);M.torso=torso;
-  const tr=ball(1,trunks,torso,.175,.16,.135);tr.position.set(0,.02,0);
-  const wb=new T.Mesh(new T.CylinderGeometry(.168,.168,.07,20),trim);wb.scale.set(1.04,1,.82);wb.position.y=.15;torso.add(wb);
-  ball(1,skin,torso,.165,.18,.125).position.set(0,.26,.01);
-  const ch=ball(1,skin,torso,.225,.16,.14);ch.position.set(0,.42,0);
-  ball(1,skin,torso,.09,.06,.05).position.set(.075,.42,.085);ball(1,skin,torso,.09,.06,.05).position.set(-.075,.42,.085);
-  ball(1,skinD,torso,.17,.08,.1).position.set(0,.5,-.01);
+  ball(1,skin,torso,.162,.17,.122).position.set(0,.05,.01);
+  for(let i=0;i<3;i++){ball(1,skinD,torso,.038,.026,.02).position.set(.032,.0+i*.05,.118);ball(1,skinD,torso,.038,.026,.02).position.set(-.032,.0+i*.05,.118)}
+  const ch=ball(1,skin,torso,.228,.16,.142);ch.position.set(0,.22,0);
+  ball(1,skin,torso,.092,.062,.05).position.set(.078,.22,.088);ball(1,skin,torso,.092,.062,.05).position.set(-.078,.22,.088);
+  ball(1,skinD,torso,.18,.085,.1).position.set(0,.3,-.02);
+  ball(1,skin,torso,.06,.05,.05).position.set(.16,.27,0);ball(1,skin,torso,.06,.05,.05).position.set(-.16,.27,0);
   // head
   const head=new T.Group();body.add(head);M.head=head;
   ball(1,skin,head,.098,.122,.112);
@@ -412,15 +441,15 @@ const G={demo:true,phase:'intro',phaseT:0,round:1,rounds:3,clock:ROUND_SEC,F:[],
 const IN={guard:false,mx:0,my:0,stick:null};
 const keys={};
 
-function basePose(){return{cr:.05,lean:.12,tw:.32,roll:0,ht:0,hs:0,hx:0,hz:0,
-  lgx:.11,lgy:.03,lgz:.25,rgx:-.09,rgy:0,rgz:.17,lUp:0,rUp:0,lfx:.13,lfz:.22,rfx:-.13,rfz:-.22}}
+function basePose(){return{cr:.06,lean:.13,tw:.32,ptw:.22,roll:0,ht:0,hs:0,hy:0,hx:0,hz:0,
+  lgx:.11,lgy:.04,lgz:.25,rgx:-.085,rgy:.07,rgz:.15,lUp:0,rUp:0,lRot:0,rRot:0,lHeel:.4,rHeel:.6,lPiv:0,rPiv:0,lStep:0}}
 function makeFighter(def,side,ai){
   const f={def,side,vx:0,vz:0,x:side?.55:-.55,z:0,facing:side?-Math.PI/2:Math.PI/2,mvF:0,mvS:0,hp:100,cap:100,st:100,stMax:100,action:null,queued:null,guardHeld:false,
     stunT:0,hitT:0,hitKind:'',hitPow:0,counterT:0,offT:0,noHitT:9,down:null,fallA:0,kdR:0,kdT:0,anim:Math.random()*6,walk:0,
     pose:basePose(),sk:null,headW:V(0,0,0),bodyW:V(0,0,0),celebrate:false,
     stats:{thrown:0,landed:0,power:0,dmg:0},rs:newRS(),ai:ai?newAI():null,M:null};
   if(glOK)f.M=buildModel(def);
-  skeleton(f);return f;
+  skeleton(f);initFeet(f);return f;
 }
 function disposeFighter(f){if(!f.M)return;scene.remove(f.M.root);f.M.root.traverse(o=>{if(o.geometry)o.geometry.dispose()})}
 function newRS(){return{thrown:0,landed:0,power:0,dmg:0,kd:0}}
@@ -439,7 +468,7 @@ function roundStart(){
   G.phase='intro';G.phaseT=0;G.clock=ROUND_SEC;
   const a=Math.random()*Math.PI*2*0;
   G.F.forEach(f=>{f.x=f.side?.55:-.55;f.z=0;f.facing=f.side?-Math.PI/2:Math.PI/2;f.action=null;f.queued=null;f.stunT=0;f.hitT=0;f.kdR=0;f.rs=newRS();f.down=null;f.fallA=0;f.celebrate=false;
-    if(f.ai){f.ai.combo=[];f.ai.cool=rnd(.6,1.3)}});
+    f.vx=f.vz=0;f.rageOn=false;initFeet(f);if(f.ai){f.ai.combo=[];f.ai.cool=rnd(.6,1.3)}});
   if(!G.demo&&gyroLive())gyroCalib();
   pop(G.round===G.rounds&&G.rounds>1?'마지막 라운드':'ROUND '+G.round,'#ffffff',true,1.3);
 }
@@ -449,18 +478,21 @@ function isGuarding(f){return f.guardHeld&&!f.action&&f.stunT<=0&&!f.down}
 function doAction(f,type,hand,body){
   if(f.down||f.stunT>0)return false;
   if(f.action){f.queued={type,hand,body};return false}
-  const tf=(1.18-f.def.speed/280)*(f.st<18?1.25:1);
-  if(EVADE[type]){if(f.st<3)return false;f.action={kind:'evade',ev:type,t:0,d:EVADE[type].d*tf,id:++UID};f.st-=3;return true}
+  let tf=(1.18-f.def.speed/280)*(f.st<18?1.25:1);
+  if(hasT(f,'rage')&&f.hp<35)tf*=.87;
+  if(EVADE[type]){if(f.st<3)return false;f.action={kind:'evade',ev:type,t:0,d:EVADE[type].d*tf*(hasT(f,'flash')?1.15:1),id:++UID};f.st-=3;return true}
+  if(type==='feint'){f.action={kind:'feint',type:hand==='R'?'cross':'jab',hand,t:0,d:.26*tf,id:++UID};f.st=Math.max(0,f.st-.8);return true}
   const D=PUNCH[type];
-  f.action={kind:'punch',type,hand,body:!!body,t:0,s:D.s*tf,a:D.a,r:D.r*tf,done:false,id:++UID};
-  f.st=Math.max(0,f.st-D.cost*(1.2-f.def.stamina/250));
+  f.action={kind:'punch',type,hand,body:!!body,t:0,s:D.s*tf,a:D.a,r:D.r*tf*(hasT(f,'combo')?.7:1),done:false,id:++UID};
+  f.st=Math.max(0,f.st-D.cost*(1.2-f.def.stamina/250)*(hasT(f,'engine')?.75:1));
+  if(hasT(f,'rage')&&f.hp<35&&!f.rageOn){f.rageOn=true;if(!G.demo)pop(f.def.name+' 폭주!','#ff5a4a',false,1)}
   f.stats.thrown++;f.rs.thrown++;
   const lg=(D.lunge||1)*(.8+f.def.speed/300);f.vx+=Math.sin(f.facing)*lg;f.vz+=Math.cos(f.facing)*lg;
   return true;
 }
 function evading(f,type,body){
   const a=f.action;if(!a||a.kind!=='evade'||body)return false;
-  const k=a.t/a.d;if(k<.08||k>.85)return false;
+  const k=a.t/a.d;if(k<(hasT(f,'flash')?.04:.08)||k>(hasT(f,'flash')?.92:.85))return false;
   return EVADE[a.ev].beats.includes(type);
 }
 function resolveHit(at,df){
@@ -476,17 +508,20 @@ function resolveHit(at,df){
   }
   const ducking=wa&&wa.kind==='evade'&&(wa.ev==='duck'||wa.ev==='weave');
   let dmg=D.dmg*DS*(.7+at.def.power/100*.6)*(.45+.55*at.st/100);
+  if(hasT(at,'rage')&&at.hp<35)dmg*=1.35;
+  if(hasT(at,'onepunch')&&(a.type==='cross'||a.type==='upper'))dmg*=1.3;
   const counter=at.counterT>0||(wa&&wa.kind==='punch'&&wa.t<wa.s+wa.a)||(ducking&&a.type==='upper')||df.offT>0;
-  if(counter)dmg*=1.55;
+  if(counter)dmg*=hasT(at,'counter')?2:1.55;
   at.counterT=0;
   const tgt=a.body?df.bodyW:df.headW;
   if(isGuarding(df)){
-    const through=a.body?.45:a.type==='upper'?.4:.08;
+    const wall=hasT(df,'wall');const through=a.body?(wall?.3:.45):a.type==='upper'?(wall?.28:.4):(wall?.03:.08);
+    if(wall)at.st=Math.max(0,at.st-4);
     dmg*=through;df.st=Math.max(0,df.st-D.dmg*.55);
     if(through<.2){{const ux=(df.x-at.x)/dist,uz=(df.z-at.z)/dist;df.vx+=ux*.45;df.vz+=uz*.45;}df.hp-=dmg;sfx.block();spark(tgt);df.hitT=.12;df.hitKind='block';df.hitPow=2;if(df===G.F[0])buzz(10);
       if(df.hp<=0)knockdown(df,at);return}
   }
-  if(a.body){df.hp-=dmg*.6;df.st=Math.max(0,df.st-dmg*3.2);df.stMax=Math.max(50,df.stMax-dmg*.6)}
+  if(a.body){df.hp-=dmg*.6;df.st=Math.max(0,df.st-dmg*3.2*(hasT(at,'hunter')?2:1));df.stMax=Math.max(50,df.stMax-dmg*.6)}
   else{dmg*=(1.25-df.def.chin/250);df.hp-=dmg;df.cap=Math.max(30,df.cap-dmg*.2)}
   const v=dmg/DS;
   at.stats.landed++;at.rs.landed++;if(D.power){at.stats.power++;at.rs.power++}at.rs.dmg+=dmg;at.stats.dmg+=dmg;
@@ -497,7 +532,8 @@ function resolveHit(at,df){
   if(counter&&v>8&&!G.demo){G.slow=.3;G.slowT=.32}
   if(wa&&wa.kind==='punch'&&wa.t<wa.s&&v>4.5){df.action=null;df.queued=null}
   if(df.ai)df.ai.combo.length=Math.min(df.ai.combo.length,v>6?0:9);
-  if(!a.body&&(v>13||(counter&&v>9.5)||(df.hp<25&&v>7&&Math.random()<.4)))df.stunT=Math.max(df.stunT,.7+v*.04);
+  const op=hasT(at,'onepunch')&&(a.type==='cross'||a.type==='upper');
+  if(!a.body&&(v>(op?10:13)||(counter&&v>9.5)||(df.hp<25&&v>7&&Math.random()<(op?.7:.4))))df.stunT=Math.max(df.stunT,.7+v*.04);
   G.hitStop=Math.min(.1,.025+v*.005);G.shake=Math.max(G.shake,v*.009);
   sweat(tgt,at,v);sfx.hit(clamp(v/10,.3,1.4));sfx.crowd(v/35);
   if(df===G.F[0])buzz(v>8?45:20);
@@ -507,7 +543,7 @@ function resolveHit(at,df){
 function knockdown(d,a){
   d.hp=0;d.action=null;d.queued=null;d.stunT=0;d.guardHeld=false;d.mvF=d.mvS=0;d.kdR++;d.kdT++;a.rs.kd++;
   const isAI=!!d.ai;
-  const p=.32+d.def.chin/170-(d.kdT-1)*.22-(d.kdR-1)*.1+(d.cap-50)/220;
+  let p=.32+d.def.chin/170-(d.kdT-1)*.22-(d.kdR-1)*.1+(d.cap-50)/220;if(hasT(d,'undying'))p+=.45;
   d.down={t:0,mash:0,need:9+d.kdT*6,rising:0,ai:isAI,willRise:Math.random()<clamp(p,.05,.95),riseAt:2+Math.floor(Math.random()*7)};
   if(d.kdR>=3)d.down.willRise=false;
   G.phase='count';G.countN=0;G.countT=0;G.downF=d;G.upF=a;G.slow=.35;G.slowT=.9;IN.guard=false;
@@ -515,7 +551,7 @@ function knockdown(d,a){
 }
 
 /* ================= AI ================= */
-function parseMove(s){const b=s.startsWith('b:');if(b)s=s.slice(2);let hand='L',type=s;
+function parseMove(s){const fe=s.startsWith('f:');if(fe)s=s.slice(2);const b=s.startsWith('b:');if(b)s=s.slice(2);let hand='L',type=s;if(fe)return{type:'feint',hand:s==='cross'?'R':'L',body:false};
   if(s==='cross')hand='R';else if(s.endsWith('L')||s.endsWith('R')){hand=s.slice(-1);type=s.slice(0,-1)}
   return{type,hand,body:b}}
 function aiThink(f,o,dt){
@@ -526,14 +562,15 @@ function aiThink(f,o,dt){
   ai.cool-=dt;ai.guardT-=dt;ai.phase+=dt;ai.strafeT-=dt;
   if(f.stunT>0){f.mvF=-1;ai.combo.length=0;f.guardHeld=Math.random()<sk*.5;return}
   const oa=o.action;
-  if(oa&&oa.kind==='punch'&&oa.id!==ai.lastSeen){
+  if(oa&&(oa.kind==='punch'||oa.kind==='feint')&&oa.id!==ai.lastSeen){
     ai.lastSeen=oa.id;
     if(dist<1.3&&Math.random()<.3+sk*.6){
       let resp='guard';
+      const readFeint=oa.kind==='feint'&&Math.random()<sk*.7;
       if(!oa.body&&oa.type!=='upper'&&Math.random()<.25+sk*.45){
         const opts=S.ev.filter(e=>EVADE[e].beats.includes(oa.type));resp=opts.length?pick(opts):'pull';
       }else if(Math.random()<.1)resp='back';
-      ai.react={t:.03+(1-sk)*.17+Math.random()*.06,resp};
+      if(!readFeint)ai.react={t:.03+(1-sk)*.17+Math.random()*.06,resp};
     }
   }
   if(ai.react){ai.react.t-=dt;if(ai.react.t<=0){const r=ai.react.resp;ai.react=null;
@@ -595,12 +632,12 @@ function updFighter(f,o,dt){
   let F=f.mvF,S=f.mvS;
   if(f.action&&f.action.kind==='punch'){F*=.3;S*=.3}
   const m=Math.hypot(F,S);if(m>1){F/=m;S/=m}
-  const sp=1.9*(.8+f.def.speed/250)*(isGuarding(f)?.7:1)*(f.stunT>0?.45:1)*(f.st<15?.75:1);
+  const sp=1.9*(.8+f.def.speed/250)*(hasT(f,'flash')?1.25:1)*(isGuarding(f)?.7:1)*(f.stunT>0?.45:1)*(f.st<15?.75:1);
   const fx=Math.sin(f.facing),fz=Math.cos(f.facing),lx=Math.cos(f.facing),lz=-Math.sin(f.facing);
   const tvx=(fx*F+lx*S)*sp,tvz=(fz*F+lz*S)*sp,ka=1-Math.exp(-dt*(m>.05?11:7));
   f.vx+=(tvx-f.vx)*ka;f.vz+=(tvz-f.vz)*ka;f.x+=f.vx*dt;f.z+=f.vz*dt;
   const spd=Math.hypot(f.vx,f.vz);if(spd>.15){f.walk+=dt*Math.min(1.4,spd/1.4);f.st=Math.max(0,f.st-1.1*dt*Math.min(1,spd/sp))}
-  if(!(f.action&&f.action.kind==='punch'))f.st=Math.min(f.stMax,f.st+(8+f.def.stamina*.1)*dt*(isGuarding(f)?.75:1));
+  if(!(f.action&&f.action.kind==='punch'))f.st=Math.min(f.stMax,f.st+(8+f.def.stamina*.1)*dt*(isGuarding(f)?.75:1)*(hasT(f,'engine')?1.6:1));
   if(f.noHitT>2.5&&f.hp<f.cap)f.hp=Math.min(f.cap,f.hp+.6*dt);
 }
 function separate(){
@@ -641,11 +678,11 @@ function step(raw){
   else if(G.phase==='between'){p.anim+=dt;o.anim+=dt;G.phaseT+=dt;if(G.demo&&G.phaseT>1.5)nextRound()}
   else if(G.phase==='over'){
     G.overT+=raw;
-    for(const f of G.F){f.anim+=dt;f.mvF=f.mvS=0;f.guardHeld=false;if(f.hitT>0)f.hitT-=dt;tickAction(f,dt);
+    for(const f of G.F){f.anim+=dt;f.mvF=f.mvS=0;f.vx*=.9;f.vz*=.9;f.guardHeld=false;if(f.hitT>0)f.hitT-=dt;tickAction(f,dt);
       if(f.down){f.down.t+=dt;f.fallA=1.5*easeOut(Math.min(1,f.down.t/.55))}}
     if(G.overT>2.4&&!G.resultShown){G.resultShown=true;if(G.demo)setTimeout(()=>{if(G.demo)startDemo()},1500);else showResult()}
   }
-  for(const f of G.F){const T2=targetPose(f,f===p?o:p);smooth(f,T2,dt);skeleton(f)}
+  for(const f of G.F){const T2=targetPose(f,f===p?o:p);smooth(f,T2,dt);updFeet(f,dt);skeleton(f)}
   for(const q of G.parts){q.t+=dt;if(!q.flash){q.vy-=4.5*dt;q.x+=q.vx*dt;q.y+=q.vy*dt;q.z+=q.vz*dt}}
   G.parts=G.parts.filter(q=>q.t<q.life);
   for(const t of G.texts)t.t+=raw;G.texts=G.texts.filter(t=>t.t<t.life);
@@ -662,10 +699,10 @@ function updateCount(dt){
   if(d.down.rising){
     d.down.rising+=dt;d.fallA=1.5*(1-easeIO(clamp(d.down.rising/.8,0,1)));
     if(d.down.rising>=.8){
-      d.hp=Math.max(15,d.cap*(.62-.08*d.kdT));d.cap=Math.max(30,d.cap*.9);d.st=Math.max(d.st,50);d.down=null;d.fallA=0;d.noHitT=0;
+      d.hp=Math.max(15,d.cap*(.62-.08*d.kdT)*(hasT(d,'undying')?1.35:1));d.cap=Math.max(30,d.cap*.9);d.st=Math.max(d.st,50);d.down=null;d.fallA=0;d.noHitT=0;
       G.phase='intro';G.phaseT=.6;G.downF=null;
       const[p,o]=G.F;const mx=clamp((p.x+o.x)/2,-RING_L+.8,RING_L-.8),mz=clamp((p.z+o.z)/2,-RING_L+.8,RING_L-.8);
-      const ang=Math.atan2(o.x-p.x,o.z-p.z);p.x=mx-Math.sin(ang)*.55;p.z=mz-Math.cos(ang)*.55;o.x=mx+Math.sin(ang)*.55;o.z=mz+Math.cos(ang)*.55;
+      const ang=Math.atan2(o.x-p.x,o.z-p.z);p.x=mx-Math.sin(ang)*.55;p.z=mz-Math.cos(ang)*.55;o.x=mx+Math.sin(ang)*.55;o.z=mz+Math.cos(ang)*.55;p.vx=p.vz=o.vx=o.vz=0;initFeet(p);initFeet(o);
       if(!G.demo)pop('일어났습니다','#ffffff',false,.9);
     }
     return;
@@ -679,7 +716,7 @@ function updateCount(dt){
   }
   if(!d.down.ai){
     d.down.mash=Math.max(0,d.down.mash-dt*1.6);
-    if(d.down.mash>=d.down.need&&G.countN>=1)d.down.rising=.001;
+    if(d.down.mash>=d.down.need*(hasT(d,'undying')?.6:1)&&G.countN>=1)d.down.rising=.001;
   }else if(d.down.willRise&&G.countN>=d.down.riseAt)d.down.rising=.001;
 }
 function endRound(){
@@ -728,63 +765,99 @@ function endFight(win,method){
 }
 
 /* ================= pose & skeleton ================= */
+// Stance offsets are in fighter-local space: +z toward the opponent, +x = fighter's left (orthodox: left foot leads).
+const STANCE={L:{x:.14,z:.2,yaw:.32},R:{x:-.13,z:-.24,yaw:.85}};
+const bez=(a,c,b,t)=>(1-t)*(1-t)*a+2*(1-t)*t*c+t*t*b;
+function phaseOf(a){const t=a.t,s=a.s,ac=a.a,r=a.r;
+  const e=t<s?easeIn(t/s):t<s+ac?1:1-easeOut(clamp((t-s-ac)/r,0,1));
+  const eh=t<s*.65?easeOut(t/(s*.65)):t<s+ac?1:1-easeOut(clamp((t-s-ac)/(r*.9),0,1)); // hips lead the shoulders
+  const wu=t<s?Math.sin(Math.PI*clamp(t/s,0,1))*(1-e):0;
+  return{e,eh,wu}}
 function targetPose(f,o){
   const P=basePose(),t=f.anim;
-  if(f.down){P.lgx=.25;P.lgy=-.3;P.lgz=.05;P.rgx=-.25;P.rgy=-.32;P.rgz=0;P.cr=.18;P.lean=-.1;P.ht=-.4;P.tw=.1;P.lfx=.16;P.lfz=.12;P.rfx=-.16;P.rfz=-.08;return P}
-  if(f.celebrate){const w=Math.sin(t*7)*.04;P.lgx=.2;P.lgy=.42+w;P.lgz=.05;P.rgx=-.2;P.rgy=.4-w;P.rgz=.05;P.lean=-.08;P.ht=-.25;P.tw=0;P.cr=.02;return P}
-  P.cr=.05+Math.sin(t*5.2+f.side)*.018;P.lean=.12+Math.sin(t*2.6+f.side*2)*.02;
+  if(f.down){Object.assign(P,{lgx:.25,lgy:-.3,lgz:.05,rgx:-.25,rgy:-.32,rgz:0,cr:.18,lean:-.1,ht:-.4,tw:.1,ptw:.1});return P}
+  if(f.celebrate){const w=Math.sin(t*7)*.04;Object.assign(P,{lgx:.2,lgy:.42+w,lgz:.05,rgx:-.2,rgy:.4-w,rgz:.05,lean:-.08,ht:-.25,tw:0,ptw:0,cr:.02});return P}
+  // rhythm: light bounce on the balls of the feet, a little upper-body sway
+  const spd=Math.hypot(f.vx,f.vz);
+  P.cr=.06+Math.sin(t*5.6+f.side)*.016+Math.min(.03,spd*.02);
+  P.lean=.13+Math.sin(t*2.3+f.side*2)*.025;
+  P.roll=Math.sin(t*1.9+f.side)*.05;P.hx=Math.sin(t*1.9+f.side)*.02;
   P.lgx+=Math.sin(t*3.1)*.012;P.lgy+=Math.cos(t*2.7)*.015;P.rgy+=Math.cos(t*3.3)*.012;
-  const mv=Math.hypot(f.mvF,f.mvS);
-  if(mv>.05){const w=f.walk*10;P.lfz+=Math.sin(w)*.05*f.mvF;P.rfz+=Math.sin(w-1.3)*.05*f.mvF;P.lfx+=Math.sin(w)*.04*f.mvS;P.rfx+=Math.sin(w-1.3)*.04*f.mvS;P.cr+=Math.abs(Math.sin(w))*.015}
-  if(f.st<35){const k=(35-f.st)/35;P.lgy-=.1*k;P.rgy-=.12*k;P.lean+=.06*k;P.cr+=.02*k}
-  if(isGuarding(f)){P.lgx=.075;P.lgy=.2;P.lgz=.2;P.rgx=-.075;P.rgy=.19;P.rgz=.19;P.cr+=.05;P.lean+=.1;P.ht=.12;P.tw=.18}
+  P.lHeel=.35+Math.max(0,Math.sin(t*5.6+f.side))*.25;P.rHeel=.55+Math.max(0,Math.sin(t*5.6+f.side+1))*.25;
+  if(f.st<35){const k=(35-f.st)/35;P.lgy-=.1*k;P.rgy-=.12*k;P.lean+=.06*k;P.cr+=.02*k;P.lHeel*=1-k;P.rHeel*=1-k}
+  if(isGuarding(f)){Object.assign(P,{lgx:.075,lgy:.2,lgz:.2,rgx:-.075,rgy:.19,rgz:.19,ht:.14,tw:.18,ptw:.15});P.cr+=.05;P.lean+=.1;P.roll*=.3}
   if(f.stunT>0){const k=Math.min(1,f.stunT*2);P.lgy=lerp(P.lgy,-.2,k);P.rgy=lerp(P.rgy,-.25,k);P.lgz=lerp(P.lgz,.15,k);
-    P.lean+=(Math.sin(t*7)*.12-.1)*k;P.ht+=(-.25+Math.sin(t*5)*.15)*k;P.roll+=Math.sin(t*4)*.12*k;P.cr+=.05*k;P.hx+=Math.sin(t*4)*.05*k}
+    P.lean+=(Math.sin(t*7)*.12-.1)*k;P.ht+=(-.25+Math.sin(t*5)*.15)*k;P.roll+=Math.sin(t*4)*.18*k;P.cr+=(.06+Math.sin(t*9)*.04)*k;P.hx+=Math.sin(t*4)*.06*k;P.lHeel=P.rHeel=0}
   const a=f.action;
   if(a&&a.kind==='evade'){
     const k=clamp(a.t/a.d,0,1),w=Math.sin(Math.PI*k);
-    P.lgx=.08;P.lgy=.18;P.lgz=.2;P.rgx=-.08;P.rgy=.17;P.rgz=.18;
-    switch(a.ev){
-      case'slipL':P.roll-=.32*w;P.hx+=.07*w;P.hs-=.15*w;P.cr+=.06*w;break;
-      case'slipR':P.roll+=.32*w;P.hx-=.07*w;P.hs+=.15*w;P.cr+=.06*w;break;
-      case'pull':P.lean-=.32*w;P.hz-=.12*w;P.ht-=.15*w;break;
-      case'duck':P.cr+=.3*w;P.lean+=.42*w;P.ht+=.2*w;break;
-      case'weave':{const s=Math.cos(Math.PI*k);P.cr+=.28*w;P.lean+=.35*w;P.roll+=.35*s*w*1.4;P.hx-=.08*s*w;break}
+    Object.assign(P,{lgx:.08,lgy:.18,lgz:.2,rgx:-.08,rgy:.17,rgz:.18});
+    switch(a.ev){ // bend at knees and waist, not just the neck
+      case'slipL':P.roll-=.34*w;P.hx+=.08*w;P.hs-=.15*w;P.cr+=.07*w;P.tw+=.18*w;P.lean+=.08*w;break;
+      case'slipR':P.roll+=.34*w;P.hx-=.08*w;P.hs+=.15*w;P.cr+=.07*w;P.tw-=.25*w;P.ptw-=.1*w;P.lean+=.08*w;break;
+      case'pull':P.lean-=.34*w;P.hz-=.13*w;P.ht-=.12*w;P.rHeel=0;break;
+      case'duck':P.cr+=.32*w;P.lean+=.38*w;P.ht+=.2*w;P.lHeel=P.rHeel=0;break;
+      case'weave':{const s=Math.cos(Math.PI*k);P.cr+=.3*w;P.lean+=.32*w;P.roll+=.42*s*w;P.hx-=.1*s*w;P.tw+=.2*s*w;P.lHeel=P.rHeel=0;break}
     }
   }
-  if(a&&a.kind==='punch')punchPose(f,o,P,a);
-  if(f.hitT>0){const h=clamp(f.hitT/.3,0,1),k=clamp(f.hitPow/8,.35,1.4)*h;
-    if(f.hitKind==='body'){P.lean+=.3*k;P.cr+=.08*k;P.lgy-=.08*k;P.rgy-=.1*k;P.ht+=.1*k}
-    else if(f.hitKind==='block'){P.lean-=.06*h;P.hz-=.03*h}
-    else if(f.hitKind==='upper'){P.ht-=.6*k;P.lean-=.22*k;P.hz-=.04*k}
-    else if(f.hitKind==='hook'){P.hs+=(f.hitHand==='L'?.5:-.5)*k;P.roll+=(f.hitHand==='L'?.12:-.12)*k;P.ht-=.15*k}
-    else{P.ht-=.45*k;P.lean-=.16*k;P.hz-=.05*k}}
+  if(a&&(a.kind==='punch'||a.kind==='feint'))punchPose(f,o,P,a);
+  if(f.hitT>0){const h=clamp(f.hitT/.3,0,1),k=clamp(f.hitPow/8,.35,1.4)*h,sd=f.hitHand==='L'?1:-1;
+    if(f.hitKind==='body'){P.lean+=.34*k;P.cr+=.09*k;P.roll+=sd*.12*k;P.lgy-=.1*k;P.rgy-=.12*k;P.ht+=.12*k}
+    else if(f.hitKind==='block'){P.lean-=.07*h;P.hz-=.04*h;P.ht+=.05*h}
+    else if(f.hitKind==='upper'){P.ht-=.7*k;P.lean-=.24*k;P.hz-=.05*k;P.cr-=.03*k;P.lgy+=.05*k;P.rgy+=.05*k}
+    else if(f.hitKind==='hook'){P.hy+=sd*.75*k;P.hs+=sd*.35*k;P.roll+=sd*.16*k;P.tw+=sd*.25*k;P.ht-=.1*k}
+    else{P.ht-=.5*k;P.lean-=.18*k;P.hz-=.06*k;P.hy+=(f.hitHand==='L'?.12:-.18)*k}}
   return P;
 }
 function punchPose(f,o,P,a){
-  const t=a.t,s=a.s,ac=a.a,r=a.r;
-  const e=t<s?easeIn(t/s):t<s+ac?1:1-easeOut(clamp((t-s-ac)/r,0,1));
-  const wu=t<s?Math.sin(Math.PI*clamp(t/s,0,1)):0;
-  // opponent target in my local frame
+  const feint=a.kind==='feint';
+  let e,eh,wu;
+  if(feint){const k=clamp(a.t/a.d,0,1);e=Math.sin(Math.PI*k)*.38;eh=e*1.1;wu=0}
+  else ({e,eh,wu}=phaseOf(a));
   const tg=a.body?o.bodyW:o.headW,ch=f.sk.chest;
   const dx=tg.x-f.x,dz=tg.z-f.z,c=Math.cos(f.facing),sn=Math.sin(f.facing);
   const lx=dx*c-dz*sn,lz=dx*sn+dz*c,ly=tg.y;
   const reach=.95;
-  let tz=Math.min(lz-.15,ch.z+reach),ty=ly-ch.y,txL=lx-ch.x;
-  if(a.body){P.cr+=.12*e;P.lean+=.2*e}
-  const L=a.hand==='L',side=L?1:-1,K=L?'l':'r';
-  const set=(x,y,z,k)=>{P[K+'gx']=lerp(P[K+'gx'],x,k);P[K+'gy']=lerp(P[K+'gy'],y,k);P[K+'gz']=lerp(P[K+'gz'],z,k)};
-  const oz=tz-ch.z;
-  if(L)P.rgx=lerp(P.rgx,-.075,e),P.rgy=lerp(P.rgy,.18,e),P.rgz=lerp(P.rgz,.18,e);
-  else P.lgx=lerp(P.lgx,.075,e),P.lgy=lerp(P.lgy,.19,e),P.lgz=lerp(P.lgz,.19,e);
+  const ty=ly-ch.y,txL=lx-ch.x,oz=Math.min(lz-.15,ch.z+reach)-ch.z;
+  const L=a.hand==='L',side=L?1:-1,K=L?'l':'r',O=L?'r':'l';
+  const g0={x:P[K+'gx'],y:P[K+'gy'],z:P[K+'gz']};
+  const put=(x,y,z)=>{P[K+'gx']=x;P[K+'gy']=y;P[K+'gz']=z};
+  // the other hand comes home to the chin
+  P[O+'gx']=lerp(P[O+'gx'],-side*.07,Math.max(e,eh));P[O+'gy']=lerp(P[O+'gy'],.2,Math.max(e,eh));P[O+'gz']=lerp(P[O+'gz'],.17,Math.max(e,eh));
+  P.ht+=.08*e;P.roll*=1-e;P.hx*=1-e;
+  if(a.body){P.cr+=.14*e;P.lean+=.16*e;P.roll+=side*.1*e;P.hs+=side*.08*e}
   switch(a.type){
-    case'jab':set(txL*.5+.03,ty,oz,e);P.tw+=.12*e;P.lean+=.06*e;P.hz+=.03*e;P.lfz+=.05*e;break;
-    case'cross':set(txL*.5-.03,ty,oz+.02,e);P.tw-=.75*e;P.lean+=.1*e;P.hz+=.05*e;P.ht+=.05*e;break;
-    case'hook':{set(side*.46,.02,.02,wu*(1-e)*1.6);set(txL*.5+side*.03,ty+.02,oz,e);P[K+'Up']=e>.1?1:0;P.tw+=(L?.35:-.35)*wu-(L?.8:-.8)*e;P.roll+=(L?-.12:.12)*e;P.cr+=.04*e;P.lean+=.1*e;P.hz+=.06*e;break}
-    case'upper':{set(side*.08,-.34,.12,wu*(1-e));set(txL*.5,ty-.02,oz-.02,e);P.cr+=.1*wu;P.lean+=-.04*e+.1*wu;P.tw+=(L?.25:-.4)*e;P.roll+=(L?.1:-.1)*wu;break}
+    case'jab':{ // snap straight down the line, step with the lead foot, turn the fist over
+      const tx=txL*.5+.03;put(lerp(g0.x,tx,e),lerp(g0.y,ty,e),lerp(g0.z,oz,e));
+      P.ptw+=.08*eh;P.tw+=.22*e;P.lean+=.06*e;P.hz+=.05*e;P.hs-=.06*e;P.lStep=.11*e;P[K+'Rot']=-1.4*e*side;
+      break}
+    case'cross':{ // hips fire first, rear heel lifts and pivots, weight rolls onto the lead leg
+      const tx=txL*.5-.03;put(lerp(g0.x,tx,e),lerp(g0.y,ty,e),lerp(g0.z,oz+.02,e));
+      if(L){P.ptw+=.45*eh;P.tw+=.85*e;P.lHeel=e;P.lPiv=.7*e}else{P.ptw-=.48*eh;P.tw-=.9*e;P.rHeel=1;P.rPiv=-.75*eh}
+      P.lean+=.13*e;P.hz+=.08*e;P.hx-=side*.05*e;P.cr+=.02*e;P[K+'Rot']=-1.4*e*side;
+      break}
+    case'hook':{ // cock the hips, elbow up at shoulder height, swing the arc through the target with a foot pivot
+      const ex=txL*.5+side*.04,ey=ty+.02,ez=oz-.02;
+      const cx=side*.5,cy=.04,cz=.06;
+      const k=feint?e:Math.max(0,e);
+      put(bez(g0.x,cx,ex,k)+side*.12*wu,bez(g0.y,cy,ey,k),bez(g0.z,cz,ez,k)-.08*wu);
+      P[K+'Up']=k>.08?1:0;
+      P.ptw+=side*(.18*wu-.5*eh);P.tw+=side*(.3*wu-.95*e);P.cr+=.05*e+.03*wu;P.lean+=.06*e;P.roll-=side*.1*e;P.hz+=.04*e;
+      if(L){P.lHeel=.9*eh;P.lPiv=-.65*eh}else{P.rHeel=.9*eh;P.rPiv=.65*eh}
+      P[K+'Rot']=side*1.5*k;
+      break}
+    case'upper':{ // dip to the punching side, then drive up with the legs and rotate through
+      const ex=txL*.5+side*.02,ey=ty-.03,ez=oz-.03;
+      const k=Math.max(0,e);
+      put(bez(g0.x,side*.1,ex,k),bez(g0.y,-.4,ey,k)-.1*wu,bez(g0.z,.14,ez,k));
+      P.cr+=.14*wu-.04*e;P.roll+=side*.14*wu-side*.05*e;P.lean+=.08*wu-.04*e;
+      P.ptw+=side*(.12*wu-.35*eh);P.tw+=side*(.2*wu-.6*e);P.ht-=.05*e;
+      if(L){P.lHeel=.6*eh}else{P.rHeel=1;P.rPiv=-.5*eh}
+      P[K+'Rot']=side*2.2*k;
+      break}
   }
 }
-function smooth(f,T2,dt){const k=1-Math.exp(-dt*28),ka=1-Math.exp(-dt*42);for(const key in T2){const kk=(key[1]==='g')?ka:k;f.pose[key]+=(T2[key]-f.pose[key])*kk}}
+function smooth(f,T2,dt){const k=1-Math.exp(-dt*26),ka=1-Math.exp(-dt*46);for(const key in T2){const kk=(key[1]==='g'||key.endsWith('Rot'))?ka:k;f.pose[key]+=(T2[key]-f.pose[key])*kk}}
 function ik3(S,Tt,a,b,pole,out){
   const d0=_v.subVectors(Tt,S).length()||1e-4;const d=clamp(d0,Math.abs(a-b)+.01,a+b-.005);
   const dir=_v.clone().divideScalar(d0);
@@ -793,36 +866,66 @@ function ik3(S,Tt,a,b,pole,out){
   out.e.copy(S).addScaledVector(dir,a*cosA).addScaledVector(pp,a*sinA);
   out.h.copy(S).addScaledVector(dir,d);
 }
-const POLE={down:[V(.35,-1,-.25),V(-.35,-1,-.25)],out:[V(1,.35,-.2),V(-1,.35,-.2)]};
+const POLE={down:[V(.4,-1,-.3),V(-.4,-1,-.3)],out:[V(1,.45,-.25),V(-1,.45,-.25)]};
+// ---- footwork: each foot stays planted on the canvas and steps when the body drifts away from it ----
+function footDesired(f,s,out){
+  const st=STANCE[s],c=Math.cos(f.facing),sn=Math.sin(f.facing),p=f.pose;
+  let lx=st.x,lz=st.z+(s==='L'?(p.lStep||0):0);
+  // lead in the direction of travel
+  const vF=f.vx*sn+f.vz*c,vS=f.vx*c-f.vz*sn;
+  lz+=clamp(vF*.13,-.12,.12);lx+=clamp(vS*.13,-.12,.12);
+  out.x=f.x+lx*c+lz*sn;out.z=f.z-lx*sn+lz*c;return out;
+}
+function initFeet(f){f.feet={};for(const s of['L','R']){const d=footDesired(f,s,{x:0,z:0});f.feet[s]={x:d.x,z:d.z,lift:0,st:-1,fx:0,fz:0,tx:0,tz:0}}}
+function updFeet(f,dt){
+  if(!f.feet)initFeet(f);
+  const F=f.feet,des={L:footDesired(f,'L',{x:0,z:0}),R:footDesired(f,'R',{x:0,z:0})};
+  if(f.down||f.fallA>.01){for(const s of['L','R']){F[s].x=des[s].x;F[s].z=des[s].z;F[s].lift=0;F[s].st=-1}return}
+  const spd=Math.hypot(f.vx,f.vz),dur=clamp(.15-spd*.02,.09,.15);
+  for(const s of['L','R']){const ft=F[s];if(ft.st>=0){ft.st+=dt/dur;const k=easeIO(Math.min(1,ft.st));ft.x=lerp(ft.fx,ft.tx,k);ft.z=lerp(ft.fz,ft.tz,k);ft.lift=Math.sin(Math.PI*Math.min(1,ft.st))*(.035+spd*.012);if(ft.st>=1){ft.st=-1;ft.lift=0}}}
+  const busy=s=>F[s].st>=0&&F[s].st<.6;
+  const err=s=>Math.hypot(F[s].x-des[s].x,F[s].z-des[s].z);
+  const thr=spd>.3?.07:.12;
+  // which foot moves first: the lead foot when advancing, the rear foot when retreating
+  const c=Math.cos(f.facing),sn=Math.sin(f.facing),vF=f.vx*sn+f.vz*c;
+  const order=vF>=0?['L','R']:['R','L'];
+  for(const s of order){const other=s==='L'?'R':'L';
+    if(F[s].st<0&&!busy(other)&&err(s)>thr){const ft=F[s];ft.fx=ft.x;ft.fz=ft.z;ft.tx=des[s].x+f.vx*.06;ft.tz=des[s].z+f.vz*.06;ft.st=0;break}}
+}
+function footLocal(f,ft,out){const dx=ft.x-f.x,dz=ft.z-f.z,c=Math.cos(f.facing),sn=Math.sin(f.facing);out.set(dx*c-dz*sn,0,dx*sn+dz*c);return out}
 function skeleton(f){
   const p=f.pose;
-  if(!f.sk)f.sk={pel:V(0,0,0),chest:V(0,0,0),neck:V(0,0,0),head:V(0,0,0),shL:V(0,0,0),shR:V(0,0,0),gL:V(0,0,0),gR:V(0,0,0),
-    aL:{e:V(0,0,0),h:V(0,0,0)},aR:{e:V(0,0,0),h:V(0,0,0)},hipL:V(0,0,0),hipR:V(0,0,0),ftL:V(0,0,0),ftR:V(0,0,0),lL:{e:V(0,0,0),h:V(0,0,0)},lR:{e:V(0,0,0),h:V(0,0,0)},belly:V(0,0,0),rt:new T.Matrix4(),rh:new T.Euler()};
+  if(!f.sk)f.sk={pel:V(0,0,0),waist:V(0,0,0),chest:V(0,0,0),neck:V(0,0,0),head:V(0,0,0),shL:V(0,0,0),shR:V(0,0,0),gL:V(0,0,0),gR:V(0,0,0),
+    aL:{e:V(0,0,0),h:V(0,0,0)},aR:{e:V(0,0,0),h:V(0,0,0)},hipL:V(0,0,0),hipR:V(0,0,0),ftL:V(0,0,0),ftR:V(0,0,0),lL:{e:V(0,0,0),h:V(0,0,0)},lR:{e:V(0,0,0),h:V(0,0,0)},
+    belly:V(0,0,0),rp:new T.Matrix4(),rc:new T.Matrix4(),rh:new T.Euler(),pe:new T.Euler(),ce:new T.Euler()};
   const k=f.sk;
-  k.pel.set(p.hx,.99-p.cr,p.hz);
-  k.rt.makeRotationFromEuler(_e.set(p.lean,p.tw,p.roll,'YXZ'));
-  const tr=(o,x,y,z)=>o.set(x,y,z).applyMatrix4(k.rt).add(k.pel);
-  tr(k.chest,0,.5,0);tr(k.shL,.2,.45,-.01);tr(k.shR,-.2,.45,-.01);tr(k.neck,0,.54,.01);tr(k.belly,0,.27,.1);
-  k.rh.set(p.lean+p.ht,p.tw*.55,p.roll+p.hs,'YXZ');
+  k.pel.set(p.hx,1.0-p.cr,p.hz);
+  k.pe.set(p.lean*.35,p.ptw,p.roll*.4,'YXZ');k.rp.makeRotationFromEuler(k.pe);
+  k.waist.set(0,.2,0).applyMatrix4(k.rp).add(k.pel);
+  k.ce.set(p.lean,p.tw,p.roll,'YXZ');k.rc.makeRotationFromEuler(k.ce);
+  const tc=(o,x,y,z)=>o.set(x,y,z).applyMatrix4(k.rc).add(k.waist);
+  tc(k.chest,0,.3,0);tc(k.shL,.2,.25,-.01);tc(k.shR,-.2,.25,-.01);tc(k.neck,0,.34,.01);tc(k.belly,0,.07,.1);
+  k.rh.set(p.lean+p.ht,p.tw*.55+p.hy,p.roll+p.hs,'YXZ');
   k.head.set(0,.15,.025).applyEuler(k.rh).add(k.neck);
   k.gL.set(k.chest.x+p.lgx,k.chest.y+p.lgy,k.chest.z+p.lgz);k.gR.set(k.chest.x+p.rgx,k.chest.y+p.rgy,k.chest.z+p.rgz);
   ik3(k.shL,k.gL,.31,.36,p.lUp>.5?POLE.out[0]:POLE.down[0],k.aL);
   ik3(k.shR,k.gR,.31,.36,p.rUp>.5?POLE.out[1]:POLE.down[1],k.aR);
-  const ct=Math.cos(p.tw*.3),st=Math.sin(p.tw*.3);
+  const ct=Math.cos(p.ptw),st=Math.sin(p.ptw);
   k.hipL.set(k.pel.x+.1*ct,k.pel.y-.07,k.pel.z-.1*st);k.hipR.set(k.pel.x-.1*ct,k.pel.y-.07,k.pel.z+.1*st);
-  k.ftL.set(p.lfx,.1,p.lfz);k.ftR.set(p.rfx,.1,p.rfz);
-  ik3(k.hipL,k.ftL,.45,.45,V(.15,0,1),k.lL);ik3(k.hipR,k.ftR,.45,.45,V(-.15,0,1),k.lR);
-  // world points
+  if(f.feet){footLocal(f,f.feet.L,k.ftL);footLocal(f,f.feet.R,k.ftR);k.ftL.y=.1+f.feet.L.lift+p.lHeel*.035;k.ftR.y=.1+f.feet.R.lift+p.rHeel*.035}
+  else{k.ftL.set(STANCE.L.x,.1,STANCE.L.z);k.ftR.set(STANCE.R.x,.1,STANCE.R.z)}
+  ik3(k.hipL,k.ftL,.45,.45,V(.25,0,1),k.lL);ik3(k.hipR,k.ftR,.45,.45,V(-.1,0,1),k.lR);
   const c=Math.cos(f.facing),s=Math.sin(f.facing);
-  const W=(o,q)=>{const fa=f.fallA,cy=Math.cos(fa),sy=Math.sin(fa);let y=q.y*cy+q.z*sy*0,z=q.z;if(fa){y=q.y*Math.cos(fa)+q.z*Math.sin(fa);z=-q.y*Math.sin(fa)+q.z*Math.cos(fa)}
-    o.set(f.x+q.x*c+z*s,y,f.z-q.x*s+z*c)};
+  const W=(o,q)=>{const fa=f.fallA;let y=q.y,z=q.z;if(fa){y=q.y*Math.cos(fa)+q.z*Math.sin(fa);z=-q.y*Math.sin(fa)+q.z*Math.cos(fa)}o.set(f.x+q.x*c+z*s,y,f.z-q.x*s+z*c)};
   W(f.headW,k.head);W(f.bodyW,k.belly);
 }
+const _qa=new T.Quaternion(),_ax=V(0,1,0);
 function applyModel(f){
   const M=f.M;if(!M)return;const k=f.sk,p=f.pose;
   M.root.position.set(f.x,0,f.z);M.root.rotation.y=f.facing;
   M.body.rotation.x=-f.fallA;M.body.position.z=-f.fallA*.05;
-  M.torso.position.copy(k.pel);M.torso.rotation.set(p.lean,p.tw,p.roll,'YXZ');
+  M.pelvis.position.copy(k.pel);M.pelvis.rotation.copy(k.pe);
+  M.torso.position.copy(k.waist);M.torso.rotation.copy(k.ce);
   M.head.position.copy(k.head);M.head.rotation.copy(k.rh);
   placeSeg(M.neck,k.chest,k.head);
   for(const s of['L','R']){
@@ -830,11 +933,13 @@ function applyModel(f){
     placeSeg(M['ua'+s],sh,A.e);M['sh'+s].position.copy(sh);M['el'+s].position.copy(A.e);
     _v.subVectors(A.h,A.e).normalize();const wr=A.h.clone().addScaledVector(_v,-.07);
     placeSeg(M['fa'+s],A.e,wr);
-    const gv=M['gl'+s];gv.position.copy(A.h);_q.setFromUnitVectors(UP,_v.subVectors(A.h,A.e).normalize());gv.quaternion.copy(_q);
-    const Lg=s==='L'?k.lL:k.lR,hp=s==='L'?k.hipL:k.hipR,ft=s==='L'?k.ftL:k.ftR;
+    const gv=M['gl'+s];gv.position.copy(A.h);_ax.subVectors(A.h,A.e).normalize();_q.setFromUnitVectors(UP,_ax);
+    _qa.setFromAxisAngle(_ax,p[(s==='L'?'l':'r')+'Rot']||0);gv.quaternion.copy(_qa.multiply(_q));
+    const Lg=s==='L'?k.lL:k.lR,hp=s==='L'?k.hipL:k.hipR;
     placeSeg(M['th'+s],hp,Lg.e);placeSeg(M['tt'+s],hp.clone().add(V(0,.05,0)),hp.clone().lerp(Lg.e,.62));
     placeSeg(M['sn'+s],Lg.e,Lg.h);M['kn'+s].position.copy(Lg.e);
-    const bt=M['bt'+s];bt.position.copy(Lg.h);bt.rotation.set(0,s==='L'?.3:.75,0);
+    const bt=M['bt'+s],heel=s==='L'?p.lHeel:p.rHeel,piv=s==='L'?p.lPiv:p.rPiv;
+    bt.position.copy(Lg.h);bt.rotation.set(-heel*.45,STANCE[s].yaw*(s==='L'?1:1)*(s==='L'?1:1)+piv,0,'YXZ');
   }
 }
 
@@ -926,6 +1031,7 @@ function drawBars(c,f,x,dir,bw){
   const ny=y+40;c.font='400 17px "Black Han Sans", sans-serif';const tw=c.measureText(f.def.name).width;
   c.fillStyle='rgba(16,20,28,.9)';para(c,x+dir*18,ny,tw+28,24,8,dir);c.fill();
   c.fillStyle='#fff';c.textAlign=dir>0?'left':'right';c.textBaseline='middle';c.fillText(f.def.name,x+dir*32,ny+13);
+  {const tn=TRAITS[f.def.trait];if(tn){c.font='500 11px "Noto Sans KR", sans-serif';c.fillStyle=f.rageOn?'#ff6a5a':'rgba(227,178,60,.85)';c.fillText(tn.name,x+dir*32,ny+33)}c.font='400 17px "Black Han Sans", sans-serif'}
   for(let i=0;i<f.kdT;i++){c.fillStyle='#ff4a3d';c.beginPath();c.arc(x+dir*(52+tw+i*12),ny+12,4,0,7);c.fill()}
   c.textBaseline='alphabetic';
 }
@@ -1102,6 +1208,7 @@ function howto(back){
     <dt>이동</dt><dd>폰을 기울인 방향으로 움직여요. 좌우로 기울이면 앞(상대 쪽)·뒤, 위아래로 기울이면 링 안쪽·바깥쪽. 자이로 신호가 없을 때만 화면 아래 가운데 스틱이 나와요</dd>
     <dt>카운터</dt><dd>회피에 성공한 직후 치는 펀치는 1.5배 데미지</dd>
     <dt>다운</dt><dd>카운트 10 전에 화면을 연타하면 일어나요. 한 라운드 3번 다운이면 TKO</dd>
+    <dt>특성</dt><dd>선수마다 하나씩 가진 고유 능력이에요. 커리어 화면의 '선수·특성 바꾸기'에서 내 특성을 고를 수 있어요</dd>
     <dt>키보드</dt><dd>WASD 이동, Space 가드, J 잽 · K 스트레이트 · U/I 훅 · N/M 어퍼, Shift 누르면 바디, H 위빙 · L 더킹 · Q/E 슬립 · R 풀백</dd>
   </dl></div>`);
 }
@@ -1112,29 +1219,31 @@ function career(){
   showScreen(`<div class="sheet">
     <div class="sheet-h"><button class="back" data-act="menu">← 메뉴</button><h2>커리어</h2></div>
     <div class="pcard">
-      <div><p class="lbl">${champ?'헤비급 챔피언':'헤비급 도전자'}</p><p class="pname">${esc(save.name)}</p>
-        <div class="rec">${save.w}-${save.l}${save.d?'-'+save.d:''}<span>전적 · KO ${save.ko}</span></div></div>
+      <div><p class="lbl">${champ?'헤비급 챔피언':'헤비급 도전자'}</p><p class="pname">${esc(save.name)}<span class="tchip">${TRAITS[playerDef().trait].name}</span></p>
+        <div class="rec">${save.w}-${save.l}${save.d?'-'+save.d:''}<span>전적 · KO ${save.ko}</span></div>
+        <p class="bio" style="margin-top:8px">${TRAITS[playerDef().trait].desc}</p><button class="back" data-act="edit" style="margin-top:8px">선수·특성 바꾸기</button></div>
       <div>${statRow('power','파워')}${statRow('speed','스피드')}${statRow('chin','맷집')}${statRow('stamina','스태미나')}
         <div class="pts">${save.points?`능력치 포인트 ${save.points} · + 한 번에 2씩 올라요`:'승리하면 능력치 포인트 3을 받아요'}</div></div>
     </div>
     <div><p class="lbl">헤비급 랭킹</p><ol class="ladder">
       ${OPP.map((o,i)=>{const won=save.beaten.includes(o.id),isNext=i===next,locked=!won&&!isNext;
         return`<li class="${isNext?'next':''} ${locked?'locked':''}"><span class="rank ${o.champ?'ch':''}">${o.champ?'CHAMP':'#'+(OPP.length-1-i)}</span>
-        <span class="lname">${o.name} <small>“${o.nick}” · ${STYLES[o.style].label} · ${o.rec} · ${o.rounds}R</small></span>
+        <span class="lname">${o.name}<span class="tchip">${TRAITS[o.trait].name}</span> <small>“${o.nick}” · ${STYLES[o.style].label} · ${o.rec} · ${o.rounds}R</small></span>
         ${won?`<button class="chip won" data-act="pick" data-i="${i}">승리 · 재대결</button>`:isNext?`<button class="chip go" data-act="pick" data-i="${i}">도전</button>`:`<span class="chip">잠김</span>`}</li>`}).join('')}
     </ol></div>
     ${champ?'<p class="tip"><b>챔피언!</b> 모든 랭커를 꺾었어요. 재대결로 타이틀을 방어해 보세요.</p>':''}
     <button class="back" data-act="reset" style="align-self:flex-start">커리어 초기화</button>
   </div>`);
 }
-let draft={name:'',skin:1,trunks:0};
+let draft={name:'',skin:1,trunks:0,trait:'engine'};
 function createFighter(){
-  draft={name:save.name||'',skin:save.skin,trunks:save.trunks};
+  draft={name:save.name||'',skin:save.skin,trunks:save.trunks,trait:TRAITS[save.trait]?save.trait:'engine'};
   showScreen(`<div class="sheet">
     <div class="sheet-h"><button class="back" data-act="menu">← 메뉴</button><h2>선수 등록</h2></div>
     <div class="field"><label class="lbl" for="nm">링 네임</label><input id="nm" maxlength="10" placeholder="예: 강펀치" value="${esc(draft.name)}"></div>
     <div class="field"><span class="lbl">피부</span><div class="sw" id="swSkin">${SKIN.map((s,i)=>`<button data-act="skin" data-i="${i}" class="${i===draft.skin?'on':''}" style="background:${s}" aria-label="피부 ${i+1}"></button>`).join('')}</div></div>
     <div class="field"><span class="lbl">트렁크</span><div class="sw" id="swTr">${TRUNKS.map((t,i)=>`<button data-act="trunk" data-i="${i}" class="${i===draft.trunks?'on':''}" style="background:linear-gradient(${t.t} 70%,${t.trim} 70%)" aria-label="트렁크 ${i+1}"></button>`).join('')}</div></div>
+    <div class="field"><span class="lbl">특성</span><div class="traits" id="trPick">${Object.entries(TRAITS).map(([k,t])=>`<button class="trait ${k===draft.trait?'on':''}" data-act="ptrait" data-k="${k}">${t.name}<small>${t.desc}</small></button>`).join('')}</div></div>
     <button class="btn primary center" data-act="register">등록하고 시작</button>
   </div>`);
 }
@@ -1148,9 +1257,10 @@ function tape(i,rounds){
     <div class="tape">
       <div class="who"><small>${G.pendingBack==='quick'?'플레이어':'도전자'}</small>${esc(p.name)}</div><div class="vs">VS</div><div class="who r"><small>“${o.nick}”</small>${o.name}</div>
       ${row('전적',p.rec,o.rec)}${row('신장',p.h+'cm',o.h+'cm')}${row('체중',p.wt+'kg',o.wt+'kg')}${row('리치',p.reach+'cm',o.reach+'cm')}
-      ${row('스타일','아웃복서',STYLES[o.style].label)}
+      ${row('스타일','아웃복서',STYLES[o.style].label)}${row('특성',TRAITS[p.trait].name,TRAITS[o.trait].name)}
       ${row('파워',p.power,o.power,cmp(p.power,o.power))}${row('스피드',p.speed,o.speed,cmp(p.speed,o.speed))}${row('맷집',p.chin,o.chin,cmp(p.chin,o.chin))}${row('스태미나',p.stamina,o.stamina,cmp(p.stamina,o.stamina))}
     </div>
+    <p class="bio">${o.bio} <b style="color:var(--gold)">${TRAITS[o.trait].name}</b>: ${TRAITS[o.trait].desc}</p>
     <button class="btn primary center" data-act="go">${rounds}라운드 경기 시작</button>
   </div>`);
 }
@@ -1158,7 +1268,7 @@ function quick(){
   G.pendingBack='quick';
   showScreen(`<div class="sheet">
     <div class="sheet-h"><button class="back" data-act="menu">← 메뉴</button><h2>빠른 대전</h2></div>
-    <div><p class="lbl">상대</p><div class="opps">${OPP.map((o,i)=>`<button class="opp ${i===quickSel.opp?'on':''}" data-act="qopp" data-i="${i}"><span class="dot" style="background:linear-gradient(${o.trunks} 70%,${o.trim} 70%)"></span><div><b>${o.name}</b><small>${STYLES[o.style].label} · 종합 ${Math.round((o.power+o.speed+o.chin+o.stamina)/4)}</small></div></button>`).join('')}</div></div>
+    <div><p class="lbl">상대</p><div class="opps">${OPP.map((o,i)=>`<button class="opp ${i===quickSel.opp?'on':''}" data-act="qopp" data-i="${i}"><span class="dot" style="background:linear-gradient(${o.trunks} 70%,${o.trim} 70%)"></span><div><b>${o.name}</b><small>“${o.nick}” · ${TRAITS[o.trait].name} · 종합 ${Math.round((o.power+o.speed+o.chin+o.stamina)/4)}</small></div></button>`).join('')}</div></div>
     <div><p class="lbl">라운드</p><div class="seg">${[3,5,7].map(r=>`<button class="${r===quickSel.rounds?'on':''}" data-act="qr" data-r="${r}">${r}라운드</button>`).join('')}</div></div>
     <button class="btn primary center" data-act="qgo">테이프 확인</button>
   </div>`);
@@ -1241,7 +1351,9 @@ scr.addEventListener('click',e=>{
     case'skin':draft.name=$('#nm').value;draft.skin=+b.dataset.i;document.querySelectorAll('#swSkin button').forEach((x,j)=>x.classList.toggle('on',j===draft.skin));break;
     case'trunk':draft.name=$('#nm').value;draft.trunks=+b.dataset.i;document.querySelectorAll('#swTr button').forEach((x,j)=>x.classList.toggle('on',j===draft.trunks));break;
     case'register':{const n=$('#nm').value.trim();if(!n){$('#nm').focus();$('#nm').placeholder='링 네임을 입력해 주세요';break}
-      save.name=n.slice(0,10);save.skin=draft.skin;save.trunks=draft.trunks;persist();career();break}
+      save.name=n.slice(0,10);save.skin=draft.skin;save.trunks=draft.trunks;save.trait=draft.trait;persist();career();break}
+    case'ptrait':draft.trait=b.dataset.k;if($('#nm'))draft.name=$('#nm').value;document.querySelectorAll('#trPick .trait').forEach(x=>x.classList.toggle('on',x.dataset.k===draft.trait));break;
+    case'edit':createFighter();break;
     case'reset':if(b.dataset.confirm){save={...loadSave(),name:'',stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[]};persist();career()}
       else{b.dataset.confirm='1';b.textContent='한 번 더 누르면 초기화돼요';b.style.color='var(--red)'}break;
     case'next':nextRound();break;
