@@ -452,7 +452,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v27';
+const APP_VER='v28';
 let SET={style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -758,10 +758,10 @@ function sprPose(f){ // -> [frame, extras]
   const a=f.action;
   if(a&&a.kind==='punch'){
     if(a.t<a.s*.55)return[1,{wind:a.t/(a.s*.55)}];
-    if(a.t<a.s+a.a+a.r*.45){const n=a.body?6:a.type==='jab'?2:a.type==='cross'?3:a.type==='hook'?4:a.type==='upper'?5:(a.hand==='R'?3:4);return[n,{strike:clamp((a.t-a.s*.55)/(a.s*.45+a.a),0,1)}]}
+    if(a.t<a.s+a.a+a.r*.45){const o2=G.F[0]===f?G.F[1]:G.F[0],dd=Math.hypot(o2.x-f.x,o2.z-f.z),rch=PUNCH[a.type].range+reachOf(f)-(a.body?.05:0);const n=a.body?6:a.type==='jab'?2:a.type==='cross'?3:a.type==='hook'?4:a.type==='upper'?5:(a.hand==='R'?3:4);return[n,{strike:clamp((a.t-a.s*.55)/(a.s*.45+a.a),0,1),reach:Math.min(dd-.1,rch)}]}
     return[1,{}]}
   if(a&&a.kind==='feint')return[2,{feint:1}];
-  if(a&&a.kind==='evade'){const u=clamp(a.t/a.d,0,1),k=Math.sin(Math.PI*u);return[1,{ev:a.ev,k,wc:Math.cos(Math.PI*u)}]}
+  if(a&&a.kind==='evade'){const u=clamp(a.t/a.d,0,1),k=Math.sin(Math.PI*u),ev=a.ev,n=k<.25?1:(ev==='duck'||ev==='weave')?8:ev==='pull'?7:1;return[n,{ev,k,wc:Math.cos(Math.PI*u)}]}
   if(isGuarding(f)||f.charge)return[1,{}];
   return[0,{}];
 }
@@ -774,10 +774,11 @@ function updSprite(f){
   let w=fm[2]*mpp,h=fm[3]*mpp,ox=(fm[2]/2-fm[4])*mpp*flip,fwd=0,rz=0,sy=1,sx=1;
   if(n===0){sy=1+Math.sin(f.anim*5.5)*.012}
   if(x.wind!=null){sx=1-.04*Math.sin(Math.PI*x.wind)}
-  if(x.strike!=null){fwd=.07*(1-x.strike*.5);sx=1+.05*(1-x.strike)}
+  if(x.strike!=null){const tip=(fm[2]-fm[4])*mpp,e=Math.min(1,x.strike*2.2); // glove tip lands on the target (or falls short at max reach)
+    const shift=clamp(x.reach-tip,-.32,.32);fwd=shift*e;const rest=x.reach-(tip+shift);sx=1+clamp(rest/Math.max(.3,tip),-.14,.14)*e}
   if(x.hit){const k=x.hk;fwd=-.08*k*Math.min(1.5,x.hp/6);rz=.05*k*flip}
-  if(x.ev){if(x.ev==='duck'||x.ev==='weave'){sy=1-.16*x.k;fwd=x.ev==='duck'?.08*x.k:0;rz=x.ev==='weave'?.12*x.k*flip*x.wc:0}
-    else if(x.ev==='pull'){rz=.16*x.k*flip;fwd=-.08*x.k}else{rz=(x.ev==='slipL'?-.1:.1)*x.k*flip}}
+  if(x.ev){if(x.ev==='duck'||x.ev==='weave'){sy=n===8?1:1-.12*x.k;fwd=x.ev==='duck'?.1*x.k:0;rz=x.ev==='weave'?.1*x.k*flip*x.wc:0;ox+=x.ev==='weave'?.1*x.wc*flip*x.k:0}
+    else if(x.ev==='pull'){rz=.05*x.k*flip;fwd=-.12*x.k}else{rz=(x.ev==='slipL'?-.2:.2)*x.k*flip;ox+=(x.ev==='slipL'?-.08:.08)*x.k*flip;sy=1-.06*x.k}}
   if(n===8)rz+=Math.sin(f.anim*3)*.05;
   if(x.lie)fwd=-.45*hk;
   if(f.down&&f.down.rising)sy=1;
@@ -1143,7 +1144,7 @@ function separate(){
   for(const f of G.F){f.z=0;f.vz=0} // side-view bout: fighters stay on one line, no circling
   for(const f of G.F){f.x=clamp(f.x,-RING_L,RING_L);f.z=clamp(f.z,-RING_L,RING_L)}
   let dx=q.x-p.x,dz=q.z-p.z,d=Math.hypot(dx,dz)||1e-3;
-  if(d<MIN_D){const k=(MIN_D-d)/2/d;p.x-=dx*k;p.z-=dz*k;q.x+=dx*k;q.z+=dz*k}
+  const md=(p.spr||q.spr)?.8:MIN_D;if(d<md){const k=(md-d)/2/d;p.x-=dx*k;p.z-=dz*k;q.x+=dx*k;q.z+=dz*k}
   for(const f of G.F){f.x=clamp(f.x,-RING_L,RING_L);f.z=clamp(f.z,-RING_L,RING_L)}
 }
 function playerCharge(p){
