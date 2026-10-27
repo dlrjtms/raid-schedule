@@ -28,8 +28,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 #gl,#hud{position:absolute;inset:0;width:100%;height:100%;display:block}
 #touch{position:absolute;inset:0;touch-action:none;z-index:2}
 #probe{position:absolute;visibility:hidden;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
-#clinchBtn{position:absolute;left:50%;top:22%;transform:translateX(-50%);z-index:4;padding:10px 22px;border-radius:999px;border:2px solid #ffd36b;background:rgba(20,16,8,.72);color:#ffd36b;font:800 16px var(--f-body);letter-spacing:.04em;box-shadow:0 0 18px rgba(255,211,107,.35);animation:cpulse 1s ease-in-out infinite}
-@keyframes cpulse{50%{box-shadow:0 0 30px rgba(255,211,107,.7)}}
+#clinchBtn{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 74px);transform:translateX(-50%);z-index:4;padding:5px 14px;border-radius:999px;border:1px solid rgba(255,211,107,.7);background:rgba(20,16,8,.6);color:#ffd36b;font:700 13px var(--f-body);opacity:.9}
 #pauseBtn{position:absolute;left:50%;top:0;transform:translateX(-50%);width:150px;height:70px;border:0;background:transparent;color:transparent;z-index:3}
 #loading{position:absolute;inset:0;display:grid;place-items:center;font:500 14px var(--f-body);color:var(--muted);z-index:1}
 
@@ -452,7 +451,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v25';
+const APP_VER='v26';
 let SET={style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -2139,7 +2138,7 @@ function howto(back){
     <dt>크리티컬</dt><dd>파워가 센 선수의 파워 펀치는 가끔 크리티컬(2배)이 나고, 한 방에 KO될 수도 있어요. 카운터·정타 상황이면 확률이 올라가요</dd>
     <dt>다운</dt><dd>다운이 나오면 슬로모션 리플레이가 나와요(탭하면 건너뛰기). 보통 카운트 3쯤이면 일어나고, 일어나면 체력 30%. 강펀처에게 맞았을 땐 연타해도 못 일어날 수 있어요</dd>
     <dt>패리</dt><dd>상대 펀치가 닿기 직전(0.2초 안)에 가드를 올리면 패리! 데미지 없이 상대가 휘청이고, 바로 치는 펀치가 카운터가 돼요</dd>
-    <dt>클린치</dt><dd>휘청이거나 지쳤을 때 가까이 있으면 화면 위에 '클린치' 버튼이 떠요. 상대를 붙잡고 숨을 고르고, 심판이 떼어 놓아요(라운드당 3번)</dd>
+    <dt>클린치</dt><dd>휘청이거나 체력 25·스태미나 15 아래로 몰렸을 때 상대와 붙어 있으면 타이머 아래에 작은 '클린치' 버튼이 떠요(키보드 C, 설정에서 끌 수 있어요). 상대를 붙잡고 숨을 고르고, 심판이 떼어 놓아요(라운드당 3번)</dd>
     <dt>클린치 막기</dt><dd>상대가 붙잡으러 들어올 때(0.35초) 뒤로 빠지거나, 풀백·슬립하거나, 펀치로 맞받아치면 실패시키고 반격 찬스. 이미 붙잡혔으면 화면을 연타해서 뿌리치면 상대가 휘청여요</dd>
     <dt>코너</dt><dd>라운드 사이에 컷맨·응급 처치·호흡 정리 중 하나와 다음 라운드 작전(압박·아웃복싱·카운터)을 골라요</dd>
     <dt>카운터</dt><dd>회피에 성공하거나 상대가 헛치면 반격 기회. 그때 맞히는 펀치는 1.55배</dd>
@@ -2295,6 +2294,7 @@ function pauseHTML(){
       <div class="row2"><small>1 둔하게</small><small>7 예민하게</small></div>
       <div class="meter" aria-hidden="true"><i id="tiltM"></i></div><small id="tiltT">${gyroLive()?'폰을 좌우로 기울여 보세요 — 막대가 움직임 속도예요':'기울기 센서 신호가 없어요'}</small></div>
     <div class="toggle"><span>터치 구역 표시</span><button class="${SET.zones?'on':''}" data-act="zones">${SET.zones?'켬':'끔'}</button></div>
+    <div class="toggle"><span>클린치 버튼</span><button class="${SET.clinchBtn!==false?'on':''}" data-act="clinchset">${SET.clinchBtn!==false?'켬':'끔'}</button></div>
     <button class="btn center" data-act="howto2">조작법</button><button class="btn center" data-act="quit">기권하고 나가기</button></div>`;
 }
 function settingsScreen(){
@@ -2306,6 +2306,7 @@ function settingsScreen(){
     <div class="toggle"><span>자이로 이동</span>${gyroLive()?'<button data-act="calib">지금 자세를 기준으로</button>':'<button data-act="gyro">자이로 켜기</button>'}</div>
     <div class="toggle"><span>앞뒤 방향 반전</span><button class="${SET.invX?'on':''}" data-act="invX">${SET.invX?'켬':'끔'}</button></div>
     <div class="toggle"><span>터치 구역 표시</span><button class="${SET.zones?'on':''}" data-act="zones">${SET.zones?'켬':'끔'}</button></div>
+    <div class="toggle"><span>클린치 버튼</span><button class="${SET.clinchBtn!==false?'on':''}" data-act="clinchset">${SET.clinchBtn!==false?'켬':'끔'}</button></div>
     <div class="toggle"><span>그림 스타일</span><div class="seg" style="width:170px"><button class="${SET.style!=='real'?'on':''}" data-act="style" data-v="anime">애니풍</button><button class="${SET.style==='real'?'on':''}" data-act="style" data-v="real">리얼풍</button></div></div>
     <div class="toggle"><span>게임 버전</span><b style="opacity:.8">${APP_VER}</b></div><div class="toggle"><span>그래픽 품질</span><div class="seg" style="width:170px"><button class="${SET.gfx!=='low'?'on':''}" data-act="gfx" data-v="high">높음</button><button class="${SET.gfx==='low'?'on':''}" data-act="gfx" data-v="low">가볍게</button></div></div>
     <p class="foot">'가볍게'는 빛 번짐·색보정·필름 효과를 끄고, 매끈한 인체 모델 대신 기본 도형 선수로 바꿔 오래된 폰이나 배터리 절약에 좋아요.</p>
@@ -2362,6 +2363,7 @@ scr.addEventListener('click',e=>{
     case'settings':settingsScreen();break;
     case'style':SET.style=b.dataset.v;persistSet();styleLights();rebuildModels();settingsScreen();break;
     case'gfx':SET.gfx=b.dataset.v;persistSet();setupPost();for(const f of G.F){if(SET.gfx==='low')detachXbot(f);else attachXbot(f)}if(spot){spot.shadow.mapSize.set(SET.gfx==='low'?1024:2048,SET.gfx==='low'?1024:2048);if(spot.shadow.map){spot.shadow.map.dispose();spot.shadow.map=null}}resize();settingsScreen();break;
+    case'clinchset':SET.clinchBtn=SET.clinchBtn===false;persistSet();G.phase==='paused'?showScreen(pauseHTML()):settingsScreen();break;
     case'zones':SET.zones=!SET.zones;persistSet();G.phase==='paused'?showScreen(pauseHTML()):settingsScreen();break;
     case'quit':{hideScreen();if(G.career&&G.phase!=='over'){save.l++;applyRanking(OPP[G.oppIdx].id,'L',false);simWorld(2);persist()}G.prevPhase=null;menu();break}
   }
@@ -2369,7 +2371,7 @@ scr.addEventListener('click',e=>{
 scr.addEventListener('input',e=>{if(e.target.id==='nm')draft.name=e.target.value});
 $('#pauseBtn').addEventListener('click',pauseMenu);
 {const cb=$('#clinchBtn');const go=e=>{e.preventDefault();e.stopPropagation();if(G.F[0]&&startClinch(G.F[0]))cb.hidden=true};cb.addEventListener('pointerdown',go);
- setInterval(()=>{const[p,o]=G.F;const show=!!(p&&o&&!G.demo&&canClinch(p,o)&&(p.stunT>0||p.hp<45||p.st<35));if(cb.hidden===show){cb.hidden=!show}if(show)cb.textContent='클린치 ('+p.clinchLeft+')'},120)}
+ setInterval(()=>{const[p,o]=G.F;const show=!!(SET.clinchBtn!==false&&p&&o&&!G.demo&&canClinch(p,o)&&Math.hypot(o.x-p.x,o.z-p.z)<.9&&(p.stunT>0||p.hp<25||p.st<15));if(cb.hidden===show){cb.hidden=!show}if(show)cb.textContent='클린치 ('+p.clinchLeft+')'},120)}
 
 /* ================= loop ================= */
 let last=performance.now();
