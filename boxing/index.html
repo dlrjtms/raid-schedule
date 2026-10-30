@@ -486,7 +486,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v52';
+const APP_VER='v53';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -2587,6 +2587,11 @@ addEventListener('resize',()=>setTimeout(resize,60));
 if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.addEventListener('change',()=>setTimeout(()=>{resize();if(gyroLive()&&!G.demo)gyroCalib()},300));
 resize();
 startDemo();if(profPicked())menu();else profiles();
+/* sound only while the game is on screen and focused */
+function audioFocus(){const ac=AU.ac;if(!ac)return;const on=document.visibilityState==='visible'&&document.hasFocus();
+  try{if(on&&ac.state==='suspended')ac.resume();else if(!on&&ac.state==='running')ac.suspend()}catch(e){}}
+document.addEventListener('visibilitychange',audioFocus);addEventListener('blur',audioFocus);addEventListener('focus',audioFocus);addEventListener('pagehide',audioFocus);
+setInterval(audioFocus,1000);
 if(document.fonts&&document.fonts.load)Promise.all(['44px Teko','17px "Black Han Sans"'].map(f=>document.fonts.load(f))).catch(()=>{});
 requestAnimationFrame(loop);
 if('serviceWorker'in navigator&&location.protocol==='https:'){let top=true;try{top=window.top===window.self}catch(e){top=false}if(top)navigator.serviceWorker.register('sw.js').catch(()=>{})}
