@@ -97,7 +97,13 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .seg{display:flex;gap:6px}
 .seg button{flex:1;border:1px solid var(--line);background:transparent;border-radius:8px;padding:9px;font:600 14px var(--f-body)}
 .seg button.on{background:var(--ink);color:#111}
-.seg.corner{flex-wrap:wrap}.seg.corner button{display:flex;flex-direction:column;gap:2px;padding:8px 6px;min-width:0}.seg.corner small{font:500 11px var(--f-body);opacity:.75}
+.seg.corner{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:8px}
+.seg.corner button{display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px;min-width:0;text-align:left;border-radius:10px}
+.seg.corner b{font:700 14px var(--f-body);white-space:nowrap}
+.seg.corner .val{font:800 15px var(--f-body);white-space:nowrap;display:flex;align-items:center;gap:6px;color:var(--ink)}
+.seg.corner button.on .val{color:#111}
+.seg.corner .sub{font:500 11px var(--f-body);opacity:.65;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.seg.corner .x15{font:800 10px var(--f-body);padding:1px 5px;border-radius:999px;background:var(--gold);color:#111}
 .tape{display:grid;grid-template-columns:1fr auto 1fr;gap:6px 12px;align-items:center}
 .tape .who{font:400 22px/1.1 var(--f-disp);text-wrap:balance}
 .tape .who small{display:block;font:500 12px var(--f-body);color:var(--gold);margin-bottom:4px}
@@ -463,7 +469,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v49';
+const APP_VER='v50';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -856,7 +862,7 @@ function resolveHit(at,df){
   const rising=!a.body&&((wa&&wa.kind==='evade'&&wa.t/wa.d>=.82)||(df.evadeEnd!=null&&G.time-df.evadeEnd<.22));
   let dmg=D.dmg*DS*(.7+at.def.power/100*.6)*(.3+.7*Math.pow(at.st/100,.8));
   if(hasT(at,'rage')&&at.hp<35)dmg*=1.35;
-  if(at.tactic==='press')dmg*=1.1;if(at.tactic==='out'&&a.type==='jab')dmg*=1.15;
+  if(at.tactic==='press')dmg*=1.1;if(at.tactic==='out'&&a.type==='jab')dmg*=1.12;
   if(hasT(at,'onepunch')&&(a.type==='cross'||a.type==='upper'))dmg*=1.3;
   const sig=isSig(at,a);if(sig)dmg*=1.3;
   // a heavily used arm gets heavy: up to 35% less behind the punch
@@ -2366,14 +2372,16 @@ function quick(){
     <button class="btn primary center" data-act="qgo">테이프 확인</button>
   </div>`);
 }
-const CORNER_REC={cut:['컷맨','상처·붓기 크게 회복'],hp:['응급 처치','체력 +14'],breath:['호흡 정리','최대 스태미나 +18, 팔 피로 회복']};
-const CORNER_TAC={none:['침착하게','회복 1.5배, 스태미나 회복 +20%'],press:['압박','펀치 위력 +10%, 소모 +12%'],out:['아웃복싱','이동 +12%, 잽 +15%'],counter:['카운터','패리 판정 넓게, 카운터 +15%']};
-function recText(k,calm){const m=calm?1.5:1,b=calm?' (침착 ×1.5)':'';
-  return k==='cut'?`상처·붓기 -${Math.round(45*m)}${b}`:k==='hp'?`체력 +${Math.round(14*m)}${b}`:`최대 스태미나 +${Math.round(18*m)}, 팔 피로 회복${b}`}
+const CORNER_REC={cut:['컷맨','붓기·상처'],hp:['응급 처치','체력'],breath:['호흡 정리','최대 스태미나·팔 피로']};
+const CORNER_TAC={none:['침착하게','회복 ×1.5','스태미나 회복 +20%'],press:['압박','위력 +10%','소모 +12%'],out:['아웃복싱','이동·잽 +12%','발이 빨라져요'],counter:['카운터','카운터 +15%','패리 판정 넓게']};
+function recVal(k,calm){const m=calm?1.5:1;return k==='cut'?`-${Math.round(45*m)}`:k==='hp'?`+${Math.round(14*m)}`:`+${Math.round(18*m)}`}
+function recInner(k,calm){return`<b>${CORNER_REC[k][0]}</b><span class="val">${recVal(k,calm)}${calm?'<span class="x15">×1.5</span>':''}</span><span class="sub">${CORNER_REC[k][1]}</span>`}
 function cornerUI(){
   const [p]=G.F;const c=G.corner||(G.corner={rec:(p.faceDmg||0)>90?'cut':p.stMax<75?'breath':'hp',tac:(p.tactic&&p.tactic!=='calm')?p.tactic:'none'});
-  const seg=(act,obj,cur)=>`<div class="seg corner">${Object.entries(obj).map(([k,v])=>`<button class="${k===cur?'on':''}" data-act="${act}" data-v="${k}"><b>${v[0]}</b><small>${act==='crec'?recText(k,c.tac==='none'):v[1]}</small></button>`).join('')}</div>`;
-  return`<div><p class="lbl">코너 — 쉬는 동안 무엇을 할까요</p>${seg('crec',CORNER_REC,c.rec)}</div><div><p class="lbl">다음 라운드 작전</p>${seg('ctac',CORNER_TAC,c.tac)}</div>`;
+  const calm=c.tac==='none';
+  const rec=Object.keys(CORNER_REC).map(k=>`<button class="${k===c.rec?'on':''}" data-act="crec" data-v="${k}">${recInner(k,calm)}</button>`).join('');
+  const tac=Object.entries(CORNER_TAC).map(([k,v])=>`<button class="${k===c.tac?'on':''}" data-act="ctac" data-v="${k}"><b>${v[0]}</b><span class="val">${v[1]}</span><span class="sub">${v[2]}</span></button>`).join('');
+  return`<div><p class="lbl">코너 회복</p><div class="seg corner">${rec}</div></div><div><p class="lbl">다음 라운드 작전</p><div class="seg corner">${tac}</div></div>`;
 }
 function applyCorner(f,c){
   if(c.rec==='cut'){f.faceDmg=Math.max(0,(f.faceDmg||0)-45);f.cap=Math.min(100,f.cap+3)}
@@ -2503,7 +2511,7 @@ scr.addEventListener('click',e=>{
     case'next':{const c=G.corner||{rec:'hp',tac:'none'};nextRound();applyCorner(G.F[0],c);aiCorner(G.F[1]);G.corner=null;
       pop('작전: '+CORNER_TAC[c.tac][0],'#ffd36b',false,1.2);break}
     case'crec':case'ctac':{const k=b.dataset.act==='crec'?'rec':'tac';G.corner[k]=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
-      document.querySelectorAll('[data-act=crec]').forEach(x=>{const sm=x.querySelector('small');if(sm)sm.textContent=recText(x.dataset.v,G.corner.tac==='none')});break}
+      document.querySelectorAll('[data-act=crec]').forEach(x=>{x.innerHTML=recInner(x.dataset.v,G.corner.tac==='none')});break}
     case'rematch':if(G.career){const c=fightCtx(OPP[G.oppIdx].id);if(c==='locked'){career();break}G.rankCtx=c}launch(G.oppIdx,G.rounds,G.career);break;
     case'resume':hideScreen();G.phase=G.prevPhase||'fight';if(gyroLive())gyroCalib();break;
     case'full':SET.full=!isFull();persistSet();if(SET.full)goFull();else exitFull();setTimeout(()=>{if(G.phase==='paused')showScreen(pauseHTML())},300);break;
