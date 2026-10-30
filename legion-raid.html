@@ -106,6 +106,7 @@ button.stage:hover{border-color:var(--gold)}
 .pgrid{display:grid;grid-template-columns:repeat(10,1fr);gap:.4cqw}.pcol{display:flex;flex-direction:column;gap:.4cqw;min-width:0}.pcol b{font-family:var(--display);font-weight:400;font-size:1.15cqw;margin-bottom:.2cqw;white-space:nowrap}
 .pbtn{font-size:.78cqw;padding:.45cqw .35cqw;background:#1e1618;color:var(--bone);border:1px solid #5a4236;text-align:left;font-weight:600;word-break:keep-all}.pbtn:hover{border-color:var(--gold)}
 #wrap.mob .pbtn{font-size:1.1cqw;padding:.7cqw .4cqw}#wrap.mob .pcol b{font-size:1.5cqw}
+.slot.rush,.tb.rush{border-color:#ff5a3a!important;box-shadow:0 0 1.2cqw rgba(255,70,40,.8);animation:rushP .6s ease-in-out infinite}.slot.rush .nm,.tb.rush span{color:#ffd0c0;font-weight:900}@keyframes rushP{50%{box-shadow:0 0 2cqw rgba(255,90,50,1)}}
 .dbtn{background:transparent;color:var(--dim);border:1px solid #5a4a44;padding:.5cqw 1.6cqw;font-size:1.1cqw}
 .dbtn.on{background:var(--ember);color:#1a0d06;border-color:var(--ember)}
 .hof{margin:.4cqw 0;max-height:21cqw;overflow:auto}.hof-head{font-family:var(--display);font-size:1.25cqw;color:var(--gold);letter-spacing:.18em;margin-bottom:.4cqw}
@@ -484,10 +485,11 @@ function useSkill(k){
   if(k==='B2'){if(p.blood<=0||(p.cds.B2||0)>0)return;const cost=Math.round(p.hp*0.1);if(p.hp-cost<1)return;p.hp-=cost;p.blood--;p.bloodSt++;p.cds.B2=SK.B2.cd;addText(p.x,p.y-80,'-'+cost+' · 피해 +'+p.bloodSt*10+'%','#ff6b6b',18);burst(p.x,p.y-40,22,'200,20,30',160,0.6);sfx('hurt');return}
   if(k==='Z'){if(p.potions<=0||p.hp>=maxHp())return;p.potions--;heal(maxHp()*0.3,true);p.cds.Z=SK.Z.cd;burst(p.x,p.y,18,'120,230,140',90,0.6);return}
   if(k==='F'){
-    if(p.rage<100||p.berserk>0)return;
-    p.berserk=S.berserkDur;p.rage=0;p.lock=SK.F.lock;p.cds.F=1;shake(8);flash(0.25,'255,80,40');burst(p.x,p.y,40,'255,90,40',260,0.7);banner('광폭화',1);sfx('pwar');return;
+    if(p.berserk>0){if(p.rushUsed||p.rush||p.fury||B.dead||mode==='scroll')return;startRush();return}
+    if(p.rage<100)return;
+    p.berserk=S.berserkDur;p.rage=0;p.rushUsed=false;p.lock=SK.F.lock;p.cds.F=1;shake(8);flash(0.25,'255,80,40');burst(p.x,p.y,40,'255,90,40',260,0.7);banner('광폭화',1);sfx('pwar');return;
   }
-  if(k==='V'){if(mode==='scroll'||B.dead||p.fury)return;startFury();return}
+  if(k==='V'){if(mode==='scroll'||B.dead||p.fury||p.rush)return;startFury();return}
   const a=aim();p.face=a;
   const cx=Math.cos(a),cy=Math.sin(a);
   switch(k){
@@ -3033,6 +3035,40 @@ function chooseAct10R(){const b=B;const near=dist(b.x,b.y,P.x,P.y)-b.r<220;
   if(b.phase>=2){if(b.t-(b.lastGrid||-20)>16)w.r10_grid=1.2;if(b.t-(b.lastJudge||-12)>12)w.r10_judge=1.1;if(b.t-b.lastCounter>14)w.r10_counter=2}
   return pickW(w)}
 
+/* ═════ 광폭화 전용 · 러쉬 (난도질) ═════ */
+const RUSH_N=12,RUSH_GAP=0.13,RUSH_T0=0.2,RUSH_FIN=RUSH_T0+RUSH_N*RUSH_GAP+0.08,RUSH_END=RUSH_FIN+0.55;
+function startRush(){const p=P,b=B;p.rushUsed=true;p.rush={t:0,i:0,fin:false,sx:p.x,sy:p.y,a:ang(b.x,b.y,p.x,p.y),trail:[],xs:null};
+  p.lock=RUSH_END+0.1;p.inv=Math.max(p.inv,RUSH_END+0.2);p.dash=0;p.leap=null;p.dodge=0;p.actId=(p.actId||0)+1;
+  sfx('pwar');flash(0.3,'255,40,30');shake(10);burst(p.x,p.y-40,30,'255,60,40',260,0.6)}
+function rushPt(a){const b=B,R=b.r+46;const q={x:b.x+Math.cos(a)*R,y:b.y+Math.sin(a)*R*0.75};clampArena(q,P.r+6);return q}
+function updRush(dt){const p=P,r=p.rush;if(!r)return;if(p.dead||state!=='fight'){p.rush=null;return}const b=B;
+  r.t+=dt;p.lock=Math.max(p.lock,0.05);p.inv=Math.max(p.inv,0.15);for(const g of r.trail)g.t+=dt;r.trail=r.trail.filter(g=>g.t<0.35);
+  if(r.t<RUSH_T0){const q=rushPt(r.a),k=r.t/RUSH_T0;const px=p.x,py=p.y;p.x=r.sx+(q.x-r.sx)*k;p.y=r.sy+(q.y-r.sy)*k;r.trail.push({x0:px,y0:py,x1:p.x,y1:p.y,t:0});p.face=ang(p.x,p.y,b.x,b.y);return}
+  while(!r.fin&&r.i<RUSH_N&&r.t>=RUSH_T0+r.i*RUSH_GAP){const i=r.i++;r.a+=2.25+rnd(-0.35,0.35);const q=rushPt(r.a);r.trail.push({x0:p.x,y0:p.y,x1:q.x,y1:q.y,t:0});p.x=q.x;p.y=q.y;
+    const fa=ang(p.x,p.y,b.x,b.y);p.face=fa;swing('q',0.12,i%2?1:-1);
+    slashFx(b.x+rnd(-14,14),b.y+rnd(-10,10),fa+rnd(-0.6,0.6),b.r+70,1.9,0.16,'255,70,50');
+    hitBoss({type:'circle',x:b.x,y:b.y,r:b.r+30},85,14,{force:true});
+    sparksAt(b.x+rnd(-20,20),b.y-rnd(40,130),8,'255,90,60',260);sfx('pswing');shake(4);hitStop=Math.max(hitStop,0.02)}
+  if(!r.fin&&r.t>=RUSH_FIN){r.fin=true;const a=ang(p.x,p.y,b.x,b.y);const q=rushPt(a+Math.PI);r.trail.push({x0:p.x,y0:p.y,x1:q.x,y1:q.y,t:0});p.x=q.x;p.y=q.y;p.face=ang(p.x,p.y,b.x,b.y);swing('j',0.4,1);
+    r.xs={x:b.x,y:b.y-90,t:0};
+    hitBoss({type:'circle',x:b.x,y:b.y,r:b.r+60},700,120,{force:true});
+    sfx('crit');sfx('pslam');shake(26);flash(0.55,'255,40,40');hitStop=Math.max(hitStop,0.15);
+    burst(b.x,b.y-90,70,'255,60,40',420,0.9);shock(b.x,b.y,300,'255,60,50',0.55,30);decal(b.x,b.y,150,'crack','230,40,40');chunks(b.x,b.y,20,'60,20,24',360)}
+  if(r.xs)r.xs.t+=dt;
+  if(r.t>=RUSH_END){p.rush=null;p.lock=0}}
+function drawRush(){const p=P,r=p&&p.rush;if(!r)return;const t=r.t;
+  ctx.save();ctx.globalCompositeOperation='lighter';ctx.lineCap='round';
+  for(const g of r.trail){const f=1-g.t/0.35;for(const [w,col] of[[14,`rgba(255,40,30,${0.35*f})`],[5,`rgba(255,150,120,${0.7*f})`],[1.6,`rgba(255,255,240,${0.9*f})`]]){ctx.strokeStyle=col;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(g.x0,g.y0-40);ctx.lineTo(g.x1,g.y1-40);ctx.stroke()}}
+  if(r.xs){const k=Math.min(1,r.xs.t/0.12),f=Math.max(0,1-r.xs.t/0.5),L=150*k;for(const s of[1,-1])for(const [w,col] of[[30,`rgba(255,30,30,${0.4*f})`],[12,`rgba(255,140,110,${0.8*f})`],[4,`rgba(255,255,240,${f})`]]){ctx.strokeStyle=col;ctx.lineWidth=w;ctx.beginPath();ctx.moveTo(r.xs.x-L,r.xs.y-L*0.8*s);ctx.lineTo(r.xs.x+L,r.xs.y+L*0.8*s);ctx.stroke()}}
+  ctx.restore();
+  const k=t<0.25?t/0.25:t>RUSH_END-0.3?Math.max(0,(RUSH_END-t)/0.3):1;
+  ctx.save();ctx.fillStyle=`rgba(40,0,4,${0.3*k})`;ctx.fillRect(0,0,W,H);
+  const sc=1+0.25*Math.max(0,1-t/0.3);ctx.translate(W/2,H*0.36);ctx.scale(sc,sc);ctx.textAlign='center';ctx.textBaseline='middle';ctx.globalAlpha=k;
+  ctx.font="900 54px 'Noto Serif KR','IBM Plex Sans KR',serif";ctx.lineJoin='round';ctx.lineWidth=10;ctx.strokeStyle='rgba(20,0,4,.9)';const tx='『亂舞』 러쉬';ctx.strokeText(tx,0,0);
+  ctx.shadowColor='#ff2a2a';ctx.shadowBlur=26;const tg=ctx.createLinearGradient(0,-30,0,30);tg.addColorStop(0,'#fff0e0');tg.addColorStop(0.5,'#ff7050');tg.addColorStop(1,'#b80c1c');ctx.fillStyle=tg;ctx.fillText(tx,0,0);
+  if(r.i>0&&!r.fin){ctx.shadowBlur=0;ctx.font="900 30px 'IBM Plex Sans KR',sans-serif";ctx.lineWidth=6;ctx.strokeText(r.i+' HIT',0,52);ctx.fillStyle='#ffd0c0';ctx.fillText(r.i+' HIT',0,52)}
+  ctx.restore()}
+
 var BOSSDEF=[
   {hp:60000,r:62,h:215,acts:ACTS,choose:chooseAct,sprite:drawMinotaur,hires:2,outline:[20,8,8],idleArm:0.6,groggyArm:1.3,spd:[0,95,115,140],cool:[0,1.05,0.8,0.55],roar:[380,520],intro:'불타는 산맥의 정상, 그라브나크가 기다린다',deathLine:'산맥의 불길에 삼켜졌다',pillars:true,theme:'lava',tint:'255,60,20',josa:'를'},
   {hp:70000,r:46,h:230,acts:ACTS2,choose:chooseAct2,sprite:drawSuccubus,hires:2,outline:[26,6,18],idleArm:-0.5,groggyArm:0.9,spd:[0,105,120,140],cool:[0,0.95,0.75,0.55],roar:[400,540],intro:'장미 향이 짙은 궁전, 벨리시아가 미소 짓는다',deathLine:'달콤한 꿈속에 잠들었다',pillars:false,theme:'palace',tint:'255,80,170',josa:'를'},
@@ -3182,7 +3218,7 @@ function toTitle(){
     <div class="keys"${ctl==='mobile'?' hidden':''}>
       <span><b>방향키</b>이동</span><span><b>Space</b>구르기</span><span><b>C</b>참격 (평타)</span><span><b>Q</b>돌진베기</span>
       <span><b>W</b>회전베기</span><span><b>E</b>파쇄 강타</span><span><b>R</b>대지 가르기</span><span><b>A</b>도약 강타</span>
-      <span><b>S</b>피의 갈증</span><span><b>D</b>반격</span><span><b>F</b>전투 함성</span><span><b>Z</b>광폭화</span><span><b>1</b>회복약</span><span><b>2</b>피의 맹세</span><span><b>Ctrl+Z</b>황금 기사</span><span><b>Ctrl+X</b>요정 궁수 (2스테이지~)</span><span><b>Ctrl+C</b>수호 마법사 (4스테이지~)</span><span><b>V</b>각성기 · 버서커 퓨리</span><span><b>G</b>저스트 가드 (6스테이지~)</span>
+      <span><b>S</b>피의 갈증</span><span><b>D</b>반격</span><span><b>F</b>전투 함성</span><span><b>Z</b>광폭화 · 광폭화 중 다시 누르면 러쉬</span><span><b>1</b>회복약</span><span><b>2</b>피의 맹세</span><span><b>Ctrl+Z</b>황금 기사</span><span><b>Ctrl+X</b>요정 궁수 (2스테이지~)</span><span><b>Ctrl+C</b>수호 마법사 (4스테이지~)</span><span><b>V</b>각성기 · 버서커 퓨리</span><span><b>G</b>저스트 가드 (6스테이지~)</span>
     </div>
     <p class="hint"${ctl==='mobile'?' hidden':''}>스킬은 이동 중이면 그 방향으로, 서 있으면 보스를 향해 나간다. 보스가 청록빛으로 빛날 때 D로 끊어내고, 힘을 모을 때는 무력화 스킬(R, E, A, F, D, Q)을 몰아 넣어라. 평타 C는 누르고 있으면 계속 나간다. 돌진은 가장자리 기둥으로 유인하고, 보랏빛으로 도끼를 젖히면 손을 멈춰라. 영웅 지원 게이지가 차면 Ctrl+Z·X·C 중 하나를 골라 소환한다. 매혹에 걸리면 방향키를 연타해 풀어라. 광기 게이지가 가득 차면 조작이 반전된다. 열린 스테이지 카드를 누르거나 방향키·숫자 1~9로 고르고 Enter로 시작한다. 반격은 노말에선 방향과 상관없고, 하드에선 보스를 향해야 한다.</p>
     <div class="row diff"><span class="hint">조작</span><button class="dbtn" id="cpc">PC</button><button class="dbtn" id="cmo">모바일</button>${ctl==='mobile'?`<button class="dbtn" id="cfs">전체화면 ${fsOn?'켬':'끔'}</button>`:''}<button class="dbtn${gq==='high'?' on':''}" id="cq">화질 ${gq==='high'?'높음':'보통'}</button><span class="hint">난이도</span><button class="dbtn" id="dn">노말</button><button class="dbtn" id="dh">하드</button><span class="hint" id="dtx"></span><button class="ghost" id="prac" style="margin-left:auto">기믹 연습</button>${RANK.on?'<button class="ghost" id="hofb">명예의 전당</button>':''}<button id="go">${goLabel()}</button></div>
@@ -3335,7 +3371,7 @@ function updTouch(){if(ctl!=='mobile')return;const tc=$('tc');const on=!$('hud')
   for(const k in tEls){const t=tEls[k];if(!t)continue;let tot=1,c=0;
     if(SK[k]&&k!=='F'&&k!=='K'&&k!=='X'&&k!=='MG'){tot=k==='SP'?SK.SP.cd*S.dodgeCd:SK[k].cd*(k==='Z'||k==='B2'?1:S.cd);c=p.cds[k]||0}
     const cool=c>0.05&&k!=='Q';t.cd.style.height=cool?Math.min(100,c/tot*100)+'%':'0';t.n.textContent=cool?(c<1?c.toFixed(1):Math.ceil(c)):'';t.el.classList.toggle('cool',cool);
-    if(k==='F'){const g=p.berserk>0?p.berserk/S.berserkDur:p.rage/100;t.gauge.style.height=(g*100)+'%';t.el.classList.toggle('full',p.rage>=100&&p.berserk<=0);t.el.classList.toggle('act',p.berserk>0);t.cnt.textContent=p.berserk>0?Math.ceil(p.berserk)+'초':p.rage>=100?'':Math.floor(p.rage)+'%'}
+    if(k==='F'){const g=p.berserk>0?p.berserk/S.berserkDur:p.rage/100;t.gauge.style.height=(g*100)+'%';t.el.classList.toggle('full',p.rage>=100&&p.berserk<=0);t.el.classList.toggle('act',p.berserk>0);t.cnt.textContent=p.berserk>0?Math.ceil(p.berserk)+'초':p.rage>=100?'':Math.floor(p.rage)+'%';const rs=p.berserk>0&&!p.rushUsed;if(t.rs!==rs){t.rs=rs;const nm=t.el.querySelector('span');if(nm)nm.textContent=rs?'러쉬':'광폭화';t.el.classList.toggle('rush',rs)}}
     if(k==='K'||k==='X'||k==='MG'){if(k==='X')t.el.hidden=stageIx<1;if(k==='MG')t.el.hidden=stageIx<3;t.el.classList.toggle('off',p.hero<100);t.el.classList.toggle('ready',p.hero>=100)}
     if(k==='Z'){t.cnt.textContent=p.potions;t.el.classList.toggle('off',p.potions<=0)}
     if(k==='B2'){t.cnt.textContent=p.blood;t.el.classList.toggle('off',p.blood<=0)}
@@ -3365,7 +3401,7 @@ function updHud(){updTouch();
   $('gkfill').style.transform=`scaleX(${p.hero/100})`;$('gkb').classList.toggle('full',p.hero>=100);$('gktx').textContent=p.hero>=100?'영웅 지원 · 준비 완료':'영웅 지원 '+Math.floor(p.hero)+'%';
   for(const k of SLOT_ORDER){const s=slotEls[k];if(!s)continue;const total=k==='SP'?SK.SP.cd*S.dodgeCd:SK[k].cd*(k==='Z'||k==='B2'?1:S.cd);const c=p.cds[k]||0;
     const show=k!=='F'&&k!=='K'&&k!=='X'&&k!=='MG'&&k!=='Q'&&c>0.05;s.cd.style.height=show?Math.min(100,c/total*100)+'%':'0';s.n.textContent=show?(c<1?c.toFixed(1):Math.ceil(c)):'';s.el.classList.toggle('cool',show);
-    if(k==='F'){const g=p.berserk>0?p.berserk/S.berserkDur:p.rage/100;s.gauge.style.height=(g*100)+'%';s.el.classList.toggle('full',p.rage>=100&&p.berserk<=0);s.el.classList.toggle('act',p.berserk>0);s.cnt.textContent=p.berserk>0?Math.ceil(p.berserk)+'초':p.rage>=100?'':Math.floor(p.rage)+'%'}
+    if(k==='F'){const g=p.berserk>0?p.berserk/S.berserkDur:p.rage/100;s.gauge.style.height=(g*100)+'%';s.el.classList.toggle('full',p.rage>=100&&p.berserk<=0);s.el.classList.toggle('act',p.berserk>0);s.cnt.textContent=p.berserk>0?Math.ceil(p.berserk)+'초':p.rage>=100?'':Math.floor(p.rage)+'%';const rs=p.berserk>0&&!p.rushUsed;if(s.rs!==rs){s.rs=rs;const nm=s.el.querySelector('.nm');if(nm)nm.textContent=rs?'러쉬':'광폭화';s.el.classList.toggle('rush',rs)}}
     if(k==='K'||k==='X'||k==='MG'){s.el.classList.toggle('off',p.hero<100);s.el.classList.toggle('ready',p.hero>=100)}
     if(k==='B2'){s.cnt.textContent=p.blood;s.el.classList.toggle('off',p.blood<=0)}
     if(k==='Z'){s.cnt.textContent=p.potions;s.el.classList.toggle('off',p.potions<=0)}
@@ -3437,7 +3473,7 @@ function update(dt){
   for(let i=timers.length-1;i>=0;i--){const t=timers[i];t.t-=dt;if(t.t<=0){timers.splice(i,1);t.fn()}}
   if(mode==='scroll'){if(SCR)updScroll(dt);updHud();return}
   updDoor(dt);
-  {const ox=P.x,oy=P.y;updP(dt);voidGuard(ox,oy)}updTrail(P,dt);updB(dt);updLights(dt);updAims(dt);updVfx(dt);updKnight(dt);updPools(dt);updCrystals(dt);updFairy(dt);updAllyShots(dt);updMage(dt);if(P.shield>0)P.shield=Math.max(0,P.shield-dt);updPip(dt);updMad(dt);updBeams(dt);updOrbs(dt);updSword(dt);updPlague(dt);updDark6(dt);upd789(dt);updVoids(dt);updFury(dt);updDeath(dt);updCounterWin(dt);if(flipT>0)flipT-=dt;
+  {const ox=P.x,oy=P.y;updP(dt);voidGuard(ox,oy)}updTrail(P,dt);updB(dt);updLights(dt);updAims(dt);updVfx(dt);updKnight(dt);updPools(dt);updCrystals(dt);updFairy(dt);updAllyShots(dt);updMage(dt);if(P.shield>0)P.shield=Math.max(0,P.shield-dt);updPip(dt);updMad(dt);updBeams(dt);updOrbs(dt);updSword(dt);updPlague(dt);updDark6(dt);upd789(dt);updVoids(dt);updFury(dt);updRush(dt);updDeath(dt);updCounterWin(dt);if(flipT>0)flipT-=dt;
   for(const t of teles){t.t+=dt;if(t.track&&!t.fired){if(t.t<t.lockAt){const want=ang(t.s.x,t.s.y,P.x,P.y);t.s.a=turnTo(t.s.a,want,7*dt);B.face=t.s.a}else if(!t.locked){t.locked=true;sfx('swing')}}if(!t.fired&&t.t>=t.d){t.fired=true;if(touches(t.s,P.x,P.y,P.r))hurtP(t.dmg,t.kind==='collapse');if(t.fire)t.fire();impactFx(t)}if(t.fired)t.after+=dt}
   teles=teles.filter(t=>!t.fired||t.after<0.25);
   for(const r of rings){r.r+=r.speed*dt;if(!r.hit){const d=dist(r.x,r.y,P.x,P.y);if(Math.abs(d-r.r)<=r.w/2+P.r*0.6&&inArena(P.x,P.y,0)){if(P.inv>0){r.hit=true;addText(P.x,P.y-72,'회피','#a8c8ff',15)}else{r.hit=true;hurtP(r.dmg)}}}}
@@ -4262,7 +4298,7 @@ function render(){
   ctx.globalAlpha=1;
   if(flipT>0){ctx.font="700 15px 'IBM Plex Sans KR',sans-serif";ctx.fillStyle='#e0d8ff';ctx.fillText('꿈과 현실 반전 '+Math.ceil(flipT)+'초',W/2,170)}
   ctx.restore();
-  drawFury();
+  drawFury();drawRush();
   drawCine();
   if(flashA>0){ctx.fillStyle=`rgba(${flashCol},${flashA*0.5})`;ctx.fillRect(0,0,W,H)}
 }
