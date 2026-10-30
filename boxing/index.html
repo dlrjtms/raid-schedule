@@ -463,7 +463,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v46';
+const APP_VER='v47';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -843,6 +843,7 @@ function resolveHit(at,df){
   if(dist>D.range+reachOf(at)-(a.body?.05:0)){sfx.whoosh();at.st=Math.max(0,at.st-1.5-D.cost*.3);whiffed(at,df,D);return}
   const wa=df.action;
   if(evading(df,a.type,a.body)){
+    df.st=Math.min(df.stMax,df.st+5); // a clean dodge is a breather
     at.offT=.5;df.counterT=1;sfx.whoosh();whiffed(at,df,D);if(df===G.F[0]&&!G.demo){G.slow=.45;G.slowT=.18}
     if(df===G.F[0]&&!G.demo)pop(EVADE[wa.ev].name+' 성공','#9fd3ff',false,.7);
     return;
@@ -882,17 +883,17 @@ function resolveHit(at,df){
     if(parry){
       at.offT=.8;at.stunT=Math.max(at.stunT,a.type==='hay'?.7:.32);at.st=Math.max(0,at.st-(a.type==='hay'?12:6));
       at.action=null;at.queued=null;at.charge=null;if(at.ai)at.ai.combo.length=0;
-      df.counterT=1.2;df.st=Math.min(df.stMax,df.st+4);df.guardOnT=-9;
+      df.counterT=1.2;df.st=Math.min(df.stMax,df.st+8);df.guardOnT=-9;
       {const ux=(at.x-df.x)/dist,uz=(at.z-df.z)/dist;at.vx+=ux*.35;at.vz+=uz*.35}
       sfx.block();spark(tgt);spark(tgt);df.hitT=.1;df.hitKind='block';df.hitPow=1;
       if(!G.demo&&(df===G.F[0]||at===G.F[0])){pop(df===G.F[0]?'패리! 반격 찬스':'패리 당함!',df===G.F[0]?'#7fe0ff':'#ff8a3d',false,.9);G.slow=.4;G.slowT=.28;if(df===G.F[0])buzz(25)}
       return}
     const wall=hasT(df,'wall'),wk=wall?.6:1;let through=(a.body?.5:a.type==='upper'?.45:a.type==='hook'?.42:a.type==='cross'?.25:.07)*wk;
-    if(D.power&&a.type!=='hay'){df.gDmg=(G.time-(df.gT||-9)<2.5?(df.gDmg||0):0)+(a.type==='hook'?1.3:1);df.gT=G.time;df.st=Math.max(0,df.st-D.dmg*.35);
+    if(D.power&&a.type!=='hay'){df.gDmg=(G.time-(df.gT||-9)<2.5?(df.gDmg||0):0)+(a.type==='hook'?1.3:1);df.gT=G.time;df.st=Math.max(0,df.st-D.dmg*.15);
       if(df.gDmg>=3.2){df.gDmg=0;df.stunT=Math.max(df.stunT,.45);through=Math.max(through,.55);sfx.boom();G.shake=Math.max(G.shake,.05);if(!G.demo)pop(df===G.F[0]?'가드가 무너졌다!':'가드 붕괴!','#ff8a3d',false,.8)}}
     if(a.type==='hay'){through=wall?.45:.6;df.stunT=Math.max(df.stunT,a.charged?.6:.35);df.st=Math.max(0,df.st-(a.charged?25:12));sfx.boom();G.shake=Math.max(G.shake,.06);if(!G.demo)pop('가드 브레이크!','#ff8a3d',false,.8)}
     if(wall)at.st=Math.max(0,at.st-4);
-    dmg*=through;df.st=Math.max(0,df.st-D.dmg*.55);
+    dmg*=through;df.st=Math.max(0,df.st-D.dmg*.28);at.st=Math.max(0,at.st-D.dmg*.12); // punching into a guard tires the puncher too
     if(through<.15){{const ux=(df.x-at.x)/dist,uz=(df.z-at.z)/dist;df.vx+=ux*.22;df.vz+=uz*.22;}df.hp-=dmg;sfx.block();spark(tgt);df.hitT=.12;df.hitKind='block';df.hitPow=2;if(df===G.F[0])buzz(10);
       if(df.hp<=0)knockdown(df,at);return}
   }
@@ -900,7 +901,7 @@ function resolveHit(at,df){
     df.bodyChain=(G.time-(df.bodyT||-9)<2.6)?Math.min(5,(df.bodyChain||0)+1):1;df.bodyT=G.time;
     if(df.bodyChain>1){dmg*=1+.3*(df.bodyChain-1);if(!G.demo&&(at===G.F[0]||df===G.F[0]))pop('바디 '+df.bodyChain+'연타','#ffb36b',false,.7)}
     if(df.bodyChain>=4&&!df.stunT)df.stunT=.45;
-    df.hp-=dmg*.6;df.st=Math.max(0,df.st-dmg*3.2*(hasT(at,'hunter')?2:1));df.stMax=Math.max(50,df.stMax-dmg*.6)}
+    df.hp-=dmg*.6;df.st=Math.max(0,df.st-dmg*2.2*(hasT(at,'hunter')?2:1));df.stMax=Math.max(50,df.stMax-dmg*.6)}
   else{dmg*=(1.25-df.def.chin/250);df.hp-=dmg;df.cap=Math.max(30,df.cap-dmg*.2);df.faceDmg=(df.faceDmg||0)+dmg;
     if(df.faceDmg>60&&Math.random()<.6)for(let i=0;i<6;i++)G.parts.push({x:tgt.x,y:tgt.y+.04,z:tgt.z,vx:Math.sin(at.facing)*rnd(.3,1)+rnd(-.3,.3),vy:rnd(0,.8),vz:rnd(-.3,.3),life:rnd(.4,.7),t:0,r:SET.style!=='real'?rnd(2.6,4.4):rnd(1.4,2.6),c:'#b5121b',drop:SET.style!=='real'?'blood':null})}
   const v=dmg/DS;
@@ -1093,7 +1094,7 @@ function updFighter(f,o,dt){
   const tvx=(fx*F+lx*S)*sp,tvz=(fz*F+lz*S)*sp,ka=1-Math.exp(-dt*(m>.05?7:7));
   f.vx+=(tvx-f.vx)*ka;f.vz+=(tvz-f.vz)*ka;f.x+=f.vx*dt;f.z+=f.vz*dt;
   const spd=Math.hypot(f.vx,f.vz);if(spd>.15){f.walk+=dt*Math.min(1.4,spd/1.4);f.st=Math.max(0,f.st-1.1*dt*Math.min(1,spd/sp))}
-  if(!(f.action&&f.action.kind==='punch'))f.st=Math.min(f.stMax,f.st+(5.5+f.def.stamina*.075)*dt*(f.noHitT>.8?1.3:.8)*(isGuarding(f)?.75:1)*(hasT(f,'engine')?1.6:1));
+  if(!(f.action&&f.action.kind==='punch'))f.st=Math.min(f.stMax,f.st+(5.5+f.def.stamina*.075)*dt*(f.noHitT>.8?1.3:1)*(isGuarding(f)?1.15:1)*(f.st<35?1.45:1)*(hasT(f,'engine')?1.6:1));
   {const busy=f.action&&f.action.kind==='punch';f.fatL=Math.max(0,(f.fatL||0)-dt*(busy?.06:.16));f.fatR=Math.max(0,(f.fatR||0)-dt*(busy?.06:.16))}
   if(f.noHitT>2.5&&f.hp<f.cap)f.hp=Math.min(f.cap,f.hp+.6*dt);
 }
