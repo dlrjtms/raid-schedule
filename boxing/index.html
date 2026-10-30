@@ -463,7 +463,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v47';
+const APP_VER='v48';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -1094,7 +1094,7 @@ function updFighter(f,o,dt){
   const tvx=(fx*F+lx*S)*sp,tvz=(fz*F+lz*S)*sp,ka=1-Math.exp(-dt*(m>.05?7:7));
   f.vx+=(tvx-f.vx)*ka;f.vz+=(tvz-f.vz)*ka;f.x+=f.vx*dt;f.z+=f.vz*dt;
   const spd=Math.hypot(f.vx,f.vz);if(spd>.15){f.walk+=dt*Math.min(1.4,spd/1.4);f.st=Math.max(0,f.st-1.1*dt*Math.min(1,spd/sp))}
-  if(!(f.action&&f.action.kind==='punch'))f.st=Math.min(f.stMax,f.st+(5.5+f.def.stamina*.075)*dt*(f.noHitT>.8?1.3:1)*(isGuarding(f)?1.15:1)*(f.st<35?1.45:1)*(hasT(f,'engine')?1.6:1));
+  if(!(f.action&&f.action.kind==='punch'))f.st=Math.min(f.stMax,f.st+(5.5+f.def.stamina*.075)*dt*(f.noHitT>.8?1.3:1)*(isGuarding(f)?1.15:1)*(f.st<35?1.45:1)*(f.tactic==='calm'?1.2:1)*(hasT(f,'engine')?1.6:1));
   {const busy=f.action&&f.action.kind==='punch';f.fatL=Math.max(0,(f.fatL||0)-dt*(busy?.06:.16));f.fatR=Math.max(0,(f.fatR||0)-dt*(busy?.06:.16))}
   if(f.noHitT>2.5&&f.hp<f.cap)f.hp=Math.min(f.cap,f.hp+.6*dt);
 }
@@ -2367,7 +2367,7 @@ function quick(){
   </div>`);
 }
 const CORNER_REC={cut:['컷맨','상처·붓기 크게 회복'],hp:['응급 처치','체력 +14'],breath:['호흡 정리','최대 스태미나 +18, 팔 피로 회복']};
-const CORNER_TAC={none:['그대로','변화 없음'],press:['압박','펀치 위력 +10%, 소모 +12%'],out:['아웃복싱','이동 +12%, 잽 +15%'],counter:['카운터','패리 판정 넓게, 카운터 +15%']};
+const CORNER_TAC={none:['침착하게','회복 1.5배, 스태미나 회복 +20%'],press:['압박','펀치 위력 +10%, 소모 +12%'],out:['아웃복싱','이동 +12%, 잽 +15%'],counter:['카운터','패리 판정 넓게, 카운터 +15%']};
 function cornerUI(){
   const [p]=G.F;const c=G.corner||(G.corner={rec:(p.faceDmg||0)>90?'cut':p.stMax<75?'breath':'hp',tac:p.tactic||'none'});
   const seg=(act,obj,cur)=>`<div class="seg corner">${Object.entries(obj).map(([k,v])=>`<button class="${k===cur?'on':''}" data-act="${act}" data-v="${k}"><b>${v[0]}</b><small>${v[1]}</small></button>`).join('')}</div>`;
@@ -2377,7 +2377,9 @@ function applyCorner(f,c){
   if(c.rec==='cut'){f.faceDmg=Math.max(0,(f.faceDmg||0)-45);f.cap=Math.min(100,f.cap+3)}
   else if(c.rec==='hp'){f.cap=Math.min(100,f.cap+3);f.hp=Math.min(f.cap,f.hp+14)}
   else if(c.rec==='breath'){f.stMax=Math.min(100,f.stMax+18);f.st=f.stMax;f.fatL=f.fatR=0}
-  f.tactic=c.tac==='none'?null:c.tac;
+  if(c.tac==='none'){ // no game plan: the corner spends the whole minute on you
+    if(c.rec==='cut')f.faceDmg=Math.max(0,(f.faceDmg||0)-22);else if(c.rec==='hp')f.hp=Math.min(f.cap,f.hp+7);else{f.stMax=Math.min(100,f.stMax+9);f.st=f.stMax}}
+  f.tactic=c.tac==='none'?'calm':c.tac;
 }
 function aiCorner(f){
   applyCorner(f,{rec:(f.faceDmg||0)>90?'cut':f.stMax<75?'breath':'hp',tac:{slugger:'press',swarmer:'press',outboxer:'out',counter:'counter'}[f.def.style]||'none'});
@@ -2497,7 +2499,7 @@ scr.addEventListener('click',e=>{
     case'reset':if(b.dataset.confirm){save={...loadSave(),name:'',stats:{power:55,speed:55,chin:55,stamina:55},points:0,w:0,l:0,d:0,ko:0,beaten:[],statFix:1,rankV:1,npc:null,rank:null,defenses:0};initRanks();fixRanks();persist();career()}
       else{b.dataset.confirm='1';b.textContent='한 번 더 누르면 초기화돼요';b.style.color='var(--red)'}break;
     case'next':{const c=G.corner||{rec:'hp',tac:'none'};nextRound();applyCorner(G.F[0],c);aiCorner(G.F[1]);G.corner=null;
-      if(c.tac!=='none')pop('작전: '+CORNER_TAC[c.tac][0],'#ffd36b',false,1.2);break}
+      pop('작전: '+CORNER_TAC[c.tac][0],'#ffd36b',false,1.2);break}
     case'crec':case'ctac':{const k=b.dataset.act==='crec'?'rec':'tac';G.corner[k]=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));break}
     case'rematch':if(G.career){const c=fightCtx(OPP[G.oppIdx].id);if(c==='locked'){career();break}G.rankCtx=c}launch(G.oppIdx,G.rounds,G.career);break;
     case'resume':hideScreen();G.phase=G.prevPhase||'fight';if(gyroLive())gyroCalib();break;
