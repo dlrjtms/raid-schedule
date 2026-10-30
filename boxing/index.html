@@ -486,7 +486,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v69';
+const APP_VER='v70';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -1151,7 +1151,9 @@ function playerControl(p){
   // smooth the stick/tilt so the boxer eases in and out of steps instead of twitching
   const k=1-Math.exp(-(G.lastDt||1/60)*4.5);IN.sx=(IN.sx||0)+(x-(IN.sx||0))*k;IN.sy=(IN.sy||0)+(y*.7-(IN.sy||0))*k;
   // screen-relative: right = toward opponent (side camera), into screen = player's left
-  p.mvF=IN.sx;p.mvS=clamp(IN.sy/.7,-1,1);
+  // screen-relative: tilt right = move right on screen, tilt up = move up the ring, whichever side you are on
+  {const wx=IN.sx,wz=-clamp(IN.sy/.7,-1,1),fx=Math.sin(p.facing),fz=Math.cos(p.facing),lx=Math.cos(p.facing),lz=-Math.sin(p.facing);
+   p.mvF=wx*fx+wz*fz;p.mvS=wx*lx+wz*lz}
   p.guardHeld=IN.guard||!!keys.Space;
 }
 function step(raw){
