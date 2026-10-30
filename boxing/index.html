@@ -486,7 +486,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v53';
+const APP_VER='v54';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -2009,7 +2009,10 @@ function drawRigs(){
     {const g0=rigPt(f,_rq.set(k0.pel.x,0,k0.pel.z).clone());c.save();c.fillStyle='rgba(0,0,0,.32)';c.beginPath();c.ellipse(g0.x,g0.y,k*TP.w*.9,k*TP.w*.18,0,0,7);c.fill();c.restore()}
     const arm=(s,near)=>{const t=near?'N':'F',UA=P['ua'+t],FA=P['fa'+t],sh=near?S_N:S_F,hd=s==='L'?hL:hR,s3=s==='L'?shL:shR,e3=rigPt(f,s==='L'?k0.aL.e:k0.aR.e),hint={x:sh.x+(e3.x-s3.x),y:sh.y+(e3.y-s3.y)};
       // same arm pose as before: elbow and fist exactly where the 3D boxer has them, drawn pieces stretched between
-      const K=e3,Hn=hd,L1=Math.hypot(K.x-sh.x,K.y-sh.y)||1,L2=Math.hypot(Hn.x-K.x,Hn.y-K.y)||1;
+      // 3D arm directions from the drawn shoulder, with lengths held near the drawn arm (no rubber arms)
+      const L1d=(RA.ua[1]-RA.ua[0])*UA.h*k*1.05,L2d=(RA.fa[1]-RA.fa[0])*FA.h*k*1.05;
+      const seg=(A,v,Ld)=>{const l=Math.hypot(v.x,v.y)||1e-3,L=clamp(l,Ld*.7,Ld*1.06);return{p:{x:A.x+v.x/l*L,y:A.y+v.y/l*L},L}};
+      const u1=seg(sh,{x:e3.x-s3.x,y:e3.y-s3.y},L1d),K=u1.p,L1=u1.L,u2=seg(K,{x:hd.x-e3.x,y:hd.y-e3.y},L2d),Hn=u2.p,L2=u2.L;
       const sp=spine([sh,K,Hn],Math.max(Math.min(L1,L2)*.28,UA.w*k*.62)),cc=near?col:colD;
       rgLay(f,'ua'+t,key,R,UA,sp,RA.ua[0],RA.ua[1],0,L1,k*1.18,side,cc);
       rgLay(f,'fa'+t,key,R,FA,sp,RA.fa[0],RA.fa[1],L1,L1+L2,k*1.12,side,cc)};
