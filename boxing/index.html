@@ -43,6 +43,18 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .logo{margin:0;font:400 clamp(44px,9vh,72px)/.92 var(--f-disp);letter-spacing:-.01em;text-wrap:balance}
 .logo em{font-style:normal;color:var(--red)}
 .mbtns{display:flex;flex-direction:column;gap:10px}
+.pfwrap{position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(5,7,11,.72),rgba(5,7,11,.92));min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:12px}
+.pft{margin:0;font:800 26px var(--f-body);color:var(--ink);text-align:center}
+.pfgrid{display:grid;grid-template-columns:repeat(4,minmax(0,140px));gap:18px;justify-content:center}
+.pfc{display:flex;flex-direction:column;align-items:center;gap:8px;background:none;border:0;color:var(--ink);cursor:pointer;padding:0;width:100%}
+.pfa{width:100%;aspect-ratio:1;border-radius:14px;display:grid;place-items:center;font:900 46px var(--f-body);color:#fff;border:3px solid transparent;transition:transform .12s,border-color .12s}
+.pfc:hover .pfa,.pfc:focus-visible .pfa{border-color:#fff;transform:scale(1.04)}
+.pfc.cur .pfa{border-color:var(--gold)}
+.pfa.add{background:rgba(255,255,255,.06);border:2px dashed rgba(255,255,255,.3);color:rgba(255,255,255,.6)}
+.pfc b{font:700 15px var(--f-body);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pfc small{font:500 12px var(--f-body);opacity:.65}
+.pfx{font:700 12px var(--f-body);color:#ff7a6a;font-style:normal}
+@media (max-width:560px){.pfgrid{grid-template-columns:repeat(2,minmax(0,130px))}}
 .btn{display:block;width:100%;text-align:left;border:1px solid var(--line);background:rgba(20,25,34,.85);border-radius:10px;padding:13px 16px;font:700 16px var(--f-body)}
 .btn small{display:block;font:400 12px var(--f-body);color:var(--muted);margin-top:3px}
 .btn.primary{background:var(--red);border-color:var(--red)}
@@ -295,7 +307,12 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 <script>
 'use strict';
 /* ================= data ================= */
-const KEY='lastround.save.v1', SKEY='lastround.settings.v2';
+const KEY0='lastround.save.v1', SKEY='lastround.settings.v2', SLOTS=4;
+/* profiles: slot 1 is the original save, slots 2..4 live beside it */
+const slotKey=n=>n===1?KEY0:KEY0+'#'+n;
+let SLOT=1;try{SLOT=Math.min(SLOTS,Math.max(1,+localStorage.getItem('lastround.slot')||1))}catch(e){}
+const KEY=slotKey(SLOT);
+const profPicked=()=>{try{return sessionStorage.getItem('lastround.picked')==='1'}catch(e){return true}};
 const ROUND_SEC=60, DS=.38, RING_L=2.7, MIN_D=.64;
 const PUNCH={
   // jab: quick and cheap but light / cross: the honest power shot / hook: big wind-up, heavy, punishable on a miss
@@ -469,7 +486,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v51';
+const APP_VER='v52';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -768,7 +785,7 @@ function roundStart(){
   G.F.forEach(f=>{f.x=f.side?.55:-.55;f.z=0;f.facing=f.side?-Math.PI/2:Math.PI/2;f.action=null;f.queued=null;f.stunT=0;f.hitT=0;f.kdR=0;f.rs=newRS();f.down=null;f.fallA=0;f.fallR=0;f.celebrate=false;
     f.vx=f.vz=0;f.rageOn=false;f.clinchLeft=3;initFeet(f);if(f.ai){f.ai.combo=[];f.ai.cool=rnd(.6,1.3)}});
   if(!G.demo&&gyroLive())gyroCalib();
-  pop(G.round===G.rounds&&G.rounds>1?'마지막 라운드':'ROUND '+G.round,'#ffffff',true,1.3);
+  if(!G.demo)pop(G.round===G.rounds&&G.rounds>1?'마지막 라운드':'ROUND '+G.round,'#ffffff',true,1.3);
 }
 
 /* ================= actions ================= */
@@ -1161,7 +1178,7 @@ function step(raw){
     G.phaseT+=dt;
     for(const f of G.F){f.anim+=dt;f.mvF=f.mvS=0;if(f.hitT>0)f.hitT-=dt;tickAction(f,dt)}
     faceTo(p,o);faceTo(o,p);
-    if(G.phaseT>1.5){G.phase='fight';pop('FIGHT!','#ffcf4a',true,.8);sfx.bell(1)}
+    if(G.phaseT>1.5){G.phase='fight';if(!G.demo)pop('FIGHT!','#ffcf4a',true,.8);sfx.bell(1)}
   }else if(G.phase==='count')updateCount(dt);
   else if(G.phase==='between'){p.anim+=dt;o.anim+=dt;G.phaseT+=dt;if(G.demo&&G.phaseT>1.5){nextRound();aiCorner(p);aiCorner(o)}}
   else if(G.phase==='over'){
@@ -2252,11 +2269,26 @@ let quickSel={opp:0,rounds:3};
 function rebuildModels(){for(const f of G.F){if(!f.M)continue;const keepR=f.M;scene.remove(keepR.root);f.M=buildModel(f.def);attachXbot(f);skeleton(f)}
   if(G.ref){makeRef()}}
 function startDemo(){const a=pick(OPP),b=pick(OPP.filter(x=>x!==a));startFight({demo:true,p:a,o:b,rounds:99})}
+const PCOL=['#d9302c','#2f6fd6','#1f8a4c','#d4a017'];
+function readSlot(n){try{const v=JSON.parse(localStorage.getItem(slotKey(n)));return v&&typeof v==='object'&&v.name?v:null}catch(e){return null}}
+function profiles(del){
+  if(!G.demo)startDemo();
+  const cards=[];for(let n=1;n<=SLOTS;n++){const v=readSlot(n),cur=n===SLOT;
+    if(v){const r=Array.isArray(v.rank)?v.rank.indexOf('player'):-1,rk=r===0?'챔피언':r>0?'#'+r:'';
+      cards.push(`<div class="pf"><button class="pfc ${cur?'cur':''}" data-act="${del?'pdel':'ppick'}" data-n="${n}"><span class="pfa" style="background:${PCOL[n-1]}">${esc((v.name||'?').slice(0,1))}</span>
+        <b>${esc(v.name)}</b><small>${v.w||0}승 ${v.l||0}패${rk?' · '+rk:''}</small>${del?'<em class="pfx">삭제</em>':''}</button></div>`)}
+    else cards.push(`<div class="pf"><button class="pfc empty" data-act="pnew" data-n="${n}"><span class="pfa add">+</span><b>새 프로필</b><small>처음부터 커리어</small></button></div>`)}
+  showScreen(`<div class="pfwrap"><h2 class="pft">${del?'삭제할 프로필을 고르세요':'누가 링에 오르나요?'}</h2><div class="pfgrid">${cards.join('')}</div>
+    <button class="back" data-act="${del?'profiles':'pdelmode'}">${del?'완료':'프로필 관리'}</button></div>`,'menu-bg');
+}
+function useSlot(n){try{sessionStorage.setItem('lastround.picked','1')}catch(e){}
+  if(n===SLOT){menu();return}try{localStorage.setItem('lastround.slot',String(n))}catch(e){}location.reload()}
 function menu(){
   if(!G.demo)startDemo();
   showScreen(`<div class="menu">
     <div><p class="eyebrow">헤비급 타이틀 · IRON HALL</p><h1 class="logo">라스트<br><em>라운드</em></h1></div>
     <div class="mbtns">
+      <button class="back" data-act="profiles" style="align-self:flex-start">${save.name?esc(save.name)+' · ':''}프로필 바꾸기</button>
       <button class="btn primary" data-act="career">커리어 모드<small>랭커 8명을 꺾고 챔피언 벨트에 도전</small></button>
       <button class="btn" data-act="quick">빠른 대전<small>상대와 라운드 수를 골라 바로 한 판</small></button>
       <button class="btn" data-act="howto">조작법</button>
@@ -2491,6 +2523,10 @@ scr.addEventListener('click',e=>{
   const act=b.dataset.act;
   switch(act){
     case'menu':menu();break;
+    case'profiles':profiles();break;
+    case'pdelmode':profiles(true);break;
+    case'ppick':case'pnew':useSlot(+b.dataset.n);break;
+    case'pdel':{const n=+b.dataset.n;if(b.dataset.confirm){try{localStorage.removeItem(slotKey(n))}catch(e){}if(n===SLOT){location.reload();break}profiles(true)}else{b.dataset.confirm=1;const x=b.querySelector('.pfx');if(x)x.textContent='한 번 더 누르면 삭제'}break}
     case'demotog':SET.demoFight=!SET.demoFight;persistSet();menu();break;
     case'career':G.pendingBack='career';if(!G.demo)startDemo();career();break;
     case'quick':if(!G.demo)startDemo();quick();break;
@@ -2550,7 +2586,7 @@ $('#loading').hidden=true;
 addEventListener('resize',()=>setTimeout(resize,60));
 if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.addEventListener('change',()=>setTimeout(()=>{resize();if(gyroLive()&&!G.demo)gyroCalib()},300));
 resize();
-startDemo();menu();
+startDemo();if(profPicked())menu();else profiles();
 if(document.fonts&&document.fonts.load)Promise.all(['44px Teko','17px "Black Han Sans"'].map(f=>document.fonts.load(f))).catch(()=>{});
 requestAnimationFrame(loop);
 if('serviceWorker'in navigator&&location.protocol==='https:'){let top=true;try{top=window.top===window.self}catch(e){top=false}if(top)navigator.serviceWorker.register('sw.js').catch(()=>{})}
