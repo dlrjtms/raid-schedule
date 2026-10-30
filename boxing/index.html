@@ -410,7 +410,14 @@ fixRanks();
 const rankOf=id=>save.rank.indexOf(id);
 const isChamp=()=>rankOf('player')===0;
 const rankLabel=i=>i===0?'CHAMP':'#'+i;
-function nextChallenger(){const n=Math.min(5,save.rank.length-1);return save.rank[1+((save.defIdx||0)%n)]}
+// title challengers rotate by name, not by slot: each top-5 contender gets one shot per cycle, never the same man twice in a row
+function nextChallenger(){
+  const top=save.rank.slice(0,6).filter(id=>id!=='player').slice(0,5);
+  if(save.nextCh&&top.includes(save.nextCh))return save.nextCh;
+  save.defDone=(save.defDone||[]).filter(id=>top.includes(id));
+  let cand=top.filter(id=>!save.defDone.includes(id)&&id!==save.lastDef);
+  if(!cand.length){save.defDone=[];cand=top.filter(id=>id!==save.lastDef)}
+  save.nextCh=cand[0]||top[0];return save.nextCh}
 function recOf(o){const r=save.npc&&save.npc[o.id];if(!r)return o.rec;return`${r.w}-${r.l}${r.d?'-'+r.d:''} (${r.ko} KO)`}
 function fightCtx(id){
   const pr=rankOf('player'),or=rankOf(id);
@@ -422,18 +429,19 @@ function fightCtx(id){
 function moveRank(id,to){const a=save.rank,i=a.indexOf(id);a.splice(i,1);a.splice(clamp(to,0,a.length),0,id)}
 /* the rest of the division fights too: after each of your fights, neighbouring contenders meet */
 function simWorld(n){
-  const news=[];
+  const news=[];save.rankPrev=save.rank.slice();
+  const keep=rankOf('player')===0?nextChallenger():null;
   for(let k=0;k<n;k++){
-    const npcs=save.rank.filter(id=>id!=='player');if(npcs.length<2)break;
-    const i=Math.floor(Math.random()*(npcs.length-1)),a=npcs[i],b=npcs[i+1];  // a is ranked above b
+    const npcs=save.rank.filter(id=>id!=='player'&&id!==keep);if(npcs.length<2)break;
+    const i=Math.floor(Math.random()*(npcs.length-1)),j=Math.min(npcs.length-1,i+1+(Math.random()<.35?1:0)),a=npcs[i],b=npcs[j];  // a is ranked above b
     const A=OPP.find(o=>o.id===a),B=OPP.find(o=>o.id===b);
-    const pa=clamp(.5+(ovr(A)-ovr(B))*.025+.06,.15,.85),aw=Math.random()<pa,W=aw?A:B,L=aw?B:A;
+    const pa=clamp(.5+(ovr(A)-ovr(B))*.018+.04,.28,.75),aw=Math.random()<pa,W=aw?A:B,L=aw?B:A;
     const ko=Math.random()<clamp((W.power-L.chin)*.012+.35,.1,.8);
     const rw=save.npc[W.id],rl=save.npc[L.id];rw.w++;if(ko)rw.ko++;rl.l++;
     let moved='';
-    if(!aw){const ia=save.rank.indexOf(a),ib=save.rank.indexOf(b);save.rank[ia]=b;save.rank[ib]=a;moved=` → ${rankLabel(ia)} 등극`}
-    const champ=save.rank.indexOf(W.id)===0&&!aw&&save.rank.indexOf(W.id)===0;
-    news.push(`${W.name}, ${L.name}에게 ${ko?'KO':'판정'}승${moved}${champ?' (새 챔피언!)':''}`);
+    if(!aw){const ia=save.rank.indexOf(a),ib=save.rank.indexOf(b);save.rank.splice(ib,1);save.rank.splice(ia,0,b);moved=` → ${rankLabel(ia)} 등극`;
+      if(ia===0)moved+=' (새 챔피언!)'}
+    news.push(`${W.name}, ${L.name}에게 ${ko?'KO':'판정'}승${moved}`);
   }
   save.news=[...news,...(save.news||[])].slice(0,8);
   return news;
@@ -442,9 +450,10 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
   const ctx=G.rankCtx||fightCtx(oppId),pr=rankOf('player'),or=rankOf(oppId),n=save.npc[oppId];const notes=[];
   if(n){if(res==='W'){n.l++}else if(res==='L'){n.w++;if(ko)n.ko++}else n.d++}
   if(res==='W'){save.lossStreak=0;
-    if(ctx==='defense'){save.defenses=(save.defenses||0)+1;save.defIdx=(save.defIdx||0)+1;notes.push(`타이틀 ${save.defenses}차 방어 성공!`)}
-    else if((ctx==='challenge'||ctx==='title')&&or<pr){moveRank('player',or);if(or===0){save.defenses=0;save.defIdx=0;notes.push('새로운 헤비급 챔피언!')}else notes.push(`랭킹 ${rankLabel(pr)} → ${rankLabel(or)}`)}
+    if(ctx==='defense'){save.defenses=(save.defenses||0)+1;save.defIdx=(save.defIdx||0)+1;save.defDone=[...(save.defDone||[]),oppId];save.lastDef=oppId;save.nextCh=null;notes.push(`타이틀 ${save.defenses}차 방어 성공!`)}
+    else if((ctx==='challenge'||ctx==='title')&&or<pr){moveRank('player',or);if(or===0){save.defenses=0;save.defIdx=0;save.defDone=[];save.lastDef=oppId;save.nextCh=null;notes.push('새로운 헤비급 챔피언!')}else notes.push(`랭킹 ${rankLabel(pr)} → ${rankLabel(or)}`)}
   }else if(res==='L'){save.lossStreak=(save.lossStreak||0)+1;
+    if(ctx==='defense'){save.defDone=[];save.nextCh=null;save.lastDef=null}
     if(ctx==='defense'||(ctx==='ranked'&&or>pr)){moveRank(oppId,pr);moveRank('player',pr+1);notes.push(ctx==='defense'?`벨트를 잃었어요. ${OPP.find(o=>o.id===oppId).name}이(가) 새 챔피언`:`랭킹 ${rankLabel(pr)} → ${rankLabel(pr+1)}`)}
     if(save.lossStreak>=3){const now=rankOf('player'),to=Math.min(save.rank.length-1,now+2);if(to>now){moveRank('player',to);notes.push(`3연패로 랭킹 하락 ${rankLabel(now)} → ${rankLabel(to)}`)}save.lossStreak=0}
   }
@@ -454,8 +463,8 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v44';
-let SET={style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
+const APP_VER='v46';
+let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
 const sensVal=()=>SENS[clamp((SET.sensLv|0)||4,1,7)-1];
@@ -758,12 +767,12 @@ function roundStart(){
 
 /* ================= actions ================= */
 /* clinch: tie the other man up to survive; the referee breaks it after a couple of seconds */
-function canClinch(f,o){return G.phase==='fight'&&!G.clinch&&(G.clinchCD||0)<=0&&(f.clinchLeft||0)>0&&!f.down&&!o.down&&Math.hypot(o.x-f.x,o.z-f.z)<1.05&&!(f.action&&f.action.kind==='punch')}
+function canClinch(f,o){return G.phase==='fight'&&!G.clinch&&(G.clinchCD||0)<=0&&(f.clinchLeft||0)>0&&!f.down&&!o.down&&Math.hypot(o.x-f.x,o.z-f.z)<1.5&&!(f.action&&f.action.kind==='punch')}
 function startClinch(f){
   const o=G.F[0]===f?G.F[1]:G.F[0];if(!canClinch(f,o))return false;
-  f.clinchLeft--;G.clinch={id:Math.random(),by:f,ph:'reach',t:0,dur:rnd(1.7,2.3),brk:0};
+  f.clinchLeft--;G.clinch={id:Math.random(),by:f,ph:'reach',t:0,dur:rnd(1.7,2.3),brk:0,reach:f.ai?.55:.38};{const ux=Math.sign(o.x-f.x)||1;f.vx+=ux*1.6}
   f.action=null;f.queued=null;f.charge=null;f.guardHeld=false;if(f.ai){f.ai.combo.length=0;f.ai.react=null}
-  if(!G.demo&&f===G.F[0])pop('붙잡으러 간다!','#ffd36b',false,.6);
+  if(!G.demo)pop(f===G.F[0]?'붙잡으러 간다!':'붙잡으러 온다! 빠지거나 쳐요','#ffd36b',false,.7);
   return true;
 }
 // the reach-in (0.35s): the other man can back off, slip/pull, or punch him on the way in
@@ -773,7 +782,7 @@ function reachClinch(){
   const C=G.clinch,f=C.by,x=G.F[0]===f?G.F[1]:G.F[0];C.t+=G.lastDt||1/60;
   const d=Math.hypot(x.x-f.x,x.z-f.z);
   if(x.action&&x.action.kind==='evade'){failClinch(x.action.ev==='pull'?'뒤로 빠져 클린치 회피!':'흘려서 클린치 회피!');return}
-  if(C.t>=.35){if(d>1.1){failClinch('거리를 벌려 클린치 회피!');return}
+  if(C.t>=C.reach){if(d>1.2){failClinch('거리를 벌려 클린치 회피!');return}
     C.ph='hold';C.t=0;
     for(const q of[f,x]){q.action=null;q.queued=null;q.charge=null;q.guardHeld=false;if(q.ai){q.ai.combo.length=0;q.ai.react=null}}
     f.stunT=0;sfx.block();
@@ -989,7 +998,7 @@ function aiThink(f,o,dt){
   if(f.down)return;
   const dist=Math.hypot(o.x-f.x,o.z-f.z);
   ai.cool-=dt;ai.guardT-=dt;ai.phase+=dt;ai.strafeT-=dt;
-  if(G.clinch&&G.clinch.ph==='reach'&&G.clinch.by===o&&ai.clId!==G.clinch.id){ai.clId=G.clinch.id;if(Math.random()<.2+sk*.55){if(Math.random()<.5)doAction(f,'pull','L');else{doAction(f,'jab','L')}}}
+  if(G.clinch&&G.clinch.ph==='reach'&&G.clinch.by===o&&ai.clId!==G.clinch.id){ai.clId=G.clinch.id;if(Math.random()<.06+sk*.22){if(Math.random()<.5)doAction(f,'pull','L');else{doAction(f,'jab','L')}}}
   if(G.clinch&&G.clinch.by===f)return;
   if((f.stunT>0||f.hp<28||f.st<16)&&canClinch(f,o)&&Math.random()<dt*(.5+sk*1.2)&&startClinch(f))return;
   if(f.stunT>0){f.charge=null;f.mvF=-.45;ai.combo.length=0;f.guardHeld=Math.random()<sk*.5;return}
@@ -1240,7 +1249,7 @@ function endFight(win,method){
     if(win===p){save.w++;if(ko)save.ko++;if(!save.beaten.includes(opp.id)){save.beaten.push(opp.id);save.points+=3;G.firstWin=true}else G.firstWin=false}
     else if(win===o)save.l++;else save.d++;
     G.rankNotes=applyRanking(opp.id,win===p?'W':win===o?'L':'D',ko);
-    G.worldNews=simWorld(2+Math.floor(Math.random()*2));
+    G.worldNews=simWorld(3+Math.floor(Math.random()*2));
     persist();
   }
 }
@@ -1262,6 +1271,7 @@ function targetPose(f,o){
     if(F.arms<0)Object.assign(P,{lgx:.06,lgy:-.02,lgz:.2,rgx:-.07,rgy:-.06,rgz:.2});           // clutching the body
     else{const k=F.arms;Object.assign(P,{lgx:.18+.14*k,lgy:-.15+.45*k,lgz:.12-.08*k,rgx:-.2-.12*k,rgy:-.2+.38*k,rgz:.1-.1*k})}
     return P}
+  if(G.clinch&&G.clinch.ph==='reach'&&G.clinch.by===f&&G.phase==='fight'){const w=Math.min(1,G.clinch.t/.2);Object.assign(P,{lgx:.34*w+.08,lgy:.12,lgz:.32+.18*w,rgx:-.34*w-.08,rgy:.1,rgz:.32+.18*w,lean:.3*w,ht:.1,cr:.1,tw:0,ptw:0});P.lUp=P.rUp=1;return P}
   if(G.clinch&&G.clinch.ph==='hold'&&G.phase==='fight'){const me=G.clinch.by===f;Object.assign(P,{lgx:me?.2:.16,lgy:me?.3:.22,lgz:.44,rgx:me?-.2:-.16,rgy:me?.28:.2,rgz:.44,lean:me?.38:.3,ht:.25,cr:.12,tw:0,ptw:0});return P}
   if(f.celebrate){const w=Math.sin(t*7)*.04;Object.assign(P,{lgx:.2,lgy:.42+w,lgz:.05,rgx:-.2,rgy:.4-w,rgz:.05,lean:-.08,ht:-.25,tw:0,ptw:0,cr:.02});return P}
   // rhythm: light bounce on the balls of the feet, a little upper-body sway
@@ -2154,7 +2164,14 @@ touchEl.addEventListener('pointermove',e=>{
   if(Math.hypot(dx,dy)<(t.guard?20:(t.zone!=='bot'&&held>220?90:SWIPE)))return;
   if(!t.guard&&performance.now()-t.t0<70)return; // give a second finger a moment to land for guard
   if(t.guard){ // guard held: head movement in swipe direction
-    if(t.slipped)return;t.slipped=true;
+    if(t.slipped)return;
+    const inward=Math.abs(dx)>=Math.abs(dy)*.7&&((t.half==='L'&&dx>0)||(t.half==='R'&&dx<0));
+    if(inward&&t.zone==='mid'&&!t.pendIn){t.pendIn=performance.now();
+      const mate=[...PT.values()].find(o=>o!==t&&o.guard&&o.pendIn&&performance.now()-o.pendIn<320);
+      if(mate){mate.pendIn=-1;t.pendIn=-1;t.slipped=mate.slipped=true;if(G.F[0])startClinch(G.F[0]);setTimeout(()=>{t.slipped=mate.slipped=false;t.pendIn=mate.pendIn=0},400);return}
+      const hx=x,hy=y;setTimeout(()=>{if(t.pendIn>0){t.pendIn=0;t.slipped=true;playerAct(t.half==='L'?'slipL':'pull',t.half,false,hx,hy);setTimeout(()=>{t.slipped=false},250)}},170);return}
+    if(t.pendIn)return;
+    t.slipped=true;
     // backward (toward your own corner) = sway the head back; up/down or forward = slip off the line
     const horiz=Math.abs(dx)>=Math.abs(dy)*.7;
     const ev=horiz?(dx<0?'pull':(t.half==='L'?'slipL':'slipR')):(dy<0?'slipL':'slipR');
@@ -2266,7 +2283,7 @@ function howto(back){
     <dt>크리티컬</dt><dd>파워가 센 선수의 파워 펀치는 가끔 크리티컬(2배)이 나고, 한 방에 KO될 수도 있어요. 카운터·정타 상황이면 확률이 올라가요</dd>
     <dt>다운</dt><dd>다운이 나오면 슬로모션 리플레이가 나와요(탭하면 건너뛰기). 보통 카운트 3쯤이면 일어나고, 일어나면 체력 30%. 강펀처에게 맞았을 땐 연타해도 못 일어날 수 있어요</dd>
     <dt>패리</dt><dd>상대 펀치가 닿기 직전(0.2초 안)에 가드를 올리면 패리! 데미지 없이 상대가 휘청이고, 바로 치는 펀치가 카운터가 돼요</dd>
-    <dt>클린치</dt><dd>휘청이거나 체력 25·스태미나 15 아래로 몰렸을 때 상대와 붙어 있으면 타이머 아래에 작은 '클린치' 버튼이 떠요(키보드 C, 설정에서 끌 수 있어요). 상대를 붙잡고 숨을 고르고, 심판이 떼어 놓아요(라운드당 3번)</dd>
+    <dt>클린치</dt><dd>두 손가락으로 가드한 채(가운데 바디 구역) 양손을 안쪽으로 동시에 쓸면 상대를 안으러 들어가요. 상대가 빠지거나 흘리거나 맞받아치면 실패, 아니면 붙잡아요. 휘청이거나 체력 25·스태미나 15 아래로 몰렸을 때 상대와 붙어 있으면 타이머 아래에 작은 '클린치' 버튼이 떠요(키보드 C, 설정에서 끌 수 있어요). 상대를 붙잡고 숨을 고르고, 심판이 떼어 놓아요(라운드당 3번)</dd>
     <dt>클린치 막기</dt><dd>상대가 붙잡으러 들어올 때(0.35초) 뒤로 빠지거나, 풀백·슬립하거나, 펀치로 맞받아치면 실패시키고 반격 찬스. 이미 붙잡혔으면 화면을 연타해서 뿌리치면 상대가 휘청여요</dd>
     <dt>코너</dt><dd>라운드 사이에 컷맨·응급 처치·호흡 정리 중 하나와 다음 라운드 작전(압박·아웃복싱·카운터)을 골라요</dd>
     <dt>카운터</dt><dd>회피에 성공하거나 상대가 헛치면 반격 기회. 그때 맞히는 펀치는 1.55배</dd>
@@ -2303,7 +2320,7 @@ function career(){
           :c==='challenge'?`<button class="chip go" data-act="pick" data-i="${i}">도전</button>`
           :c==='locked'?`<span class="chip">잠김</span>`
           :`<button class="chip ${won?'won':''}" data-act="pick" data-i="${i}">${c==='friendly'?'논타이틀':'경기'}</button>`;
-        return`<li class="${c==='defense'||c==='title'||c==='challenge'?'next':''} ${c==='locked'?'locked':''}"><span class="rank ${r===0?'ch':''}">${rankLabel(r)}</span>
+        return`<li class="${c==='defense'||c==='title'||c==='challenge'?'next':''} ${c==='locked'?'locked':''}"><span class="rank ${r===0?'ch':''}">${rankLabel(r)}${(()=>{const pv=(save.rankPrev||[]).indexOf(id);if(pv<0||pv===r)return'';return pv>r?`<small style="color:#7fd39a"> ▲${pv-r}</small>`:`<small style="color:#ff7a6a"> ▼${r-pv}</small>`})()}</span>
         <span class="lname">${o.name}<span class="tchip">${TRAITS[o.trait].name}</span> <small>“${o.nick}” · ${STYLES[o.style].label} · ${recOf(o)} · ${o.rounds}R${won?' · 승리 경험':''}</small></span>${btn}</li>`}).join('')}
     </ol></div>
     <button class="back" data-act="reset" style="align-self:flex-start">커리어 초기화</button>
