@@ -486,7 +486,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v59';
+const APP_VER='v60';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -2022,7 +2022,7 @@ function drawRigs(){
       if(lying){const kn=rigPt(f,s==='L'?k0.lL.e:k0.lR.e),ft=rigPt(f,s==='L'?k0.lL.h:k0.lR.h),L2b=(RA.sn[1]-RA.sn[0])*SN.h*k,{K,T:Fn}=ik2s(Hp,ft,L1,L2b,false,fs);
         const sp=spine([Hp,K,Fn],Math.max(Math.min(L1,L2b)*.28,TH.w*k*.7));rgLay(f,'th'+t,key,R,TH,sp,RA.th[0],RA.th[1],0,L1,k*1.3,side,cc);rgLay(f,'sn'+t,key,R,SN,sp,RA.sn[0],RA.sn[1],L1,L1+L2b,k*1.22,side,cc);
         if(f.rg['bt'+t])f.rg['bt'+t].visible=false;return}
-      const kb=k*1.32,bh=(1-bt)*SN.h*k*1.7,heel=(s==='L'?f.pose.lHeel:f.pose.rHeel)||0,fl=s==='L'?k0.lL.h:k0.lR.h,g=rigPt(f,_rq.set(fl.x,Math.max(0,fl.y-.1),fl.z).clone());
+      const kb=k*1.12,bh=(1-bt)*SN.h*kb,heel=(s==='L'?f.pose.lHeel:f.pose.rHeel)||0,fl=s==='L'?k0.lL.h:k0.lR.h,g=rigPt(f,_rq.set(fl.x,Math.max(0,fl.y-.1),fl.z).clone());
       {const drop=Math.abs(g.y-bh*.88-Hp.y),ls=clamp(drop*1.1/(L1+L2),1,1.6);L1*=ls;L2*=ls}
       {const Rr=(L1+L2)*.97,ty=g.y-bh*.88-Hp.y;if(Math.abs(ty)<Rr){const mx=Math.sqrt(Rr*Rr-ty*ty),ddx=g.x-Hp.x;if(Math.abs(ddx)>mx)g.x=Hp.x+Math.sign(ddx)*mx}else{g.x=Hp.x;g.y=Hp.y+Rr+bh*.88}}
       const T2={x:g.x,y:g.y-bh*.88},{K,T:Tn}=ik2s(Hp,T2,L1,L2,false,fs),sp=spine([Hp,K,Tn],Math.max(Math.min(L1,L2)*.3,TH.w*k*.7));
@@ -2031,7 +2031,7 @@ function drawRigs(){
       // boot: flat on the canvas, tipping on the toe with the heel
       const ang=side*heel*.35,ca=Math.cos(ang),sa=Math.sin(ang),bsp={at:(s2)=>({x:g.x+sa*(s2-bh*1.0)*-1,y:g.y+ca*(s2-bh),tx:-sa*-1,ty:ca})};
       const bsp2={at:(s2)=>{const d=s2-bh;return{x:g.x-sa*d,y:g.y+ca*d,tx:-sa,ty:ca}}};
-      rgLay(f,'bt'+t,key,R,SN,bsp2,bt-.03,1,-.03*SN.h*k*1.7,bh,kb,side,cc,[bt-.03,1])};
+      rgLay(f,'bt'+t,key,R,SN,bsp2,bt-.03,1,-.03*SN.h*kb,bh,kb,side,cc,[bt-.03,1])};
     arm(armNear==='L'?'R':'L',false);
     leg(legNear==='L'?'R':'L',false);
     rgLay(f,'torso',key,R,TP,tsp,tv0,tv1,0,tlen,k,side,col,null,txc);
