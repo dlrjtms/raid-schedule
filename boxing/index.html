@@ -463,7 +463,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v48';
+const APP_VER='v49';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -2368,9 +2368,11 @@ function quick(){
 }
 const CORNER_REC={cut:['컷맨','상처·붓기 크게 회복'],hp:['응급 처치','체력 +14'],breath:['호흡 정리','최대 스태미나 +18, 팔 피로 회복']};
 const CORNER_TAC={none:['침착하게','회복 1.5배, 스태미나 회복 +20%'],press:['압박','펀치 위력 +10%, 소모 +12%'],out:['아웃복싱','이동 +12%, 잽 +15%'],counter:['카운터','패리 판정 넓게, 카운터 +15%']};
+function recText(k,calm){const m=calm?1.5:1,b=calm?' (침착 ×1.5)':'';
+  return k==='cut'?`상처·붓기 -${Math.round(45*m)}${b}`:k==='hp'?`체력 +${Math.round(14*m)}${b}`:`최대 스태미나 +${Math.round(18*m)}, 팔 피로 회복${b}`}
 function cornerUI(){
-  const [p]=G.F;const c=G.corner||(G.corner={rec:(p.faceDmg||0)>90?'cut':p.stMax<75?'breath':'hp',tac:p.tactic||'none'});
-  const seg=(act,obj,cur)=>`<div class="seg corner">${Object.entries(obj).map(([k,v])=>`<button class="${k===cur?'on':''}" data-act="${act}" data-v="${k}"><b>${v[0]}</b><small>${v[1]}</small></button>`).join('')}</div>`;
+  const [p]=G.F;const c=G.corner||(G.corner={rec:(p.faceDmg||0)>90?'cut':p.stMax<75?'breath':'hp',tac:(p.tactic&&p.tactic!=='calm')?p.tactic:'none'});
+  const seg=(act,obj,cur)=>`<div class="seg corner">${Object.entries(obj).map(([k,v])=>`<button class="${k===cur?'on':''}" data-act="${act}" data-v="${k}"><b>${v[0]}</b><small>${act==='crec'?recText(k,c.tac==='none'):v[1]}</small></button>`).join('')}</div>`;
   return`<div><p class="lbl">코너 — 쉬는 동안 무엇을 할까요</p>${seg('crec',CORNER_REC,c.rec)}</div><div><p class="lbl">다음 라운드 작전</p>${seg('ctac',CORNER_TAC,c.tac)}</div>`;
 }
 function applyCorner(f,c){
@@ -2378,7 +2380,7 @@ function applyCorner(f,c){
   else if(c.rec==='hp'){f.cap=Math.min(100,f.cap+3);f.hp=Math.min(f.cap,f.hp+14)}
   else if(c.rec==='breath'){f.stMax=Math.min(100,f.stMax+18);f.st=f.stMax;f.fatL=f.fatR=0}
   if(c.tac==='none'){ // no game plan: the corner spends the whole minute on you
-    if(c.rec==='cut')f.faceDmg=Math.max(0,(f.faceDmg||0)-22);else if(c.rec==='hp')f.hp=Math.min(f.cap,f.hp+7);else{f.stMax=Math.min(100,f.stMax+9);f.st=f.stMax}}
+    if(c.rec==='cut')f.faceDmg=Math.max(0,(f.faceDmg||0)-23);else if(c.rec==='hp')f.hp=Math.min(f.cap,f.hp+7);else{f.stMax=Math.min(100,f.stMax+9);f.st=f.stMax}}
   f.tactic=c.tac==='none'?'calm':c.tac;
 }
 function aiCorner(f){
@@ -2500,7 +2502,8 @@ scr.addEventListener('click',e=>{
       else{b.dataset.confirm='1';b.textContent='한 번 더 누르면 초기화돼요';b.style.color='var(--red)'}break;
     case'next':{const c=G.corner||{rec:'hp',tac:'none'};nextRound();applyCorner(G.F[0],c);aiCorner(G.F[1]);G.corner=null;
       pop('작전: '+CORNER_TAC[c.tac][0],'#ffd36b',false,1.2);break}
-    case'crec':case'ctac':{const k=b.dataset.act==='crec'?'rec':'tac';G.corner[k]=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));break}
+    case'crec':case'ctac':{const k=b.dataset.act==='crec'?'rec':'tac';G.corner[k]=b.dataset.v;b.parentNode.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+      document.querySelectorAll('[data-act=crec]').forEach(x=>{const sm=x.querySelector('small');if(sm)sm.textContent=recText(x.dataset.v,G.corner.tac==='none')});break}
     case'rematch':if(G.career){const c=fightCtx(OPP[G.oppIdx].id);if(c==='locked'){career();break}G.rankCtx=c}launch(G.oppIdx,G.rounds,G.career);break;
     case'resume':hideScreen();G.phase=G.prevPhase||'fight';if(gyroLive())gyroCalib();break;
     case'full':SET.full=!isFull();persistSet();if(SET.full)goFull();else exitFull();setTimeout(()=>{if(G.phase==='paused')showScreen(pauseHTML())},300);break;
