@@ -484,7 +484,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v81';
+const APP_VER='v82';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -2021,6 +2021,7 @@ function drawRigs(){
       const sp=spine([sh,K,Hn],Math.max(Math.min(L1,L2)*.28,UA.w*k*.62)),cc=near?col:colD;
       rgLay(f,'ua'+t,key,R,UA,sp,RA.ua[0],RA.ua[1],0,L1,k*1.18,side,cc);
       rgLay(f,'fa'+t,key,R,FA,sp,RA.fa[0],RA.fa[1],L1,L1+L2,k*1.12,side,cc)};
+    const LK={};
     const leg=(s,near)=>{const t=near?'N':'F',TH=P['th'+t],SN=P['sn'+t],bt=SN.bt||.62,Hp=near?H_N:H_F,cc=near?col:colD;
       let L1=(RA.th[1]-RA.th[0])*TH.h*k,L2=(bt-.13)*SN.h*k;
       if(lying){const kn=rigPt(f,s==='L'?k0.lL.e:k0.lR.e),ft=rigPt(f,s==='L'?k0.lL.h:k0.lR.h),L2b=(RA.sn[1]-RA.sn[0])*SN.h*k,{K,T:Fn}=ik2s(Hp,ft,L1,L2b,false,fs);
@@ -2032,7 +2033,7 @@ function drawRigs(){
       // one continuous strip hip -> knee -> ankle -> floor: the shin bends smoothly into a boot standing flat on the canvas
       const bc=Math.min(.86,bt+(1-bt)*.45),bhh=(1-bc)*SN.h*kb,A={x:g.x,y:g.y-bhh},Gp={x:g.x,y:g.y};
       L2=(bc-.13)*SN.h*k*Math.max(1,L2/((bt-.13)*SN.h*k));
-      const {K,T:An}=ik2s(Hp,A,L1,L2,false,fs),KA=Math.hypot(An.x-K.x,An.y-K.y)||1;
+      const {K,T:An}=ik2s(Hp,A,L1,L2,false,fs);LK[near?'N':'F']={H:Hp,K};const KA=Math.hypot(An.x-K.x,An.y-K.y)||1;
       const sp=spine([Hp,K,An,Gp],Math.max(Math.min(L1,KA)*.3,TH.w*k*.7)),sA=L1+KA;
       const kThB=k*1.22*clamp((SN.w/TH.w)*1.08,.72,1);
       rgLay(f,'th'+t,key,R,TH,sp,RA.th[0],RA.th[1],0,L1,[k*1.22,kThB],side,cc);
@@ -2043,7 +2044,15 @@ function drawRigs(){
     leg(legNear==='L'?'R':'L',false);
     rgLay(f,'torso',key,R,TP,tsp,tv0,tv1,0,tlen,k,side,col,null,txc);
     leg(legNear,true);
-    {const tb=(TP.tb||.6)-.015,ts=P.trunks.ts||1,a0=(tb-tv0)*TP.h*k,a1=(tb+(P.trunks.h/TP.h)*.9*ts-tv0)*TP.h*k;rgLay(f,'trunks',key,R,P.trunks,tsp,.04,.94,a0,a1,k*ts,side,col)} // loose shorts, enlarged to hide the shorts drawn on the torso
+    {const tb=(TP.tb||.6)-.015,ts=P.trunks.ts||1,a0=(tb-tv0)*TP.h*k,a1=(tb+(P.trunks.h/TP.h)*.9*ts-tv0)*TP.h*k;
+     // the shorts' legs swing with the thighs: straight down the torso to the hips, then bent toward the (mostly near) thigh direction
+     let sp=tsp,s0=a0,s1=a1;
+     if(LK.N&&LK.F){const P0=tsp.at(a0),sh=Math.min(tlen,a0+(a1-a0)*.35),P1=tsp.at(sh),dir=v=>{const x=v.K.x-v.H.x,y=v.K.y-v.H.y,l=Math.hypot(x,y)||1;return{x:x/l,y:y/l}};
+       const dn=dir(LK.N),df=dir(LK.F);let dx=dn.x*.65+df.x*.35,dy=dn.y*.65+df.y*.35;const dl=Math.hypot(dx,dy)||1;dx/=dl;dy/=dl;
+       dx=P1.tx*.25+dx*.75;dy=P1.ty*.25+dy*.75;const dl2=Math.hypot(dx,dy)||1;dx/=dl2;dy/=dl2;
+       const rest=(a1-sh)*1.3,P2={x:P1.x+dx*rest,y:P1.y+dy*rest};
+       sp=spine([{x:P0.x,y:P0.y},{x:P1.x,y:P1.y},P2],(a1-a0)*.3);s0=0;s1=a1-a0}
+     rgLay(f,'trunks',key,R,P.trunks,sp,.04,.94,s0,s1,k*ts,side,col)} // loose shorts, enlarged to hide the shorts drawn on the torso
     // head: the face piece only (its neck is faded out), seated on the torso's own neck
     {const H=P.head,nTop=TPt(TP.c[0]/TP.w,.07),q=tsp.at(0),up={x:-q.tx,y:-q.ty};
      let ang=Math.atan2(head.x-neck.x,-(head.y-neck.y)),tAng=Math.atan2(up.x,-up.y),dA=((ang-tAng+Math.PI*3)%(Math.PI*2))-Math.PI;ang=tAng+clamp(dA,-.3,.3);
