@@ -2043,7 +2043,7 @@ function drawRigs(){
     leg(legNear==='L'?'R':'L',false);
     rgLay(f,'torso',key,R,TP,tsp,tv0,tv1,0,tlen,k,side,col,null,txc);
     leg(legNear,true);
-    {const tb=TP.tb||.6,a0=(tb-tv0)*TP.h*k,a1=(tb+(P.trunks.h/TP.h)*.9-tv0)*TP.h*k;rgLay(f,'trunks',key,R,P.trunks,tsp,.04,.94,a0,a1,k,side,col)}
+    rgLay(f,'torsoLo',key,R,TP,tsp,tv0,tv1,0,tlen,k,side,col,[.45,1],txc); // the torso drawing's own shorts, redrawn over the near thigh (the loose shorts piece is not used)
     // head: the face piece only (its neck is faded out), seated on the torso's own neck
     {const H=P.head,nTop=TPt(TP.c[0]/TP.w,.07),q=tsp.at(0),up={x:-q.tx,y:-q.ty};
      let ang=Math.atan2(head.x-neck.x,-(head.y-neck.y)),tAng=Math.atan2(up.x,-up.y),dA=((ang-tAng+Math.PI*3)%(Math.PI*2))-Math.PI;ang=tAng+clamp(dA,-.3,.3);
