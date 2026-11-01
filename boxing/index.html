@@ -2467,8 +2467,9 @@ function showRoundGirl(n,last,done){
   el.innerHTML=`<div class="rgw"><img src="${RG_IMG}" alt=""><div class="sign"><small>ROUND</small><b class="${last?'fin':''}">${last?'FINAL':n}</b></div></div><span class="skip">화면을 누르면 넘어가요</span>`;
   document.body.appendChild(el);requestAnimationFrame(()=>el.classList.add('on'));
   let gone=false;const end=()=>{if(gone)return;gone=true;el.classList.remove('on');setTimeout(()=>el.remove(),350);done&&done()};
-  el.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();end()});
-  setTimeout(end,3600);
+  const t0=performance.now(); // taps still flying from the last exchange must not skip her
+  el.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();if(performance.now()-t0>1600)end()});
+  setTimeout(end,4200);
 }
 function showBetween(){
   const[p,o]=G.F;let tip;
