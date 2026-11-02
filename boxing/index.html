@@ -74,6 +74,7 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-o
 .rec{font:600 30px/1 var(--f-num);letter-spacing:.02em;margin-top:6px;font-variant-numeric:tabular-nums}
 .rec span{font:500 13px var(--f-body);color:var(--muted);margin-left:6px}
 .stat{display:grid;grid-template-columns:62px 1fr 34px 30px;gap:8px;align-items:center;font-size:13px;margin-bottom:6px}
+.shint{margin:-6px 0 8px;font-size:11px;line-height:1.35;color:var(--muted)}
 .stat .bar{height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden}
 .stat .bar i{display:block;height:100%;background:var(--gold)}
 .stat b{font:600 18px var(--f-num);text-align:right;font-variant-numeric:tabular-nums}
@@ -486,7 +487,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v93';
+const APP_VER='v94';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -905,7 +906,7 @@ function resolveHit(at,df){
   const tgt=a.body?df.bodyW:df.headW;
   if(isGuarding(df)&&!temple&&!rising){
     // parry: guard snapped up just before the punch lands
-    let parry=df.guardOnT!=null&&G.time-df.guardOnT<.2+(df.tactic==='counter'?.08:0);
+    let parry=df.guardOnT!=null&&G.time-df.guardOnT<(.14+df.def.speed*.0011)+(df.tactic==='counter'?.08:0); // faster hands = wider parry window
     if(df.ai)parry=Math.random()<Math.max(0,(df.def.skill-25)/100)*.35*(a.type==='hay'?.5:1);
     if(parry){
       at.offT=.8;at.stunT=Math.max(at.stunT,a.type==='hay'?.7:.32);at.st=Math.max(0,at.st-(a.type==='hay'?12:6));
@@ -1140,15 +1141,18 @@ function separate(){
   if(d<MIN_D){const k=(MIN_D-d)/2/d;p.x-=dx*k;p.z-=dz*k;q.x+=dx*k;q.z+=dz*k}
   for(const f of G.F){f.x=clamp(f.x,-RING_L,RING_L);f.z=clamp(f.z,-RING_L,RING_L)}
 }
+// speed stat: how long a full guard charge / held-punch charge takes (55 = 0.75s as before, 90 = 0.6s, 30 = 0.87s)
+function chargeTime(f){return clamp(1-f.def.speed*.0045,.5,.95)}
 function playerCharge(p){
   let held=null;const now=performance.now();
   // holding guard builds a charge; let go of one finger when it's full and that hand fires the haymaker
-  if(IN.guard&&!p.action&&p.stunT<=0&&!p.down){p.gk=Math.min(1,(p.gk||0)+(G.lastDt||1/60)/.75);
+  const cT=chargeTime(p);
+  if(IN.guard&&!p.action&&p.stunT<=0&&!p.down){p.gk=Math.min(1,(p.gk||0)+(G.lastDt||1/60)/cT);
     if(p.gk>=1&&!p.gReady){p.gReady=true;sfx.ready();buzz(30);G.fovKick=Math.max(G.fovKick||0,1.5)}}
   else if(!IN.guard){p.gk=0;p.gReady=false}
   for(const t of PT.values()){if(t.stick||t.used||t.guard||t.zone==='bot')continue;if(!held||t.t0<held.t0)held=t}
   if(!held||p.action||p.stunT>0||p.down){if(!p.action||p.action.type!=='hay'){p.charge=null;p.chargeReady=false}return}
-  const k=clamp((now-held.t0-120)/360,0,1);
+  const k=clamp((now-held.t0-120)/(360*cT/.75),0,1);
   if(k<=0){p.charge=null;return}
   p.charge={hand:held.half,k,body:held.zone==='mid'};
   if(k>=1&&!p.chargeReady){p.chargeReady=true;sfx.ready();buzz(30);G.fovKick=Math.max(G.fovKick||0,1.5)}
@@ -1407,7 +1411,7 @@ function punchPose(f,o,P,a){
       break}
   }
 }
-function smooth(f,T2,dt){const k=1-Math.exp(-dt*26),ka=1-Math.exp(-dt*46);for(const key in T2){const kk=(key[1]==='g'||key.endsWith('Rot'))?ka:k;f.pose[key]+=(T2[key]-f.pose[key])*kk}}
+function smooth(f,T2,dt){const k=1-Math.exp(-dt*26),ka=1-Math.exp(-dt*(f.def&&f.def.speed!=null&&f.guardHeld?30+f.def.speed*.35:46));for(const key in T2){const kk=(key[1]==='g'||key.endsWith('Rot'))?ka:k;f.pose[key]+=(T2[key]-f.pose[key])*kk}}
 function ik3(S,Tt,a,b,pole,out){
   const d0=_v.subVectors(Tt,S).length()||1e-4;const d=clamp(d0,Math.abs(a-b)+.01,a+b-.005);
   const dir=_v.clone().divideScalar(d0);
@@ -2450,7 +2454,8 @@ function howto(back){
     <dt>키보드</dt><dd>WASD 이동, Space 가드, J 잽 · K 스트레이트 · U/I 훅 · N/M 어퍼, Shift 누르면 바디, H 위빙 · L 더킹 · Q/E 슬립 · R 풀백</dd>
   </dl></div>`);
 }
-function statRow(k,label){const v=save.stats[k];return`<div class="stat"><span>${label}</span><div class="bar"><i style="width:${v}%"></i></div><b>${v}</b><button class="plus" data-act="up" data-k="${k}" ${save.points<1||v>=99?'disabled':''} aria-label="${label} 올리기">+</button></div>`}
+const STAT_HINT={power:'펀치 데미지 · 다운/KO 확률',speed:'펀치·발 속도 · 가드 차지샷 충전 · 가드 올리는 속도·패리 타이밍',chin:'받는 데미지 감소 · 다운/KO 버티기',stamina:'펀치 소모 감소 · 스태미나 회복'};
+function statRow(k,label){const v=save.stats[k];return`<div class="stat"><span>${label}</span><div class="bar"><i style="width:${v}%"></i></div><b>${v}</b><button class="plus" data-act="up" data-k="${k}" ${save.points<1||v>=99?'disabled':''} aria-label="${label} 올리기">+</button></div><p class="shint">${STAT_HINT[k]||''}</p>`}
 function career(){
   if(!save.name)return createFighter();
   fixRanks();
