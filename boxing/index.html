@@ -486,7 +486,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v92';
+const APP_VER='v93';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -1809,8 +1809,10 @@ function makeRef(){
 }
 function refPose(r){
   const P=basePose(),t=r.anim;
-  Object.assign(P,{tw:.05,ptw:.05,lean:.05,cr:.03,lgx:.24,lgy:-.62,lgz:.06,rgx:-.24,rgy:-.62,rgz:.06,lHeel:0,rHeel:0});
-  P.lgy+=Math.sin(t*1.3)*.01;P.rgy+=Math.cos(t*1.2)*.01;
+  // watching the action: knees soft, a little forward, hands loose in front of the belt ready to step in; weight rocks side to side
+  const sw=Math.sin(t*1.1);
+  Object.assign(P,{tw:.04*sw,ptw:.03*sw,lean:.07,cr:.035,roll:.02*sw,lgx:.165,lgy:-.56,lgz:.12,rgx:-.165,rgy:-.57,rgz:.11,lHeel:0,rHeel:0});
+  P.lgy+=Math.sin(t*1.3)*.012;P.rgy+=Math.cos(t*1.2)*.012;P.lgx+=Math.sin(t*.9)*.01;P.rgx-=Math.cos(t*.8)*.01;
   if(G.phase==='count'&&r.atBody){
     // lean over the fallen fighter, left hand on the knee, chop the count with the right arm
     const ph=clamp(G.countT/1.05,0,1),up=G.countN>=0?(ph<.4?easeOut(ph/.4):1-easeIn((ph-.4)/.6)):0;
@@ -1833,6 +1835,8 @@ function updRef(dt){
   const sp=Math.min(1.7,dd*3);r.vx=dd>.02?dx/dd*sp:0;r.vz=dd>.02?dz/dd*sp:0;r.x+=r.vx*dt;r.z+=r.vz*dt;
   r.atBody=G.phase==='count'&&dd<.25;
   r.facing=angLerp(r.facing,Math.atan2(lx-r.x,lz-r.z),1-Math.exp(-dt*6));
+  {const busy=(G.phase==='count'&&r.atBody)||(G.phase==='over'&&G.result&&(G.result.method==='KO'||G.result.method==='TKO'))||(G.phase==='intro'&&G.phaseT<1.2);
+   r.ia=(r.ia==null?1:r.ia)+((busy?0:1)-(r.ia==null?1:r.ia))*(1-Math.exp(-dt*6))} // 1 = arms simply hang (drawn in 2D), 0 = follow the 3D gesture
   r.anim+=dt;const T2=refPose(r);smooth(r,T2,dt);updFeet(r,dt);skeleton(r);
 }
 
@@ -2032,11 +2036,14 @@ function drawRefRig(f){
   for(const [nm,ar,sh] of arms){const AP=P[nm],S3=rigPt(f,sh),E3=rigPt(f,ar.e),H3=rigPt(f,ar.h);
     const A=TPt(AP.off[0]+AP.c[0],(AP.off[1]+AP.h*.04)/TP.h);
     const L1=wl(sh,ar.e)+.02*pxm,L2=wl(ar.e,ar.h)+.04*pxm,ox=A.x-S3.x,oy=A.y-S3.y; // the 3D arm moved onto the drawn shoulder
-    const {K:E,T:Hd}=ik2s(A,{x:H3.x+ox,y:H3.y+oy},L1,L2,{x:E3.x+ox,y:E3.y+oy},1);
+    // idle: a front-view drawing reads best with the arms hanging straight from the shoulder, elbows barely out
+    const ia=f.ia==null?0:f.ia,cx0=TPt(txc,.3).x,sd=Math.sign(A.x-cx0)||1,t0=Math.sin((f.anim||0)*1.1+(sd>0?0:1.7))*.012*(L1+L2);
+    const tgt={x:lerp(H3.x+ox,A.x+sd*(L1+L2)*.07+t0,ia),y:lerp(H3.y+oy,A.y+(L1+L2)*.955,ia)},hint={x:lerp(E3.x+ox,A.x+sd*(L1+L2)*.14,ia),y:lerp(E3.y+oy,A.y+L1,ia)};
+    const {K:E,T:Hd}=ik2s(A,tgt,L1,L2,hint,1);
     const sp=spine([A,E,Hd],L1*.3);rgLay(f,'r'+nm,'ref',R,AP,sp,.04,.94,0,L1+L2,kx,1,col)
     {const HP=P[nm==='armA'?'handA':'handB'];if(HP){const dx=Hd.x-E.x,dy=Hd.y-E.y,dl=Math.hypot(dx,dy)||1,ux=dx/dl,uy=dy/dl,L=L1+L2,hl=L*HP.h/(.9*AP.h),
       st={x:Hd.x+ux*L*.03,y:Hd.y+uy*L*.03};rgLay(f,'r'+nm+'H','ref',R,HP,spine([st,{x:st.x+ux*hl,y:st.y+uy*hl}],0),0,1,0,hl,kx,1,col)}}}
-  {const CP=P.collar,HP=P.head,up={x:-tsp.at(0).tx,y:-tsp.at(0).ty},kc=k*.78,kh=.25*pxm/HP.h,b=TPt(txc,.15),top={x:b.x+up.x*CP.h*kc,y:b.y+up.y*CP.h*kc};
+  {const CP=P.collar,HP=P.head,up={x:-tsp.at(0).tx,y:-tsp.at(0).ty},kc=k*.78,kh=.285*pxm/HP.h,b=TPt(txc,.15),top={x:b.x+up.x*CP.h*kc,y:b.y+up.y*CP.h*kc};
    const sp=spine([top,b],0);rgLay(f,'rcollar','ref',R,CP,sp,0,1,0,CP.h*kc,kc*Math.max(.7,wf),1,col,null,CP.c[2]);
    const chin={x:b.x+up.x*CP.h*kc*.6,y:b.y+up.y*CP.h*kc*.6},crown={x:chin.x+up.x*HP.h*kh*.97,y:chin.y+up.y*HP.h*kh*.97};
    const hs=spine([crown,{x:chin.x-up.x*HP.h*kh*.03,y:chin.y-up.y*HP.h*kh*.03}],0);rgLay(f,'rhead','ref',R,HP,hs,0,1,0,HP.h*kh,kh*Math.max(.8,wf),1,col,null,HP.c[2])}
