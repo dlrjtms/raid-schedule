@@ -362,6 +362,27 @@ const COMBOS={
   press:  {a:'power',b:'stamina',name:'프레셔',desc:'바디 공격이 깎는 상대 스태미나 최대 +40%, 전진할 때 스태미나 소모 없음'},
   infight:{a:'speed',b:'chin',name:'인파이터',desc:'회피 직후 받아치는 펀치 데미지 최대 +20%, 회피 스태미나 소모 최대 −50%'},
 };
+// contrast styles: one stat 80+ while another is 60 or below - a reward for leaving a hole on purpose
+const CONTRAST={
+  gambler: {hi:'power',lo:'chin',name:'도박사',desc:'체력이 30 아래로 떨어지면 한 방 크리티컬 확률 최대 2배'},
+  dancer:  {hi:'speed',lo:'power',name:'댄서',desc:'펀치를 피할 때마다 헛손질한 상대 스태미나 최대 −10'},
+  zombie:  {hi:'chin',lo:'speed',name:'좀비',desc:'다운에서 일어나면 체력 최대 +15, 때린 상대는 3초간 데미지 최대 −20%'},
+  marathon:{hi:'stamina',lo:'power',name:'마라토너',desc:'라운드가 지날 때마다 펀치 속도 최대 +4% (3라운드분, 최대 +12%)'},
+};
+const contrast=(f,k)=>{if(!f||f.isRef||!f.def)return 0;const c=CONTRAST[k],h=f.def[c.hi]||55,l=f.def[c.lo]||55;return h>=80&&l<=60?clamp((h-75)/24,0,1):0};
+// trait synergy: your trait plus its matching stat at 80+
+const TSYN={
+  rage:    {stat:'power',  name:'분노의 한 방',desc:'폭주 중 한 방 크리티컬 확률 최대 +50%'},
+  wall:    {stat:'chin',   name:'강철 가드',  desc:'가드 위로 맞는 데미지 최대 −40%'},
+  flash:   {stat:'speed',  name:'그림자 스텝',desc:'회피 스태미나 소모 최대 −100%'},
+  undying: {stat:'chin',   name:'오뚝이',    desc:'다운에서 일어날 때 스태미나 최대 완전 회복'},
+  counter: {stat:'speed',  name:'반사신경',  desc:'패리 허용 시간 최대 +0.06초'},
+  hunter:  {stat:'power',  name:'갈비뼈 사냥',desc:'바디 공격 데미지 최대 +20%'},
+  engine:  {stat:'stamina',name:'두 번째 심장',desc:'라운드 사이 최대 스태미나 최대 +10 더 회복'},
+  combo:   {stat:'speed',  name:'난타',      desc:'펀치 회수 동작 최대 15% 더 빨라짐'},
+  onepunch:{stat:'power',  name:'필살',      desc:'스트레이트·어퍼컷 한 방 크리티컬 확률 최대 +40%'},
+};
+const tsyn=(f,t)=>{if(!f||f.isRef||!f.def||f.def.trait!==t)return 0;const v=f.def[TSYN[t].stat]||55;return v>=80?clamp((v-75)/24,0,1):0};
 const combo=(f,k)=>{if(!f||f.isRef||!f.def)return 0;const c=COMBOS[k];return clamp((Math.min(f.def[c.a]||55,f.def[c.b]||55)-70)/29,0,1)};
 const SIGNAME={upperR:'오른손 어퍼컷',hookR:'오른손 훅',hookL:'왼손 훅',jab:'잽',cross:'오른손 스트레이트',hay:'헤이메이커','b:hookL':'왼손 바디 훅'};
 function isSig(f,a){const sg=f.def.sig;if(!sg)return false;const m=parseMove(sg);return m.type===a.type&&(m.type==='jab'||m.type==='hay'||m.hand===a.hand)&&(!m.body||a.body)}
@@ -506,7 +527,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v98';
+const APP_VER='v99';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -855,10 +876,10 @@ function doAction(f,type,hand,body){
   if(G.clinch){const C=G.clinch;if(C.ph==='hold'){if(f!==C.by){C.brk+=.12;buzz(8)}return false}if(f===C.by)return false}
   if(f.down||f.stunT>0)return false;
   if(f.action){f.queued={type,hand,body,link:f.action.kind==='evade'&&!!PUNCH[type]?f.action.ev:null};return false}
-  let tf=(1.18-f.def.speed/280)*(1+(1-f.st/100)*.55)*(f.st<15?1.25:1);
+  let tf=(1.18-f.def.speed/280)*(1+(1-f.st/100)*.55)*(f.st<15?1.25:1)/(1+.04*contrast(f,'marathon')*Math.min(3,Math.max(0,G.round-1)));
   if(hasT(f,'rage')&&f.hp<35)tf*=.87;
   if(PUNCH[type])tf*=1+.5*(hand==='L'?f.fatL||0:f.fatR||0);
-  if(EVADE[type]){const ec=3*(1+.5*chinPen(f))*(1-.5*combo(f,'infight'));if(f.st<ec)return false;f.action={kind:'evade',ev:type,t:0,d:EVADE[type].d*tf*(hasT(f,'flash')?1.15:1)*(1+.15*chinPen(f)),id:++UID};f.st-=ec;
+  if(EVADE[type]){const ec=3*(1+.5*chinPen(f))*(1-.5*combo(f,'infight'))*(1-tsyn(f,'flash'));if(f.st<ec)return false;f.action={kind:'evade',ev:type,t:0,d:EVADE[type].d*tf*(hasT(f,'flash')?1.15:1)*(1+.15*chinPen(f)),id:++UID};f.st-=ec;
     // duck = dip and step in like an infighter; pull = lean and slide back out of range; weave stays put
     const fx=Math.sin(f.facing);if(type==='duck'){f.vx+=fx*1.35}else if(type==='pull'){f.vx-=fx*1.1}
     return true}
@@ -866,7 +887,7 @@ function doAction(f,type,hand,body){
   const D=PUNCH[type];
   const charged=type==='hay'&&f.charge&&f.charge.k>=1;f.charge=null;f.chargeReady=false;
   if(type==='hay'){G.slow=.5;G.slowT=.14;sfx.heavy();if(charged){G.fovKick=Math.max(G.fovKick||0,3);if(!G.demo&&f===G.F[0])pop('헤이메이커!','#ff6a3d',false,.7)}}
-  f.action={kind:'punch',type,hand,body:!!body,charged,t:0,s:(charged?.16:D.s)*tf,a:D.a,r:D.r*tf*(hasT(f,'combo')?.7:1)*(1+.12*powPen(f)),done:false,id:++UID};
+  f.action={kind:'punch',type,hand,body:!!body,charged,t:0,s:(charged?.16:D.s)*tf,a:D.a,r:D.r*tf*(hasT(f,'combo')?.7:1)*(1-.15*tsyn(f,'combo'))*(1+.12*powPen(f)),done:false,id:++UID};
   f.st=Math.max(0,f.st-D.cost*(1+.2*powPen(f))*(type==='hay'?1:(1.2-f.def.stamina/250))*(hasT(f,'engine')?.75:1)*(charged?1.15:1)*(f.tactic==='press'?1.12:1));
   if(type==='hay'&&f===G.F[0]&&!G.demo)pop('스태미나 -'+Math.round(D.cost*(charged?1.15:1)*(hasT(f,'engine')?.75:1)),'#e3b23c',false,.8);
   if(f===G.F[0]&&!G.demo&&f.st<18&&!f.tiredMsg){f.tiredMsg=true;pop('숨이 차요 · 펀치가 느려짐','#e3b23c',false,1.1);setTimeout(()=>{f.tiredMsg=false},6000)}
@@ -891,6 +912,7 @@ function resolveHit(at,df){
   const wa=df.action;
   if(evading(df,a.type,a.body)){
     df.st=Math.min(df.stMax,df.st+5); // a clean dodge is a breather
+    {const dn=contrast(df,'dancer');if(dn)at.st=Math.max(0,at.st-10*dn)}
     at.offT=.5;df.counterT=1;sfx.whoosh();whiffed(at,df,D);if(df===G.F[0]&&!G.demo){G.slow=.45;G.slowT=.18}
     if(df===G.F[0]&&!G.demo)pop(EVADE[wa.ev].name+' 성공','#9fd3ff',false,.7);
     return;
@@ -905,6 +927,7 @@ function resolveHit(at,df){
   if(hasT(at,'rage')&&at.hp<35)dmg*=1.35;
   if(at.tactic==='press')dmg*=1.1;if(at.tactic==='out'&&a.type==='jab')dmg*=1.12;
   if(hasT(at,'onepunch')&&(a.type==='cross'||a.type==='upper'))dmg*=1.3;
+  if(at.shakeT>G.time)dmg*=1-.2*(at.shakeK||0);
   if(at.tradeT>0&&G.time<at.tradeT){dmg*=1+.25*combo(at,'slugger');at.tradeT=0}
   const kil=combo(at,'killer');if(kil&&(df.stunT>0||df.st<25))dmg*=1+.25*kil;
   if(a.type==='jab')dmg*=1+.2*combo(at,'outbox');
@@ -921,7 +944,7 @@ function resolveHit(at,df){
   let crit=false,flash=false;
   if(!a.body&&D.power&&!isGuarding(df)){
     const pw=at.def.power+(hasT(at,'onepunch')?8:0);
-    const cc=Math.max(0,(pw-58)*.0028)*(1-.15*stamPen(at))*(df.stunT>0||df.st<25?1+.6*combo(at,'killer'):1)*(a.type==='hay'?1.8:1)*(counter||temple||rising?2.2:1)*(df.st<25?1.4:1);
+    const cc=Math.max(0,(pw-58)*.0028)*(1-.15*stamPen(at))*(at.hp<30?1+contrast(at,'gambler'):1)*(at.hp<35?1+.5*tsyn(at,'rage'):1)*((a.type==='cross'||a.type==='upper')?1+.4*tsyn(at,'onepunch'):1)*(df.stunT>0||df.st<25?1+.6*combo(at,'killer'):1)*(a.type==='hay'?1.8:1)*(counter||temple||rising?2.2:1)*(df.st<25?1.4:1);
     if(Math.random()<cc){crit=true;dmg*=2;
       const fk=(.05+Math.max(0,pw-68)*.012)*(1.45-df.def.chin/100)*(hasT(df,'undying')?.4:1);
       if(pw>=68&&Math.random()<fk)flash=true}
@@ -929,7 +952,7 @@ function resolveHit(at,df){
   const tgt=a.body?df.bodyW:df.headW;
   if(isGuarding(df)&&!temple&&!rising){
     // parry: guard snapped up just before the punch lands
-    let parry=df.guardOnT!=null&&G.time-df.guardOnT<(.14+df.def.speed*.0011)+(df.tactic==='counter'?.08:0); // faster hands = wider parry window
+    let parry=df.guardOnT!=null&&G.time-df.guardOnT<(.14+df.def.speed*.0011)+.06*tsyn(df,'counter')+(df.tactic==='counter'?.08:0); // faster hands = wider parry window
     if(df.ai)parry=Math.random()<Math.max(0,(df.def.skill-25)/100)*.35*(a.type==='hay'?.5:1);
     if(parry){
       at.offT=.8;at.stunT=Math.max(at.stunT,a.type==='hay'?.7:.32);at.st=Math.max(0,at.st-(a.type==='hay'?12:6));
@@ -944,11 +967,13 @@ function resolveHit(at,df){
       if(df.gDmg>=3.2){df.gDmg=0;df.stunT=Math.max(df.stunT,.45);through=Math.max(through,.55);sfx.boom();G.shake=Math.max(G.shake,.05);if(!G.demo)pop(df===G.F[0]?'가드가 무너졌다!':'가드 붕괴!','#ff8a3d',false,.8)}}
     if(a.type==='hay'){through=wall?.45:.6;df.stunT=Math.max(df.stunT,a.charged?.6:.35);df.st=Math.max(0,df.st-(a.charged?25:12));sfx.boom();G.shake=Math.max(G.shake,.06);if(!G.demo)pop('가드 브레이크!','#ff8a3d',false,.8)}
     if(wall)at.st=Math.max(0,at.st-4);
+    through*=1-.4*tsyn(df,'wall');
     dmg*=through;df.st=Math.max(0,df.st-D.dmg*.28);at.st=Math.max(0,at.st-D.dmg*.12); // punching into a guard tires the puncher too
     if(through<.15){{const ux=(df.x-at.x)/dist,uz=(df.z-at.z)/dist;df.vx+=ux*.22;df.vz+=uz*.22;}df.hp-=dmg;sfx.block();spark(tgt);df.hitT=.12;df.hitKind='block';df.hitPow=2;if(df===G.F[0])buzz(10);
       if(df.hp<=0)knockdown(df,at);return}
   }
   if(a.body){
+    dmg*=1+.2*tsyn(at,'hunter');
     df.bodyChain=(G.time-(df.bodyT||-9)<2.6)?Math.min(5,(df.bodyChain||0)+1):1;df.bodyT=G.time;
     if(df.bodyChain>1){dmg*=1+.3*(df.bodyChain-1);if(!G.demo&&(at===G.F[0]||df===G.F[0]))pop('바디 '+df.bodyChain+'연타','#ffb36b',false,.7)}
     if(df.bodyChain>=4&&!df.stunT)df.stunT=.45;
@@ -1252,7 +1277,8 @@ function updateCount(dt){
   if(d.down.rising){
     d.down.rising+=dt;updFall(d);
     if(d.down.rising>=.8){
-      {const u=G.upF,n=d.kdT||1;d.cap=Math.max(30,d.cap*(n>1?.85:.9));d.hp=Math.min(d.cap,(hasT(d,'undying')?36:28)-(n-1)*6);d.stMax=Math.max(40,d.stMax-(n>1?20:15));d.st=Math.min(d.stMax,Math.max(d.st,40));if(u&&u!==d){u.hp=Math.min(u.cap,Math.max(u.hp,d.hp+12))}}d.down=null;d.fallA=0;d.fallR=0;d.noHitT=0;
+      {const u=G.upF,n=d.kdT||1;d.cap=Math.max(30,d.cap*(n>1?.85:.9));d.hp=Math.min(d.cap,(hasT(d,'undying')?36:28)-(n-1)*6);d.stMax=Math.max(40,d.stMax-(n>1?20:15));d.st=Math.min(d.stMax,Math.max(d.st,40));if(u&&u!==d){u.hp=Math.min(u.cap,Math.max(u.hp,d.hp+12))}
+       {const zk=contrast(d,'zombie');if(zk){d.hp=Math.min(d.cap,d.hp+15*zk);if(u&&u!==d){u.shakeT=G.time+3;u.shakeK=zk}}const uk=tsyn(d,'undying');if(uk)d.st+=(d.stMax-d.st)*uk}}d.down=null;d.fallA=0;d.fallR=0;d.noHitT=0;
       G.phase='intro';G.phaseT=.6;G.downF=null;
       const[p,o]=G.F;const mx=clamp((p.x+o.x)/2,-RING_L+.8,RING_L-.8),mz=clamp((p.z+o.z)/2,-RING_L+.8,RING_L-.8);
       const ang=Math.atan2(o.x-p.x,o.z-p.z);p.x=mx-Math.sin(ang)*.55;p.z=mz-Math.cos(ang)*.55;o.x=mx+Math.sin(ang)*.55;o.z=mz+Math.cos(ang)*.55;p.vx=p.vz=o.vx=o.vz=0;initFeet(p);initFeet(o);
@@ -1293,7 +1319,7 @@ function endRound(){
 }
 function nextRound(){
   G.round++;
-  G.F.forEach(f=>{f.faceDmg=Math.max(0,(f.faceDmg||0)-15);f.fatL=f.fatR=0;f.unans=0;f.hp=Math.min(f.cap,f.hp+28+12*combo(f,'iron'));f.stMax=Math.min(100,f.stMax+12);f.st=f.stMax;f.cap=Math.min(100,f.cap+4)});
+  G.F.forEach(f=>{f.faceDmg=Math.max(0,(f.faceDmg||0)-15);f.fatL=f.fatR=0;f.unans=0;f.hp=Math.min(f.cap,f.hp+28+12*combo(f,'iron'));f.stMax=Math.min(100,f.stMax+12+10*tsyn(f,'engine'));f.st=f.stMax;f.cap=Math.min(100,f.cap+4)});
   roundStart();hideScreen();
 }
 function decide(){
@@ -2515,7 +2541,7 @@ function analysisHTML(){const st=save.stats,r=statCalc(st),[nm,ds]=styleOf(st);
 function guideScreen(){
   const st=(k,good,bad)=>`<div class="gd"><b>${SLBL[k]}</b><p><span class="anU">좋아지는 것</span> ${good}</p><p><span class="anD">70 넘으면</span> ${bad}</p></div>`;
   showScreen(`<div class="sheet"><div class="sheet-h"><button class="back" data-act="career">← 커리어</button><h2>스탯·조합 설명서</h2></div>
-    <p class="tip">스탯은 + 한 번에 2씩 올라요 (최대 99). 각 스탯은 70을 넘는 순간부터 <b>핸디캡</b>이 서서히 붙고 99에서 최대가 돼요. 대신 두 스탯을 함께 70 넘게 키우면 <b>조합 스타일</b>이 열려 핸디캡을 상쇄하는 어드밴티지가 생겨요.</p>
+    <p class="tip">스탯은 + 한 번에 2씩 올라요 (최대 99). 각 스탯은 70을 넘는 순간부터 <b>핸디캡</b>이 서서히 붙고 99에서 최대가 돼요. 대신 두 스탯을 함께 70 넘게 키우면 <b>조합 스타일</b>이 열려 핸디캡을 상쇄하는 어드밴티지가 생겨요. 한 스탯은 80 이상, 다른 스탯은 60 이하로 일부러 약점을 두면 <b>강약 대비</b> 보너스가, 특성에 맞는 스탯을 80 넘게 키우면 <b>특성 시너지</b>가 붙어요.</p>
     <div><p class="lbl">스탯별 효과 (수치는 99 기준 최대치)</p>
     ${st('power','펀치 데미지(55→99면 약 +25%), 한 방 크리티컬 확률(58부터), 다운시킨 상대가 못 일어날 확률','펀치가 무거워져요 — 펀치 스태미나 소모 +20%, 펀치 거두는 동작 12% 느려짐(연타가 덜 이어짐)')}
     ${st('speed','펀치 속도, 펀치 칠 때 들어가는 거리, 이동 속도, 가드 차지샷·펀치 차지 충전 시간(55: 0.75초 → 90: 0.6초), 가드 올리는 속도, 패리 허용 시간(55: 0.20초 → 90: 0.24초)','펀치가 가벼워져요 — 펀치 데미지 −10%')}
@@ -2529,14 +2555,25 @@ function guideScreen(){
       '철인':'스태미나 핸디캡(KO력 감소)을 후반 체력으로 만회해요. 라운드가 길수록 유리해요.',
       '프레셔':'파워 핸디캡(스태미나 소모)을 전진 공짜 + 바디로 상대 스태미나를 뺏어 메워요.',
       '인파이터':'맷집 핸디캡(느린 회피)을 회피 비용 절반 + 회피 후 반격 데미지로 만회해요.'}[c.name]}</p></div>`).join('')}</div>
+    <div><p class="lbl">강약 대비 (한 스탯 80↑ + 다른 스탯 60↓ · 높은 스탯이 클수록 강해지고 99에서 100%)</p>
+    ${Object.values(CONTRAST).map(c=>`<div class="gd"><b>${c.name}</b> <span class="cst">${SLBL[c.hi]}↑ ${SLBL[c.lo]}↓</span><p>${c.desc}</p><p class="gdx">${{
+      '도박사':'맷집을 버린 대신 몰렸을 때 역전 한 방이 터져요. 쓰러지기 직전이 가장 위험한 선수예요.',
+      '댄서':'한 방을 버린 대신 피할수록 상대가 지쳐요. 헛손질을 유도해 말리는 스타일이에요.',
+      '좀비':'발을 버린 대신 쓰러뜨려도 다시 일어나 기세를 꺾어요.',
+      '마라토너':'한 방을 버린 대신 라운드가 갈수록 손이 빨라져요. 긴 경기에서 강해요.'}[c.name]}</p></div>`).join('')}</div>
+    <div><p class="lbl">특성 시너지 (내 특성 + 맞는 스탯 80↑ · 99에서 100%)</p>
+    ${Object.entries(TSYN).map(([t,c])=>`<div class="gd"><b>${c.name}</b> <span class="cst">${TRAITS[t].name}+${SLBL[c.stat]}</span><p>${c.desc}</p></div>`).join('')}</div>
     <div><p class="lbl">조합 예시</p>
     <div class="gd"><b>유리대포</b> <span class="cst">파워·스피드↑ 맷집·스태미나↓</span><p>펀치가 빠르고 세서 초반에 다운을 잘 뺏고, 킬러 본능으로 흔들린 상대를 마무리해요. 하지만 펀치마다 스태미나가 많이 들고 회복은 느려 중반부터 급격히 약해지고, 맞으면 잘 쓰러져요. 1~2라운드 안에 끝내야 해요.</p></div>
     <div class="gd"><b>철벽 지구전</b> <span class="cst">맷집·스태미나↑ 파워·스피드↓</span><p>느리고 한 방은 약하지만 철인 효과로 끝까지 지치지 않고 잘 쓰러지지도 않아요. 판정승을 노리는 스타일이에요.</p></div>
     <div class="gd"><b>슬러거</b> <span class="cst">파워·맷집↑</span><p>세고 단단하지만 발이 무겁고 빨리 지쳐요. 맞으면서 들어가 받아치는 게 무기예요. 거리를 두는 아웃복서에게 약해요.</p></div>
     <div class="gd"><b>아웃복서</b> <span class="cst">스피드·스태미나↑</span><p>빠른 발과 잽으로 거리를 지키며 점수를 쌓아요. 한 방이 가벼워 KO는 어렵지만 슬러거를 지치게 만들어 이겨요.</p></div></div>
     <button class="btn primary center" data-act="career">커리어로 돌아가기</button></div>`)}
-function comboHTML(){const f={def:save.stats};return`<div class="combos"><p class="lbl" style="margin:10px 0 6px">조합 스타일 · 두 스탯이 모두 70을 넘으면 열려요</p>${Object.entries(COMBOS).map(([k,c])=>{const v=combo(f,k),on=v>0;
-  return`<div class="cmb ${on?'on':''}"><b>${c.name}</b><span class="cst">${SLBL[c.a]}+${SLBL[c.b]} ${on?Math.round(v*100)+'%':'잠김'}</span><small>${c.desc}</small></div>`}).join('')}</div>`}
+function comboHTML(){const f={def:{...save.stats,trait:playerDef().trait}},card=(on,name,tag,desc)=>`<div class="cmb ${on?'on':''}"><b>${name}</b><span class="cst">${tag}</span><small>${desc}</small></div>`;
+  const ts=TSYN[f.def.trait];
+  return`<div class="combos"><p class="lbl" style="margin:10px 0 6px">조합 스타일 · 두 스탯이 모두 70을 넘으면 열려요</p>${Object.entries(COMBOS).map(([k,c])=>{const v=combo(f,k);return card(v>0,c.name,`${SLBL[c.a]}+${SLBL[c.b]} ${v>0?Math.round(v*100)+'%':'잠김'}`,c.desc)}).join('')}
+  <p class="lbl" style="margin:12px 0 6px">강약 대비 · 한 스탯 80 이상 + 다른 스탯 60 이하</p>${Object.entries(CONTRAST).map(([k,c])=>{const v=contrast(f,k);return card(v>0,c.name,`${SLBL[c.hi]}↑ ${SLBL[c.lo]}↓ ${v>0?Math.round(v*100)+'%':'잠김'}`,c.desc)}).join('')}
+  ${ts?`<p class="lbl" style="margin:12px 0 6px">특성 시너지 · ${TRAITS[f.def.trait].name} 특성 + ${SLBL[ts.stat]} 80 이상</p>${(v=>card(v>0,ts.name,`${TRAITS[f.def.trait].name}+${SLBL[ts.stat]} ${v>0?Math.round(v*100)+'%':'잠김'}`,ts.desc))(tsyn(f,f.def.trait))}`:''}</div>`}
 const STAT_HINT={power:'펀치 데미지 · 다운/KO 확률 · 70 넘으면 펀치가 무거워 스태미나 소모↑·회수 느려짐',speed:'펀치·발 속도 · 가드 차지샷 충전 · 가드 올리는 속도·패리 타이밍 · 70 넘으면 펀치가 가벼워 데미지↓',chin:'받는 데미지 감소 · 다운/KO 버티기 · 70 넘으면 몸이 무거워 이동·회피가 느려짐',stamina:'펀치 소모 감소 · 스태미나 회복 · 70 넘으면 한 방 크리티컬·KO 확률 감소'};
 function statRow(k,label){const v=save.stats[k];return`<div class="stat"><span>${label}</span><div class="bar"><i style="width:${v}%"></i></div><b>${v}</b><button class="plus" data-act="up" data-k="${k}" ${save.points<1||v>=99?'disabled':''} aria-label="${label} 올리기">+</button></div><p class="shint">${STAT_HINT[k]||''}</p>`}
 function career(){
