@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no"><meta name="theme-color" content="#05070b"><meta name="mobile-web-app-capable" content="yes"><title>라스트 라운드</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"></head><body>
+<title>라스트 라운드</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png"></head><body>
 <title>라스트 라운드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&family=Teko:wght@500;600;700&display=swap">
@@ -485,7 +486,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v87';
+const APP_VER='v88';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -1798,7 +1799,7 @@ function makeRef(){
 }
 function refPose(r){
   const P=basePose(),t=r.anim;
-  Object.assign(P,{tw:.05,ptw:.05,lean:.05,cr:.03,lgx:.21,lgy:-.44,lgz:.03,rgx:-.21,rgy:-.44,rgz:.03,lHeel:0,rHeel:0});
+  Object.assign(P,{tw:.05,ptw:.05,lean:.05,cr:.03,lgx:.24,lgy:-.62,lgz:.06,rgx:-.24,rgy:-.62,rgz:.06,lHeel:0,rHeel:0});
   P.lgy+=Math.sin(t*1.3)*.01;P.rgy+=Math.cos(t*1.2)*.01;
   if(G.phase==='count'&&r.atBody){
     // lean over the fallen fighter, left hand on the knee, chop the count with the right arm
@@ -1992,7 +1993,7 @@ function drawRefRig(f){
   const Lw=Math.hypot(k0.neck.x-k0.pel.x,k0.neck.y-k0.pel.y,k0.neck.z-k0.pel.z),tlen=Lw*pxm,k=tlen/((pv-nv)*TP.h);
   // seen from the side he gets narrower (a flat front picture can only squash)
   const cx=camera.position.x-f.x,cz=camera.position.z-f.z,cl=Math.hypot(cx,cz)||1,wf=Math.max(.55,Math.abs((Math.sin(f.facing)*cx+Math.cos(f.facing)*cz)/cl)),kx=k*wf;
-  const col=1;
+  const col=1,wl=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z)*pxm; // limb lengths follow the 3D body, so the drawing keeps the mannequin's proportions
   const tsp=spine([neck,pel],0),txc=TP.c[2];
   const TPt=(px,fy)=>{const q=tsp.at((fy-nv)*TP.h*k),off=(px-txc)*kx;return{x:q.x+q.ty*off,y:q.y-q.tx*off}};
   // which arm/leg of the picture is on the left of the screen
@@ -2002,20 +2003,21 @@ function drawRefRig(f){
   const cut=TP.c[5];
   for(const [nm,lg,hp] of legs){const LP=P[nm],H3=rigPt(f,hp),K3=rigPt(f,lg.e),A3=rigPt(f,lg.h);
     const offx=nm==='legA'?LP.c[0]-LP.w:LP.c[0],Hp=TPt(txc+offx,pv-.02);
-    const L1=.53*LP.h*k,L2=.36*LP.h*k,shoe=.1*LP.h*k,Gd=project(f.x+(A3.x-H3.x)*0,0,f.z);
+    const L1=wl(hp,lg.e)+.1*pxm,L2=wl(lg.e,lg.h),shoe=.085*pxm,Gd=project(f.x+(A3.x-H3.x)*0,0,f.z);
     const gy=project(lg.h===k0.lL.h?f.x:f.x,0,f.z).y;let T={x:Hp.x+(A3.x-H3.x),y:gy-shoe};
-    const {K,T:An}=ik2s(Hp,T,L1,L2,{x:Hp.x+(K3.x-H3.x),y:Hp.y+(K3.y-H3.y)},1);
-    const sp=spine([Hp,K,An,{x:An.x,y:An.y+shoe}],L1*.25);rgLay(f,'r'+nm,'ref',R,LP,sp,.02,1,0,L1+L2+shoe,kx,1,col)}
+    const av=Math.hypot(T.x-Hp.x,T.y-Hp.y),sc=av>(L1+L2)*.88?av/((L1+L2)*.995):1; // standing: legs reach the floor nearly straight; crouched: they bend
+    const {K,T:An}=ik2s(Hp,T,L1*sc,L2*sc,{x:Hp.x+(K3.x-H3.x),y:Hp.y+(K3.y-H3.y)},1);
+    const sp=spine([Hp,K,An,{x:An.x,y:An.y+shoe}],L1*.25);rgLay(f,'r'+nm,'ref',R,LP,sp,.02,1,0,(L1+L2)*sc+shoe,kx,1,col)}
   rgLay(f,'rtorso','ref',R,TP,tsp,nv,pv,0,tlen,kx,1,col,null,txc);
   for(const [nm,ar,sh] of arms){const AP=P[nm],S3=rigPt(f,sh),E3=rigPt(f,ar.e),H3=rigPt(f,ar.h);
     const A=TPt(AP.off[0]+AP.c[0],(AP.off[1]+AP.h*.04)/TP.h);
-    const L1=.56*AP.h*k,L2=.34*AP.h*k,d1=Math.hypot(E3.x-S3.x,E3.y-S3.y)||1,d2=Math.hypot(H3.x-E3.x,H3.y-E3.y)||1;
-    const E={x:A.x+(E3.x-S3.x)/d1*L1,y:A.y+(E3.y-S3.y)/d1*L1},Hd={x:E.x+(H3.x-E3.x)/d2*L2,y:E.y+(H3.y-E3.y)/d2*L2};
+    const L1=wl(sh,ar.e)+.02*pxm,L2=wl(ar.e,ar.h)+.04*pxm,ox=A.x-S3.x,oy=A.y-S3.y; // the 3D arm moved onto the drawn shoulder
+    const {K:E,T:Hd}=ik2s(A,{x:H3.x+ox,y:H3.y+oy},L1,L2,{x:E3.x+ox,y:E3.y+oy},1);
     const sp=spine([A,E,Hd],L1*.3);rgLay(f,'r'+nm,'ref',R,AP,sp,.04,.94,0,L1+L2,kx,1,col)}
-  {const CP=P.collar,up={x:-tsp.at(0).tx,y:-tsp.at(0).ty},b=TPt(txc,.16),top={x:b.x+up.x*CP.h*k,y:b.y+up.y*CP.h*k};
-   const sp=spine([top,b],0);rgLay(f,'rcollar','ref',R,CP,sp,0,1,0,CP.h*k,kx*.92,1,col,null,CP.c[2]);
-   const HP=P.head,chin={x:b.x+up.x*CP.h*k*.62,y:b.y+up.y*CP.h*k*.62},crown={x:chin.x+up.x*HP.h*k*.97,y:chin.y+up.y*HP.h*k*.97};
-   const hs=spine([crown,{x:chin.x-up.x*HP.h*k*.03,y:chin.y-up.y*HP.h*k*.03}],0);rgLay(f,'rhead','ref',R,HP,hs,0,1,0,HP.h*k,k*Math.max(.8,wf),1,col,null,HP.c[2])}
+  {const CP=P.collar,HP=P.head,up={x:-tsp.at(0).tx,y:-tsp.at(0).ty},kc=k*.78,kh=.25*pxm/HP.h,b=TPt(txc,.15),top={x:b.x+up.x*CP.h*kc,y:b.y+up.y*CP.h*kc};
+   const sp=spine([top,b],0);rgLay(f,'rcollar','ref',R,CP,sp,0,1,0,CP.h*kc,kc*Math.max(.7,wf),1,col,null,CP.c[2]);
+   const chin={x:b.x+up.x*CP.h*kc*.6,y:b.y+up.y*CP.h*kc*.6},crown={x:chin.x+up.x*HP.h*kh*.97,y:chin.y+up.y*HP.h*kh*.97};
+   const hs=spine([crown,{x:chin.x-up.x*HP.h*kh*.03,y:chin.y-up.y*HP.h*kh*.03}],0);rgLay(f,'rhead','ref',R,HP,hs,0,1,0,HP.h*kh,kh*Math.max(.8,wf),1,col,null,HP.c[2])}
 }
 function drawRigs(){
   const c=dc;c.setTransform(SC*DPR,0,0,SC*DPR,0,0);c.clearRect(0,0,VW,VH);
