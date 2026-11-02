@@ -486,7 +486,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v90';
+const APP_VER='v91';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -606,6 +606,7 @@ function setupPost(){
     gradePass=new FX.ShaderPass(GradeShader);composer.addPass(gradePass);
   }catch(e){composer=null}
 }
+const RING3={C:3.15,ropeY:[],ropes:[],corners:[]};
 function initGL(){
   if(!T)return false;
   if(T.ColorManagement)T.ColorManagement.legacyMode=false;
@@ -650,11 +651,14 @@ function buildArena(){
   const postM=mat(0xb8bec8,.35,.8);
   for(const[x,z]of[[C,C],[-C,C],[C,-C],[-C,-C]]){
     const p=new T.Mesh(new T.CylinderGeometry(.06,.06,1.6,12),postM);p.position.set(x,.73,z);p.castShadow=true;scene.add(p);
-    const red=x*z>0;
-    ropeY.forEach(y=>{const pad=new T.Mesh(new T.BoxGeometry(.2,.26,.2),mat(red?0xb52323:0x2346a8,.7));pad.position.set(x*.985,y,z*.985);pad.rotation.y=Math.PI/4;scene.add(pad)});
+    const red=x*z>0,cn={x,z,red,m:[p]};RING3.corners.push(cn);
+    ropeY.forEach(y=>{const pad=new T.Mesh(new T.BoxGeometry(.2,.26,.2),mat(red?0xb52323:0x2346a8,.7));pad.position.set(x*.985,y,z*.985);pad.rotation.y=Math.PI/4;scene.add(pad);cn.m.push(pad)});
   }
   const ropeGeo=new T.CylinderGeometry(.022,.022,2*C,8);ropeGeo.rotateZ(Math.PI/2);
-  ropeY.forEach((y,i)=>{const m=mat(ropeC[i],.45);[[0,y,-C,0],[C,y,0,1],[-C,y,0,1]].forEach(([x,yy,z,rot])=>{const r=new T.Mesh(ropeGeo,m);r.position.set(x,yy,z);if(rot)r.rotation.y=Math.PI/2;r.castShadow=true;scene.add(r)})});
+  // all four sides now that the camera goes round the ring; the sides between camera and fighters are redrawn over them (drawNearRopes)
+  RING3.C=C;RING3.ropeY=ropeY;
+  ropeY.forEach((y,i)=>{const m=mat(ropeC[i],.45);[[0,y,-C,0],[0,y,C,0],[C,y,0,1],[-C,y,0,1]].forEach(([x,yy,z,rot])=>{const r=new T.Mesh(ropeGeo,m);r.position.set(x,yy,z);if(rot)r.rotation.y=Math.PI/2;r.castShadow=true;scene.add(r);
+    RING3.ropes.push({m:r,i,y,ax:rot?'x':'z',v:rot?x:z})})});
   // stands + crowd
   const standM=mat(0x0b0e14,.95);
   const bodyGeo=new T.BoxGeometry(.44,.62,.3),headGeo=new T.SphereGeometry(.12,8,6);
@@ -1928,7 +1932,7 @@ function render(raw){
   for(const f of G.F)applyModel(f);
   if(G.ref){applyModel(G.ref);if(G.ref.M)G.ref.M.root.visible=G.phase!=='replay'&&!refRigOn()}
   if(renderer){
-    updateCamera(raw);
+    updateCamera(raw);ropeVis();
     for(const fl of flashes){fl.t+=raw;if(fl.t>.15&&Math.random()<raw*.6){const a=Math.random()*Math.PI*2,r=rnd(5.5,11);fl.m.position.set(Math.sin(a)*r,rnd(-.2,3.4),Math.cos(a)*r);fl.t=0}
       fl.m.material.opacity=fl.t<.12?(1-fl.t/.12):0}
     if(composer&&SET.gfx!=='low'){gradePass.uniforms.time.value=G.time%10;gradePass.uniforms.impact.value=SET.style!=='real'&&G.impactF>0?1:0;G.impactF=(G.impactF||0)-1/60;{const an=SET.style!=='real';gradePass.uniforms.sat.value=an?1.22:1.1;gradePass.uniforms.grain.value=an?0:.035;gradePass.uniforms.vig.value=an?.35:.55;gradePass.uniforms.exposure.value=an?1.0:.75;gradePass.uniforms.acesAmt.value=an?0:1;bloomPass.strength=an?.18:.32}const st=!G.demo&&G.F[0]&&G.F[0].stunT>0&&G.phase==='fight';gradePass.uniforms.stun.value=st?1:0;composer.render()}
@@ -2118,8 +2122,35 @@ function drawRigs(){
   RG.r.render(RG.scene,RG.cam);
 }
 
+/* ---- near ropes: the paper-doll fighters are drawn over the 3D ring, so the ropes on the camera's side are painted again on top ---- */
+function nearSide(ax,v){const c=camera.position;return ax==='x'?c.x*Math.sign(v)>Math.abs(v):c.z*Math.sign(v)>Math.abs(v)}
+function ropeVis(){for(const r of RING3.ropes)r.m.visible=!nearSide(r.ax,r.v);
+  for(const k of RING3.corners){const n=nearSide('x',k.x)||nearSide('z',k.z);for(const m of k.m)m.visible=!n}}
+const _rv=V(0,0,0);
+function toView(x,y,z){return _rv.set(x,y,z).applyMatrix4(camera.matrixWorldInverse).clone()}
+function viewToScr(v){const q=v.clone().applyMatrix4(camera.projectionMatrix);return{x:(q.x+1)/2*VW,y:(1-q.y)/2*VH}}
+function ropeQuad(c,a,b,r,col,hi){ // a,b world points; clipped to the near plane; width follows depth
+  let A=toView(a[0],a[1],a[2]),B=toView(b[0],b[1],b[2]);const N=-.12;
+  if(A.z>N&&B.z>N)return;if(A.z>N)A=A.clone().lerp(B,(A.z-N)/(A.z-B.z));if(B.z>N)B=B.clone().lerp(A,(B.z-N)/(B.z-A.z));
+  const fpx=VH/2/Math.tan(camera.fov*Math.PI/360),sa=viewToScr(A),sb=viewToScr(B),wa=r*fpx/-A.z,wb=r*fpx/-B.z;
+  let dx=sb.x-sa.x,dy=sb.y-sa.y;const l=Math.hypot(dx,dy)||1;const nx=-dy/l,ny=dx/l;
+  c.fillStyle=col;c.beginPath();c.moveTo(sa.x+nx*wa,sa.y+ny*wa);c.lineTo(sb.x+nx*wb,sb.y+ny*wb);c.lineTo(sb.x-nx*wb,sb.y-ny*wb);c.lineTo(sa.x-nx*wa,sa.y-ny*wa);c.closePath();c.fill();
+  if(hi){const up=ny<0?1:-1;c.fillStyle=hi;c.beginPath();c.moveTo(sa.x+nx*wa*.55*up,sa.y+ny*wa*.55*up);c.lineTo(sb.x+nx*wb*.55*up,sb.y+ny*wb*.55*up);c.lineTo(sb.x+nx*wb*.15*up,sb.y+ny*wb*.15*up);c.lineTo(sa.x+nx*wa*.15*up,sa.y+ny*wa*.15*up);c.closePath();c.fill()}}
+function drawNearRopes(c){
+  if(!RING3.ropes.length||G.phase==='replay')return;const C=RING3.C;
+  const COL=['#9e1d24','#c9ccd2','#23439a'],HI=['rgba(255,140,140,.55)','rgba(255,255,255,.7)','rgba(150,180,255,.55)'];
+  c.save();
+  for(const k of RING3.corners){if(!(nearSide('x',k.x)||nearSide('z',k.z)))continue;
+    {const d=-toView(k.x,.8,k.z).z;c.globalAlpha=clamp((d-.9)/1.4,.12,1)} // a corner right next to the lens fades so it doesn't wall off the fight
+    ropeQuad(c,[k.x,-.07,k.z],[k.x,1.53,k.z],.06,'#8f96a1','rgba(255,255,255,.35)');
+    for(const y of RING3.ropeY)ropeQuad(c,[k.x*.985,y-.13,k.z*.985],[k.x*.985,y+.13,k.z*.985],.13,k.red?'#8e1b1b':'#1d3a8a','rgba(255,255,255,.18)')}
+  c.globalAlpha=1;
+  for(const r of RING3.ropes){if(!nearSide(r.ax,r.v))continue;
+    const a=r.ax==='z'?[-C,r.y,r.v]:[r.v,r.y,-C],b=r.ax==='z'?[C,r.y,r.v]:[r.v,r.y,C];ropeQuad(c,a,b,.026,COL[r.i],HI[r.i])}
+  c.restore()}
 function drawHUDLayer(){
   const c=hc;c.setTransform(SC*DPR,0,0,SC*DPR,0,0);c.clearRect(0,0,VW,VH);
+  if(renderer)drawNearRopes(c);
   if(renderer)for(const q of G.parts){
     const s=project(q.x,q.y,q.z);if(!s.ok)continue;const k=1-q.t/q.life;
     if(q.flash){const g=c.createRadialGradient(s.x,s.y,0,s.x,s.y,q.r);g.addColorStop(0,`rgba(${q.c},${.85*k})`);g.addColorStop(1,`rgba(${q.c},0)`);c.fillStyle=g;c.beginPath();c.arc(s.x,s.y,q.r,0,7);c.fill()}
