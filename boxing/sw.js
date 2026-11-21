@@ -1,4 +1,4 @@
-const C='last-round-v100',FONTS='last-round-fonts';const FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
+const C='last-round-v101',FONTS='last-round-fonts';const FILES=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 const FONT_CSS='https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;500;700&family=Teko:wght@500;600;700&display=swap';
 self.addEventListener('install',e=>{
   // fonts are fetched alongside, never holding up the install (a slow font server must not stop the game from caching)

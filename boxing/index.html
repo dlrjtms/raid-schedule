@@ -527,7 +527,7 @@ function applyRanking(oppId,res,ko){ // res: 'W' | 'L' | 'D'
 if(!save.statFix){const ids=[...new Set(save.beaten||[])].filter(id=>OPP.some(o=>o.id===id));save.beaten=ids;
   save.stats={power:55,speed:55,chin:55,stamina:55};save.points=ids.length*3;save.statFix=1;try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(save))}catch(e){}}
-const APP_VER='v100';
+const APP_VER='v101';
 let SET={clinchBtn:false,style:'anime',gfx:'high',zones:true,sensLv:4,invX:false,invY:false,full:true,demoFight:false};
 try{Object.assign(SET,JSON.parse(localStorage.getItem(SKEY))||{})}catch(e){}
 const SENS=[.55,.75,1,1.3,1.65,2.1,2.7];
@@ -888,7 +888,7 @@ function doAction(f,type,hand,body){
   const charged=type==='hay'&&f.charge&&f.charge.k>=1;f.charge=null;f.chargeReady=false;
   if(type==='hay'){G.slow=.5;G.slowT=.14;sfx.heavy();if(charged){G.fovKick=Math.max(G.fovKick||0,3);if(!G.demo&&f===G.F[0])pop('헤이메이커!','#ff6a3d',false,.7)}}
   f.action={kind:'punch',type,hand,body:!!body,charged,t:0,s:(charged?.16:D.s)*tf,a:D.a,r:D.r*tf*(hasT(f,'combo')?.7:1)*(1-.15*tsyn(f,'combo'))*(1+.12*powPen(f)),done:false,id:++UID};
-  f.st=Math.max(0,f.st-D.cost*(1+.2*powPen(f))*(type==='hay'?1:(1.2-f.def.stamina/250))*(hasT(f,'engine')?.75:1)*(charged?1.15:1)*(f.tactic==='press'?1.12:1));
+  f.st=Math.max(0,f.st-D.cost*(1+.2*powPen(f))*(type==='hay'?1:(1.2-f.def.stamina/250)*(1-.15*stamPen(f)))*(hasT(f,'engine')?.75:1)*(charged?1.15:1)*(f.tactic==='press'?1.12:1));
   if(type==='hay'&&f===G.F[0]&&!G.demo)pop('스태미나 -'+Math.round(D.cost*(charged?1.15:1)*(hasT(f,'engine')?.75:1)),'#e3b23c',false,.8);
   if(f===G.F[0]&&!G.demo&&f.st<18&&!f.tiredMsg){f.tiredMsg=true;pop('숨이 차요 · 펀치가 느려짐','#e3b23c',false,1.1);setTimeout(()=>{f.tiredMsg=false},6000)}
   if(hasT(f,'rage')&&f.hp<35&&!f.rageOn){f.rageOn=true;if(!G.demo)pop(f.def.name+' 폭주!','#ff5a4a',false,1)}
@@ -979,7 +979,7 @@ function resolveHit(at,df){
     if(df.bodyChain>1){dmg*=1+.3*(df.bodyChain-1);if(!G.demo&&(at===G.F[0]||df===G.F[0]))pop('바디 '+df.bodyChain+'연타','#ffb36b',false,.7)}
     if(df.bodyChain>=4&&!df.stunT)df.stunT=.45;
     df.hp-=dmg*.6;df.st=Math.max(0,df.st-dmg*2.2*(hasT(at,'hunter')?2:1)*(1+.4*combo(at,'press')));if(combo(df,'slugger'))df.tradeT=G.time+1;df.stMax=Math.max(50,df.stMax-dmg*.6)}
-  else{dmg*=(1.25-df.def.chin/250);df.hp-=dmg;if(combo(df,'slugger'))df.tradeT=G.time+1;df.cap=Math.max(30,df.cap-dmg*.2);df.faceDmg=(df.faceDmg||0)+dmg;
+  else{dmg*=(1.25-df.def.chin/250)*(1-.12*chinPen(df));df.hp-=dmg;if(combo(df,'slugger'))df.tradeT=G.time+1;df.cap=Math.max(30,df.cap-dmg*.2);df.faceDmg=(df.faceDmg||0)+dmg;
     if(df.faceDmg>60&&Math.random()<.6)for(let i=0;i<6;i++)G.parts.push({x:tgt.x,y:tgt.y+.04,z:tgt.z,vx:Math.sin(at.facing)*rnd(.3,1)+rnd(-.3,.3),vy:rnd(0,.8),vz:rnd(-.3,.3),life:rnd(.4,.7),t:0,r:SET.style!=='real'?rnd(2.6,4.4):rnd(1.4,2.6),c:'#b5121b',drop:SET.style!=='real'?'blood':null})}
   const v=dmg/DS;
   at.unans=0;if(D.power&&!a.body&&(df.stunT>0||df.hp<22))df.unans=(df.unans||0)+1;
@@ -1056,7 +1056,7 @@ function knockdown(d,a,info){
   d.charge=null;a.charge=null;
   if(!G.demo){G.replayAt=G.rt+1.1;G.replayHit={rt:G.rt,x:d.headW.x,y:d.headW.y,z:d.headW.z,att:a.side}}
   // remember the HP he had when he went down; the rise-up HP is a % cut of this
-  d.kdHp=Math.max(0,info&&info.hpPre!=null?info.hpPre:0);
+  d.kdHp=Math.max(0,info&&info.hpPre!=null?info.hpPre:0);d.kdFlash=!!(info&&info.flash);
   d.hp=0;d.action=null;d.queued=null;d.stunT=0;d.guardHeld=false;d.mvF=d.mvS=0;d.kdR++;d.kdT++;a.rs.kd++;
   const isAI=!!d.ai,q=stayDownChance(d,a,info);
   const r=Math.random();
@@ -1280,7 +1280,7 @@ function updateCount(dt){
   if(d.down.rising){
     d.down.rising+=dt;updFall(d);
     if(d.down.rising>=.8){
-      {const u=G.upF,n=d.kdT||1;d.cap=Math.max(30,d.cap*(n>1?.85:.9));{const loss=clamp((.4+(n-1)*.15)*(hasT(d,'undying')?.6:1),0,.9);d.hp=Math.min(d.cap,Math.max(5,(d.kdHp||0)*(1-loss)))}d.stMax=Math.max(40,d.stMax-(n>1?20:15));d.st=Math.min(d.stMax,Math.max(d.st,40));if(u&&u!==d){u.hp=Math.min(u.cap,Math.max(u.hp,d.hp+12))}
+      {const u=G.upF,n=d.kdT||1;d.cap=Math.max(30,d.cap*(n>1?.85:.9));{const loss=clamp(((d.kdFlash?.2:.4)+(n-1)*.15)*(hasT(d,'undying')?.6:1),0,.9);d.hp=Math.min(d.cap,Math.max(5,(d.kdHp||0)*(1-loss)))}d.stMax=Math.max(40,d.stMax-(n>1?20:15));d.st=Math.min(d.stMax,Math.max(d.st,40));if(u&&u!==d){u.hp=Math.min(u.cap,Math.max(u.hp,d.hp+12))}
        {const zk=contrast(d,'zombie');if(zk){d.hp=Math.min(d.cap,d.hp+15*zk);if(u&&u!==d){u.shakeT=G.time+3;u.shakeK=zk}}const uk=tsyn(d,'undying');if(uk)d.st+=(d.stMax-d.st)*uk}}d.down=null;d.fallA=0;d.fallR=0;d.noHitT=0;
       G.phase='intro';G.phaseT=.6;G.downF=null;
       const[p,o]=G.F;const mx=clamp((p.x+o.x)/2,-RING_L+.8,RING_L-.8),mz=clamp((p.z+o.z)/2,-RING_L+.8,RING_L-.8);
@@ -2548,7 +2548,7 @@ function guideScreen(){
     <div><p class="lbl">스탯별 효과 (수치는 99 기준 최대치)</p>
     ${st('power','펀치 데미지(55→99면 약 +25%), 한 방 크리티컬 확률(58부터), 다운시킨 상대가 못 일어날 확률','펀치가 무거워져요 — 펀치 스태미나 소모 +20%, 펀치 거두는 동작 12% 느려짐(연타가 덜 이어짐)')}
     ${st('speed','펀치 속도, 펀치 칠 때 들어가는 거리, 이동 속도, 가드 차지샷·펀치 차지 충전 시간(55: 0.75초 → 90: 0.6초), 가드 올리는 속도, 패리 허용 시간(55: 0.20초 → 90: 0.24초)','펀치가 가벼워져요 — 펀치 데미지 −10%')}
-    ${st('chin','받는 데미지 감소(99면 약 −17%), 다운·KO 당할 확률 감소, 한 방에 휘청일 확률 감소','몸이 무거워져요 — 이동 −10%, 더킹·위빙·슬립·풀백 동작 15% 느려짐, 회피 스태미나 소모 1.5배')}
+    ${st('chin','받는 데미지 감소(99면 약 −25%), 다운·KO 당할 확률 감소, 한 방에 휘청일 확률 감소','몸이 무거워져요 — 이동 −10%, 더킹·위빙·슬립·풀백 동작 15% 느려짐, 회피 스태미나 소모 1.5배')}
     ${st('stamina','펀치 스태미나 소모 감소, 스태미나 회복 속도, 상대가 다운됐을 때 회복량','지구력형 근육이 돼요 — 한 방 크리티컬 확률 −15%, 다운시킨 상대가 못 일어날 확률 −12% (데미지 자체는 그대로)')}</div>
     <div><p class="lbl">조합 스타일 (두 스탯 모두 70↑ · 둘 중 낮은 쪽 기준으로 효과가 커지고 99/99에서 100%)</p>
     ${Object.values(COMBOS).map(c=>`<div class="gd"><b>${c.name}</b> <span class="cst">${SLBL[c.a]}+${SLBL[c.b]}</span><p>${c.desc}</p><p class="gdx">${{
